@@ -1373,13 +1373,14 @@ class EZDeepLearning:
         # self.model.save_weights("unet_membrane.hdf5")
         self.saveWeights(model)
 
-    # TODO ask for a save path
-    def saveWeights(self, model):
+    def saveWeights(self, model, name=None):
         # save model weights
-        name = "model"
-        if model._name is not None:
-            name = model._name
-        model.save_weights(name + "_weights.h5")
+        if name is None:
+            name = "model"
+            if model._name is not None:
+                name = model._name
+            name += "_weights.h5"
+        model.save_weights(name)
 
     # TODO ask for a save path
     def saveModel(self):
