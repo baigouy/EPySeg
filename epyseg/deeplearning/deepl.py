@@ -268,6 +268,16 @@ class EZDeepLearning:
         self.saver_cbk = None
         self.model = None
 
+    def get_available_pretrained_models(self):
+        available_pretrained_models = []
+
+        for pretrained_model in self.pretrained_models_2D_epithelia.keys():
+            print(pretrained_model)
+            if self.pretrained_models_2D_epithelia[pretrained_model] is not None:
+                print(pretrained_model,"2")
+                available_pretrained_models.append(pretrained_model)
+        return available_pretrained_models
+
     # encoder_weights=None,
     def load_or_build(self, model=None, model_weights=None, architecture=None, backbone=None,
                       classes=1, activation='sigmoid', input_width=None, input_height=None, input_channels=1,
