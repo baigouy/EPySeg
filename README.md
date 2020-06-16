@@ -30,3 +30,4 @@ EPySeg is a package for segmenting 2D epithelial tissues. EPySeg also ships with
    
 
 
+# notebooks
