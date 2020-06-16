@@ -272,9 +272,7 @@ class EZDeepLearning:
         available_pretrained_models = []
 
         for pretrained_model in self.pretrained_models_2D_epithelia.keys():
-            print(pretrained_model)
             if self.pretrained_models_2D_epithelia[pretrained_model] is not None:
-                print(pretrained_model,"2")
                 available_pretrained_models.append(pretrained_model)
         return available_pretrained_models
 
