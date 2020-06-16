@@ -39,19 +39,12 @@ class EZDeepLearning:
     # TODO below are the pretrained models for 2D epithelia segmentation if None --> no pretrained model exist # maybe sort them by efficiency ???
     # for each model do provide all the necessary parameters: 'model' 'model_weights' 'architecture' 'backbone' 'activation' 'classes' 'input_width' 'input_height' 'input_channels'
 
+
+#/home/aigouy/mon_prog/Pretrained_models/model_Linknet-seresnext101.h5	209f3bf53f3e2f5aaeef62d517e8b8d8
+#/home/aigouy/mon_prog/Pretrained_models/model_linknet-vgg16_shells.h5	266ca9acd9d7a4fe74a473e17952fb6c
     # TODO add pretraining
     pretrained_models_2D_epithelia = {
-        'Unet-vgg19-sigmoid': {'url': 'file:///D:/Dropbox/Unet-vgg19-sigmoid-ep0100-l0.061860_invert_aug.h5', # TODO change this
-                               'md5': 'TODO',
-                               'model': None,
-                               'model_weights': None,
-                               'architecture': 'Unet',
-                               'backbone': 'vgg19',
-                               'activation': 'sigmoid',
-                               'classes': 1,
-                               'input_width': None,
-                               'input_height': None,
-                               'input_channels': 1},
+        'Unet-vgg19-sigmoid': None,
         'Unet-vgg16-sigmoid': None,
         'Unet-seresnext50-sigmoid': None,
         'Unet-seresnext101-sigmoid': None,
@@ -71,7 +64,7 @@ class EZDeepLearning:
         'Unet-mobilenetv2-sigmoid': None,
         'Unet-mobilenet-sigmoid': None,
         'Unet-inceptionv3-sigmoid': None,
-        'Unet-inceptionresnetv2-sigmoid': {'path': 'https://git...'},
+        'Unet-inceptionresnetv2-sigmoid': None,
         'Unet-efficientnetb7-sigmoid': None,
         'Unet-efficientnetb6-sigmoid': None,
         'Unet-efficientnetb5-sigmoid': None,
@@ -148,9 +141,31 @@ class EZDeepLearning:
         'FPN-densenet169-sigmoid': None,
         'FPN-densenet121-sigmoid': None,
         'Linknet-vgg19-sigmoid': None,
-        'Linknet-vgg16-sigmoid': None,
+        #https://raw.githubusercontent.com/user/repository/branch/filename
+        #https://stackoverflow.com/questions/4604663/download-single-files-from-github
+        'Linknet-vgg16-sigmoid': {'url': 'https://github.com/baigouy/models/raw/master/model_linknet-vgg16_shells.h5', # TODO change this
+                               'md5': '266ca9acd9d7a4fe74a473e17952fb6c',
+                               'model': None,
+                               'model_weights': None,
+                               'architecture': 'Linknet',
+                               'backbone': 'vgg16',
+                               'activation': 'sigmoid',
+                               'classes': 7,
+                               'input_width': None,
+                               'input_height': None,
+                               'input_channels': 1},
         'Linknet-seresnext50-sigmoid': None,
-        'Linknet-seresnext101-sigmoid': None,
+        'Linknet-seresnext101-sigmoid': {'url': 'https://github.com/baigouy/models/raw/master/model_Linknet-seresnext101.h5', # TODO change this
+                               'md5': '209f3bf53f3e2f5aaeef62d517e8b8d8',
+                               'model': None,
+                               'model_weights': None,
+                               'architecture': 'Linknet',
+                               'backbone': 'seresnext101',
+                               'activation': 'sigmoid',
+                               'classes': 1,
+                               'input_width': None,
+                               'input_height': None,
+                               'input_channels': 1},
         'Linknet-seresnet50-sigmoid': None,
         'Linknet-seresnet34-sigmoid': None,
         'Linknet-seresnet18-sigmoid': None,
@@ -362,12 +377,13 @@ class EZDeepLearning:
                                 # if file doesn't exist or hash do not match then it downloads it otherwise keeps it
                                 model_weights = tf.keras.utils.get_file(pretraining + '.h5', url, file_hash=file_hash,
                                                                         cache_subdir='epyseg', hash_algorithm='auto',
-                                                                        extract=True, archive_format='auto')
+                                                                        extract=False, archive_format='auto')
+                                                                        #extract=True, archive_format='auto') # zipping is not a good idea as there is no gain in space
                             except:
                                 logger.error("could not load pretrained model for '" + str(pretraining) + "'")
                                 traceback.print_exc()
-                        else:
-                            model_weights = pretraining  # local file not url
+                    else:
+                        model_weights = pretraining  # local file not url
 
                 self.model = model_architecture(backbone, input_shape=(input_width, input_height, input_channels),
                                                 encoder_weights=encoder_weights,
