@@ -1380,6 +1380,7 @@ class EZDeepLearning:
             if model._name is not None:
                 name = model._name
             name += "_weights.h5"
+        # print('saving ',name)
         model.save_weights(name)
 
     # TODO ask for a save path
