@@ -1,8 +1,8 @@
 # EPySeg
 
-EPySeg is a package for segmenting 2D epithelial tissues. EPySeg also ships with a graphical user interface that allows for building, training and running deep learning models. Training can be done with or without data augmentation (2D-xy and 3D-xyz data augmentation is supported). EPySeg relies on the [segmentation_models](https://github.com/qubvel/segmentation_models) library. EPySeg sources are available [here](https://guides.github.com/TODO).
+EPySeg is a package for segmenting 2D epithelial tissues. EPySeg also ships with a graphical user interface that allows for building, training and running deep learning models. Training can be done with or without data augmentation (2D-xy and 3D-xyz data augmentation is supported). EPySeg relies on the [segmentation_models](https://github.com/qubvel/segmentation_models) library. EPySeg sources are available [here](https://github.com/baigouy/EPySeg).
 
-#Install
+# Install
 
 1. Install [python 3.7](https://www.python.org/downloads/) or [Anaconda 3.7](https://www.anaconda.com/distribution/) (if not already present on your system)
 
