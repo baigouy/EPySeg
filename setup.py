@@ -5,7 +5,7 @@ with open('README.md', 'r') as fh:
 
 setuptools.setup(
     name='epyseg',
-    version='0.1.3',
+    version='0.1.4',
     author='Benoit Aigouy',
     author_email='baigouy@gmail.com',
     description='A deep learning based tool to segment epithelial tissues. The epyseg GUI can be uesd to build, train or run custom networks',
