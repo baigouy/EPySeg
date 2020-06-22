@@ -174,7 +174,7 @@ class MetaAugmenter:
         for dataset in datasets:
             fused = {**dataset, 'augmentations': augmentations}
 
-            print('fused', fused)
+            # print('fused', fused)
 
             self.append(**fused)
 
@@ -190,11 +190,12 @@ class MetaAugmenter:
                is_predict_generator=None, overlap_x=None, overlap_y=None, invert_image=None,
                remove_n_border_mask_pixels=None, is_output_1px_wide=None, rebinarize_augmented_output=None, **kwargs):
 
-        print('debug 123', inputs, outputs, self.inputs, self.outputs)
+        # print('debug 123', inputs, outputs, self.inputs, self.outputs)
+        # inputs and outputs are ok --> why is there a bug then????
 
         self.augmenters.append(
             DataGenerator(inputs=self._get_significant_parameter(inputs, self.inputs),
-                          ouputs=self._get_significant_parameter(outputs, self.outputs),
+                          outputs=self._get_significant_parameter(outputs, self.outputs),
                           output_folder =self._get_significant_parameter(output_folder, self.output_folder),
                           input_shape=self._get_significant_parameter(input_shape, self.input_shape),
                           output_shape=self._get_significant_parameter(output_shape, self.output_shape),
