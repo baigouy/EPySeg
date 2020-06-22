@@ -59,7 +59,6 @@ class DataAugmentationGUI(QDialog):
 
     def on_combobox_changed(self):
         default_value = DataGenerator.augmentation_types_and_ranges[self.augmentation.currentText()]
-        print(default_value)
         show = default_value is not None
         self.rate_label.setEnabled(show)
         self.rate_spin.setEnabled(show)
@@ -82,10 +81,9 @@ class DataAugmentationGUI(QDialog):
         else:
             if not self.rate_spin.isEnabled():
                 return json.dumps({'type': type})
-
             # no need to send value if 0
             if self.rate_spin.value() == 0:
-                return json.dumps({'type': None, 'value': None})
+                return json.dumps({'type': None})
             return json.dumps({'type':type, 'value':self.rate_spin.value()})
 
     @staticmethod

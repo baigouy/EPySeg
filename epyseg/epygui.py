@@ -1207,6 +1207,8 @@ class EPySeg(QWidget):
         except:
             pass
 
+        # print(train_parameters)
+
         if not train_parameters['datasets']:
             logger.error('Please provide one or more valid training input/output dataset first')
             self.blinker.blink(self.groupBox_training_dataset)
@@ -1346,7 +1348,7 @@ class EPySeg(QWidget):
         worker.signals.finished.connect(self.thread_complete)
         worker.signals.progress.connect(self.progress_fn)
 
-        # Execute
+        # Execute+
         if isinstance(worker, FakeWorker):
             # no threading
             worker.run()

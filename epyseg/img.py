@@ -42,6 +42,8 @@ class Img(np.ndarray):  # subclass ndarray
                              'None']  # should I add vgg, etc for pretrained encoders ??? maybe put synonyms
     normalization_ranges = [[0, 1], [-1, 1]]
 
+    clipping_methods = ['ignore outliers', '+', '+/-', '-']
+
     # TODO allow load list of images all specified as strings one by one
     # TODO allow virtual stack --> open only one image at a time from a series, can probably do that with text files
     def __new__(cls, *args, t=0, d=0, z=0, h=0, y=0, w=0, x=0, c=0, bits=8, dimensions=None, metadata=None, **kwargs):

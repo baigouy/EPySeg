@@ -5,13 +5,13 @@ with open('README.md', 'r') as fh:
 
 setuptools.setup(
     name='epyseg',
-    version='0.1',
+    version='0.1.2',
     author='Benoit Aigouy',
     author_email='baigouy@gmail.com',
     description='A deep learning based tool to segment epithelial tissues. The epyseg GUI can be uesd to build, train or run custom networks',
     long_description=long_description,
     long_description_content_type='text/markdown',
-    url='https://github.com/TODO',
+    url='https://github.com/baigouy/EPySeg',
     package_data={'': ['*.md']}, # include all .md files
     license='BSD',
     include_package_data=True,

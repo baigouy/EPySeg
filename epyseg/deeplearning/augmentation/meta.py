@@ -132,7 +132,7 @@ class MetaAugmenter:
                 else:
                     cur_output = None
                 self.augmenters.append(
-                    DataGenerator(inp, cur_output, output_folder=output_folder, input_shape=input_shape,
+                    DataGenerator(inp, outputs=cur_output, output_folder=output_folder, input_shape=input_shape,
                                   output_shape=output_shape, input_channel_of_interest=input_channel_of_interest,
                                   output_channel_of_interest=output_channel_of_interest,
                                   input_channel_reduction_rule=input_channel_reduction_rule,

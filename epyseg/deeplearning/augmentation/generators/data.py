@@ -728,7 +728,7 @@ class DataGenerator:
         filename = None
 
         if isinstance(msk, str):
-            print(msk)
+            # print(msk)
             filename = msk
 
             msk = Img(msk)
@@ -822,16 +822,18 @@ class DataGenerator:
                     inverted_seeds[highest_pixels == 255] = 0
                     msk[..., 6] = inverted_seeds
 
-            filepath = os.path.dirname(filename)
-            # filename0_without_ext = os.path.splitext(filename0_without_path)[0]
-            try:
-                # msk = Img(os.path.join(filename0_without_path, 'epyseg.npy'))
-                Img(msk, dimensions='hwc').save(os.path.join(filepath, 'epyseg.npy'))
-                # saving npy
+            # TODO reactivate to increase speed do that later
+            if False:
+                filepath = os.path.dirname(filename)
+                # filename0_without_ext = os.path.splitext(filename0_without_path)[0]
+                try:
+                    # msk = Img(os.path.join(filename0_without_path, 'epyseg.npy'))
+                    Img(msk, dimensions='hwc').save(os.path.join(filepath, 'epyseg.npy'))
+                    # saving npy
 
-                print('saving npy file', os.path.join(filepath, 'epyseg.npy'))
-            except:
-                print('npy file does not exist --> skipping')
+                    print('saving npy file', os.path.join(filepath, 'epyseg.npy'))
+                except:
+                    print('npy file does not exist --> skipping')
 
         # pre crop images if asked
         if self.crop_parameters:

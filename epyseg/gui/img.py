@@ -157,10 +157,12 @@ class image_input_settings(QDialog):
         self.clip_by_freq_label = QLabel('Remove outliers (intensity frequency)')
         self.clip_by_freq_combo = QComboBox()
 
-        self.clip_by_freq_combo.addItem('ignore outliers')
-        self.clip_by_freq_combo.addItem('+')
-        self.clip_by_freq_combo.addItem('+/-')
-        self.clip_by_freq_combo.addItem('-')
+        for method in Img.clipping_methods:
+            self.clip_by_freq_combo.addItem(method)
+        # self.clip_by_freq_combo.addItem('ignore outliers')
+        # self.clip_by_freq_combo.addItem('+')
+        # self.clip_by_freq_combo.addItem('+/-')
+        # self.clip_by_freq_combo.addItem('-')
         self.clip_by_freq_combo.currentTextChanged.connect(self.clip_method_changed)
 
         self.clip_by_freq_range = QDoubleSpinBox()
