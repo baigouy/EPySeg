@@ -132,7 +132,7 @@ class MetaAugmenter:
                 else:
                     cur_output = None
                 self.augmenters.append(
-                    DataGenerator(inp, outputs=cur_output, output_folder=output_folder, input_shape=input_shape,
+                    DataGenerator(inputs=inp, outputs=cur_output, output_folder=output_folder, input_shape=input_shape,
                                   output_shape=output_shape, input_channel_of_interest=input_channel_of_interest,
                                   output_channel_of_interest=output_channel_of_interest,
                                   input_channel_reduction_rule=input_channel_reduction_rule,
@@ -175,7 +175,7 @@ class MetaAugmenter:
             fused = {**dataset, 'augmentations': augmentations}
             self.append(**fused)
 
-    def append(self, inputs, outputs=None, output_folder=None, input_shape=None, output_shape=None,
+    def append(self, inputs=None, outputs=None, output_folder=None, input_shape=None, output_shape=None,
                input_channel_of_interest=None, output_channel_of_interest=None,
                input_channel_reduction_rule=None, input_channel_augmentation_rule=None,
                output_channel_reduction_rule=None, output_channel_augmentation_rule=None,
@@ -188,7 +188,7 @@ class MetaAugmenter:
                remove_n_border_mask_pixels=None, is_output_1px_wide=None, rebinarize_augmented_output=None, **kwargs):
 
         self.augmenters.append(
-            DataGenerator(inputs, ouputs=outputs, output_folder =self._get_significant_parameter(output_folder, self.output_folder),
+            DataGenerator(inputs=inputs, ouputs=outputs, output_folder =self._get_significant_parameter(output_folder, self.output_folder),
                           input_shape=self._get_significant_parameter(input_shape, self.input_shape),
                           output_shape=self._get_significant_parameter(output_shape, self.output_shape),
                           input_channel_of_interest=self._get_significant_parameter(input_channel_of_interest,

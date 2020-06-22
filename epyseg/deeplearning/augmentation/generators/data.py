@@ -53,7 +53,7 @@ class DataGenerator:
                                      'stretch': 3.
                                      }
 
-    def __init__(self, inputs, outputs=None, output_folder=None, input_shape=(None, None, None, 1),
+    def __init__(self, inputs=None, outputs=None, output_folder=None, input_shape=(None, None, None, 1),
                  output_shape=(None, None, None, 1), input_channel_of_interest=None, output_channel_of_interest=None,
                  input_channel_reduction_rule='copy channel of interest to all channels',
                  input_channel_augmentation_rule='copy channel of interest to all channels',
@@ -1243,8 +1243,8 @@ if __name__ == '__main__':
     augmenter = DataGenerator(
         # 'D:/dataset1/tests_focus_projection', 'D:/dataset1/tests_focus_projection',
         # 'D:/dataset1/tests_focus_projection/proj', 'D:/dataset1/tests_focus_projection/proj/*/hand*.tif',
-        '/media/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/tests_focus_projection/proj',
-        '/media/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/tests_focus_projection/proj/*/hand*.tif',
+        inputs='/media/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/tests_focus_projection/proj',
+        outputs='/media/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/tests_focus_projection/proj/*/hand*.tif',
         # '/media/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/tests_focus_projection/proj', '/media/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/tests_focus_projection/proj/',
         # '/media/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/tests_focus_projection', '/media/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/tests_focus_projection',
         # '/home/aigouy/Bureau/last_model_not_sure_that_works/tmp', '/home/aigouy/Bureau/last_model_not_sure_that_works/tmp',

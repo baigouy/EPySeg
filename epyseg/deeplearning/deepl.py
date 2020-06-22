@@ -818,7 +818,7 @@ class EZDeepLearning:
             logger.error('Please specify a valid input folder to build a predict_generator')
             return
 
-        predict_generator = DataGenerator(inputs, input_shape=input_shape,
+        predict_generator = DataGenerator(inputs=inputs, input_shape=input_shape,
                                           output_shape=output_shape, input_normalization=input_normalization,
                                           clip_by_frequency=clip_by_frequency, is_predict_generator=True,
                                           default_input_tile_width=default_input_tile_width,
