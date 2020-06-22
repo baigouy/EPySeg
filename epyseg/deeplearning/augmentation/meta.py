@@ -164,8 +164,8 @@ class MetaAugmenter:
 
     def appendDatasets(self, datasets=None, augmentations=None, **kwargs):
 
-        logger.debug('data n augs ' + str(datasets))
-        logger.debug('augs' + str(augmentations))
+        logger.debug('datasets ' + str(datasets))
+        logger.debug('augs ' + str(augmentations))
 
         if datasets is None:
             return
@@ -173,6 +173,9 @@ class MetaAugmenter:
         # parse and handle inputs
         for dataset in datasets:
             fused = {**dataset, 'augmentations': augmentations}
+
+            print('fused', fused)
+
             self.append(**fused)
 
     def append(self, inputs=None, outputs=None, output_folder=None, input_shape=None, output_shape=None,
@@ -187,8 +190,12 @@ class MetaAugmenter:
                is_predict_generator=None, overlap_x=None, overlap_y=None, invert_image=None,
                remove_n_border_mask_pixels=None, is_output_1px_wide=None, rebinarize_augmented_output=None, **kwargs):
 
+        print('debug 123', inputs, outputs, self.inputs, self.outputs)
+
         self.augmenters.append(
-            DataGenerator(inputs=self._get_significant_parameter(inputs, self.outputs), ouputs=self._get_significant_parameter(outputs, self.outputs), output_folder =self._get_significant_parameter(output_folder, self.output_folder),
+            DataGenerator(inputs=self._get_significant_parameter(inputs, self.inputs),
+                          ouputs=self._get_significant_parameter(outputs, self.outputs),
+                          output_folder =self._get_significant_parameter(output_folder, self.output_folder),
                           input_shape=self._get_significant_parameter(input_shape, self.input_shape),
                           output_shape=self._get_significant_parameter(output_shape, self.output_shape),
                           input_channel_of_interest=self._get_significant_parameter(input_channel_of_interest,
