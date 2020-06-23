@@ -297,7 +297,7 @@ class EPySegPostProcess():
                                 image[region.intensity_image <= threshold] = False
                                 final = Img.invert(image.astype(np.uint8))
                                 final[final < 255] = 0
-                                final[not mask] = 0
+                                final[mask == False] = 0
                                 new_seeds = label(final, connectivity=1, background=0)
                                 props2 = regionprops(new_seeds)
                                 if len(props2) > 1:  # cell was resplitted into smaller
@@ -305,14 +305,14 @@ class EPySegPostProcess():
                                         if r.area < 20:
                                             raise Exception
 
-                                    region.image[not mask] = False
-                                    region.image[mask] = True
+                                    region.image[mask == False] = False
+                                    region.image[mask == True] = True
                                     region.image[new_seeds > 0] = False
                                     something_changed = True
                                     for coordinates in region.coords:
                                         img_saturated[coordinates[0], coordinates[1]] = 255
-                                region.image[not mask] = False
-                                region.image[mask] = True
+                                region.image[mask == False] = False
+                                region.image[mask == True] = True
                                 del final
                                 del new_seeds
                         except:

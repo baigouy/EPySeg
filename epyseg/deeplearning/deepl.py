@@ -39,10 +39,6 @@ class EZDeepLearning:
     # TODO below are the pretrained models for 2D epithelia segmentation if None --> no pretrained model exist # maybe sort them by efficiency ???
     # for each model do provide all the necessary parameters: 'model' 'model_weights' 'architecture' 'backbone' 'activation' 'classes' 'input_width' 'input_height' 'input_channels'
 
-
-#/home/aigouy/mon_prog/Pretrained_models/model_Linknet-seresnext101.h5	209f3bf53f3e2f5aaeef62d517e8b8d8
-#/home/aigouy/mon_prog/Pretrained_models/model_linknet-vgg16_shells.h5	266ca9acd9d7a4fe74a473e17952fb6c
-    # TODO add pretraining
     pretrained_models_2D_epithelia = {
         'Unet-vgg19-sigmoid': None,
         'Unet-vgg16-sigmoid': None,
@@ -141,8 +137,6 @@ class EZDeepLearning:
         'FPN-densenet169-sigmoid': None,
         'FPN-densenet121-sigmoid': None,
         'Linknet-vgg19-sigmoid': None,
-        #https://raw.githubusercontent.com/user/repository/branch/filename
-        #https://stackoverflow.com/questions/4604663/download-single-files-from-github
         'Linknet-vgg16-sigmoid': {'url': 'https://github.com/baigouy/models/raw/master/model_linknet-vgg16_shells.h5', # TODO change this
                                'md5': '266ca9acd9d7a4fe74a473e17952fb6c',
                                'model': None,

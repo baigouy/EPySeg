@@ -342,7 +342,7 @@ class DataGenerator:
     def extra_watershed_mask(self, mask):
         # TODO probably need flood the borders to remove cells at the edges --> peut il y a voir une astuce pr garder 1px wide ???? sans perte sinon pas faire de nearest mais une bicubic interpolation # peut etre avec threshold --> deuxieme piste peut etre meme mieux
         for idx in range(len(mask)):
-            print(mask[idx].shape)
+            # print(mask[idx].shape)
             for idx2 in range(len(mask[idx])):
                 # np.squeeze
                 handcorr = Wshed.run((mask[idx][idx2]), seeds='mask', min_size=30)
@@ -388,7 +388,6 @@ class DataGenerator:
             # super_threshold_indices = a > thresh
             # a[super_threshold_indices] = 0
             for p, o in enumerate(out):
-                # print('zoubs',o.max(), o.min(), o.mean())
                 o[o > o.min()] = o.max()
                 out[p] = o
 
@@ -1217,7 +1216,7 @@ class DataGenerator:
                         extra_params['gain'] = 5
                     else:
                         extra_params['gain'] = 2
-                print(mode, extra_params, is_mask)
+                # print(mode, extra_params, is_mask)
                 contrast_changed_image = mode(orig, **extra_params)
             else:
                 logger.warning(
@@ -1289,9 +1288,9 @@ if __name__ == '__main__':
 
     counter = 0
     for orig, mask in augmenter.train_generator(False):
-        print('out', len(orig), len(mask))
+        # print('out', len(orig), len(mask))
         for i in range(len(orig)):
-            print('in here', orig[i].shape)
+            # print('in here', orig[i].shape)
             if counter < 5:
                 try:
                     center = int(len(orig[i]) / 2)
