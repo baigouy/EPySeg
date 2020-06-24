@@ -9,6 +9,8 @@ from epyseg.deeplearning.augmentation.generators.data import DataGenerator
 import os
 import numpy as np
 import tensorflow as tf
+import urllib.request
+import hashlib
 
 from epyseg.postprocess.refine import EPySegPostProcess
 
@@ -137,8 +139,11 @@ class EZDeepLearning:
         'FPN-densenet169-sigmoid': None,
         'FPN-densenet121-sigmoid': None,
         'Linknet-vgg19-sigmoid': None,
-        'Linknet-vgg16-sigmoid': {'url': 'https://github.com/baigouy/models/raw/master/model_linknet-vgg16_shells.h5', # TODO change this
-                               'md5': '266ca9acd9d7a4fe74a473e17952fb6c',
+        #'https://github.com/baigouy/models/raw/master/model_linknet-vgg16_shells.h5'
+        # ça marche donc faut voir si bug dans tensorflow  wget 'https://gitlab.com/baigouy/models/raw/master/model_linknet-vgg16_shells.h5'
+        # qsdqsdqs
+        'Linknet-vgg16-sigmoid': {'url': 'https://gitlab.com/baigouy/models/raw/master/model_linknet-vgg16_shells.h5', # TODO change this
+                               'md5': '266ca9acd9d7a4fe74a473e17952fb6c',#'toto'
                                'model': None,
                                'model_weights': None,
                                'architecture': 'Linknet',
@@ -149,7 +154,8 @@ class EZDeepLearning:
                                'input_height': None,
                                'input_channels': 1},
         'Linknet-seresnext50-sigmoid': None,
-        'Linknet-seresnext101-sigmoid': {'url': 'https://github.com/baigouy/models/raw/master/model_Linknet-seresnext101.h5', # TODO change this
+        #'https://github.com/baigouy/models/raw/master/model_Linknet-seresnext101.h5'
+        'Linknet-seresnext101-sigmoid': {'url': 'https://gitlab.com/baigouy/models/raw/master/model_Linknet-seresnext101.h5',
                                'md5': '209f3bf53f3e2f5aaeef62d517e8b8d8',
                                'model': None,
                                'model_weights': None,
@@ -377,10 +383,13 @@ class EZDeepLearning:
                                 url = None
                             try:
                                 # if file doesn't exist or hash do not match then it downloads it otherwise keeps it
-                                model_weights = tf.keras.utils.get_file(pretraining + '.h5', url, file_hash=file_hash,
-                                                                        cache_subdir='epyseg', hash_algorithm='auto',
-                                                                        extract=False, archive_format='auto')
-                                                                        #extract=True, archive_format='auto') # zipping is not a good idea as there is no gain in space
+                                # model_weights = tf.keras.utils.get_file(pretraining + '.h5', url, file_hash=file_hash,
+                                #                                         cache_subdir='epyseg', hash_algorithm='auto',
+                                #                                         extract=False, archive_format='auto')
+                                #                                         #extract=True, archive_format='auto') # zipping is not a good idea as there is no gain in space
+                                model_weights = self.get_file(pretraining + '.h5', url, file_hash=file_hash, cache_subdir='epyseg')
+                                # extract=True, archive_format='auto') # zipping is not a good idea as there is no gain in space
+
                             except:
                                 logger.error("could not load pretrained model for '" + str(pretraining) + "'")
                                 traceback.print_exc()
@@ -415,6 +424,60 @@ class EZDeepLearning:
             else:
                 logger.error('Model could not be loaded sorry...')
         self.load_weights(model_weights)
+
+    # @staticmethod
+    def get_md5_hash(self, filename):
+        if not os.path.isfile(filename):
+            return None
+        hash_md5 = hashlib.md5()
+        with open(filename, 'rb') as f:
+            for chunk in iter(lambda: f.read(4096), b''):
+                hash_md5.update(chunk)
+        return hash_md5.hexdigest()
+
+    def get_file(self, output_name_without_path, url, cache_dir=None, file_hash=None, cache_subdir=None):
+        # hack to replace for the line below to allow for gitlab download, hopefully keras original function will be fixed some day to include user agent and prevent forbidden dl error
+        # model_weights = tf.keras.utils.get_file(pretraining + '.h5', url, file_hash=file_hash,
+        #                                         cache_subdir='epyseg', hash_algorithm='auto',
+        #                                         extract=False, archive_format='auto')
+        #                                         #extract=True, archive_format='auto') # zipping is not a good idea as there is no gain in space
+        if cache_dir is None:
+            cache_dir = os.path.join(os.path.expanduser('~'), '.keras')
+        if cache_subdir is not None:
+            final_path = os.path.join(cache_dir, cache_subdir)
+        else:
+            final_path = cache_dir
+        os.makedirs(final_path, exist_ok=True)
+
+        # try read the file and check if hash is ok --> if so no action taken otherwise --> take action
+        file_name = os.path.join(final_path,output_name_without_path)
+        if file_hash is not None:
+            if self.get_md5_hash(file_name) == file_hash:
+                # file is ok, no action taken
+                return file_name
+            else:
+                print('Model file is not up to date')
+
+        print('Downloading file from', url)
+        # need download file again
+        opener = urllib.request.build_opener()
+        # fake that it is a normal browser otherwise it gets rejected by github
+        opener.addheaders = [('User-agent', 'Mozilla/5.0')]
+        urllib.request.install_opener(opener)
+
+        # progress bar for dl
+        def show_dl_progress(cur_block, block_size, total_size):
+            downloaded = cur_block * block_size
+            if cur_block % 100 == 0:
+                print(round((downloaded / total_size) * 100, 1), '%')
+            if downloaded == total_size:
+                print('download complete...')
+
+        # download the missing file
+        urllib.request.urlretrieve(url, file_name,
+                                   reporthook=show_dl_progress)  # it works like that, gitlab blocks python bots, i.e. and require user-agent to be set
+        print('File saved as', file_name)
+        return file_name
 
     def stop_model_training_now(self):
         '''Early stop for model training

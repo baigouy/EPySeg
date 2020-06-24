@@ -5,7 +5,7 @@ with open('README.md', 'r') as fh:
 
 setuptools.setup(
     name='epyseg',
-    version='0.1.6',
+    version='0.1.7',
     author='Benoit Aigouy',
     author_email='baigouy@gmail.com',
     description='A deep learning based tool to segment epithelial tissues. The epyseg GUI can be uesd to build, train or run custom networks',
@@ -44,7 +44,8 @@ setuptools.setup(
         "tifffile",
         "tqdm",
         "natsort",
-        "numexpr"
+        "numexpr",
+        "urllib"
     ],
     python_requires='>=3.6, <3.8' # tensorflow not supported in python 3.8 yet
 )
