@@ -45,7 +45,7 @@ setuptools.setup(
         "tqdm",
         "natsort",
         "numexpr",
-        "urllib"
+        "urllib3" # for model download
     ],
     python_requires='>=3.6, <3.8' # tensorflow not supported in python 3.8 yet
 )
