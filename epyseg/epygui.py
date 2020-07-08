@@ -1,10 +1,10 @@
+import os
+os.environ['SM_FRAMEWORK'] = 'tf.keras'  # set env var for changing the segmentation_model framework
 import sys
-
 from epyseg.postprocess.gui import PostProcessGUI
 from epyseg.postprocess.refine import EPySegPostProcess
 from epyseg.worker.fake import FakeWorker
 from epyseg.uitools.blinker import Blinker
-import os
 import logging
 import traceback
 from epyseg.deeplearning.deepl import EZDeepLearning
@@ -36,13 +36,12 @@ QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)  # 
 DEBUG = False  # set to True if GUI crashes
 __MAJOR__ = 0
 __MINOR__ = 1
-__MICRO__ = 0
+__MICRO__ = 8
 __RELEASE__ = ''  # a #b  # https://www.python.org/dev/peps/pep-0440/#public-version-identifiers --> alpha beta, ...
-__VERSION__ = ''.join([str(__MAJOR__), '.', str(__MINOR__),
-                       '.'.join([str(__MICRO__)]) if __MICRO__ != 0 else '', __RELEASE__])
+__VERSION__ = ''.join([str(__MAJOR__), '.', str(__MINOR__), '.', str(__MICRO__)])# if __MICRO__ != 0 else '', __RELEASE__]) # bug here fix some day
 __AUTHOR__ = 'Benoit Aigouy'
 __NAME__ = 'EPySeg'
-
+__EMAIL__ = 'baigouy@gmail.com'
 
 class EPySeg(QWidget):
     '''a deep learning GUI
@@ -1040,6 +1039,12 @@ class EPySeg(QWidget):
             logger.error('Please provide a valid path to the model to be loaded')
             self.blinker.blink(self.input_model)
             return
+
+        # force refine mask when custom model is loaded TODO make that more wisely at some point
+        if self.model_pretrain_on_epithelia.isChecked():
+            self.set_custom_predict_parameters.enable_post_process.setChecked(True) # else keep unchanged
+        else:
+            self.set_custom_predict_parameters.enable_post_process.setChecked(False)
 
         worker = self._get_worker(self._load_or_build_model, model_parameters=model_parameters)
         worker.signals.result.connect(self.print_output)

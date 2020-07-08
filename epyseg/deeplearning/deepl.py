@@ -1,20 +1,18 @@
 # TODO add vgg normalization
 # TODO design a metrics BASED ON CELLS OR SEEDS --> HOW MANY SEEDS/CELLS OVELAP WITH EXPECTED --> COULD EVEN BE MY REAL METRIC ULTIMATELY
 
+import os
+os.environ['SM_FRAMEWORK'] = 'tf.keras'  # set env var for changing the segmentation_model framework
 import traceback
 import re
 import matplotlib.pyplot as plt
 from epyseg.img import Img
 from epyseg.deeplearning.augmentation.generators.data import DataGenerator
-import os
 import numpy as np
 import tensorflow as tf
 import urllib.request
 import hashlib
-
 from epyseg.postprocess.refine import EPySegPostProcess
-
-os.environ['SM_FRAMEWORK'] = 'tf.keras'  # set env var for changing the segmentation_model framework
 import segmentation_models as sm
 # sm.set_framework('tf.keras') # alternative fix = changing framework on the fly
 from epyseg.deeplearning.callbacks.saver import My_saver_callback
@@ -256,7 +254,11 @@ class EZDeepLearning:
         # gpu_options = tf.GPUOptions(allow_growth=True)
         # session = tf.InteractiveSession(config=tf.ConfigProto(gpu_options=gpu_options))
 
-        physical_devices = tf.config.list_physical_devices('GPU')
+        try:
+            physical_devices = tf.config.list_physical_devices('GPU')
+        except:
+            # dirty hack for tf2.0 support for mac OS X
+            physical_devices = tf.config.experimental.list_physical_devices('GPU')
         for physical_device in physical_devices:
             try:
                 tf.config.experimental.set_memory_growth(physical_device, True)
@@ -963,19 +965,39 @@ class EZDeepLearning:
                     validation_steps = 0
 
                 if validation_steps != 0:
-                    result = self.model.fit(metagenerator.train_generator(infinite=True),
+                    if tf.__version__ <= "2.0.0":
+                        # hack for tf 2.0.0 support for mac osX (weird bug in tf.keras somewhere)
+                        # https://github.com/tensorflow/tensorflow/issues/31231#issuecomment-586630019
+                        result = self.model.fit_generator(metagenerator.train_generator(infinite=True),
                                             validation_data=validation_data,
                                             validation_steps=validation_steps,
                                             validation_freq=validation_freq,
                                             steps_per_epoch=run_steps_per_epoch, epochs=epochs,
                                             callbacks=callbacks,
                                             verbose=1)
+                    else:
+                        result = self.model.fit(metagenerator.train_generator(infinite=True),
+                                                validation_data=validation_data,
+                                                validation_steps=validation_steps,
+                                                validation_freq=validation_freq,
+                                                steps_per_epoch=run_steps_per_epoch, epochs=epochs,
+                                                callbacks=callbacks,
+                                                verbose=1)
                 else:
                     # same as above without validation
-                    result = self.model.fit(metagenerator.train_generator(infinite=True),
+                    if tf.__version__ <= "2.0.0":
+                        # hack for tf 2.0.0 support for mac osX (weird bug in tf.keras somewhere)
+                        # https://github.com/tensorflow/tensorflow/issues/31231#issuecomment-586630019
+                        result = self.model.fit_generator(metagenerator.train_generator(infinite=True),
                                             steps_per_epoch=run_steps_per_epoch, epochs=epochs,
                                             callbacks=callbacks,
                                             verbose=1)
+                    else:
+                        result = self.model.fit(metagenerator.train_generator(infinite=True),
+                                                steps_per_epoch=run_steps_per_epoch, epochs=epochs,
+                                                callbacks=callbacks,
+                                                verbose=1)
+
             except:
                 traceback.print_exc()
                 if batch_size_auto_adjust:

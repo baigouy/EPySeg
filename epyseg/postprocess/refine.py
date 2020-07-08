@@ -15,7 +15,6 @@ from epyseg.tools.logger import TA_logger
 
 logger = TA_logger()
 
-
 class EPySegPostProcess():
     stop_now = False
 
@@ -672,3 +671,5 @@ if __name__ == '__main__':
     #                               correction_factor=2, TA_name=None, cutoff_cell_fusion=None,
     #                               restore_safe_cells=False,
     #                               _DEBUG=False, _VISUAL_DEBUG=False)
+
+

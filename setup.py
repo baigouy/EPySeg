@@ -1,13 +1,14 @@
 import setuptools
+from epyseg.epygui import __MAJOR__, __MINOR__, __MICRO__, __AUTHOR__, __VERSION__, __NAME__, __EMAIL__
 
 with open('README.md', 'r') as fh:
     long_description = fh.read()
 
 setuptools.setup(
     name='epyseg',
-    version='0.1.7',
-    author='Benoit Aigouy',
-    author_email='baigouy@gmail.com',
+    version=__VERSION__,
+    author=__AUTHOR__,
+    author_email=__EMAIL__,
     description='A deep learning based tool to segment epithelial tissues. The epyseg GUI can be uesd to build, train or run custom networks',
     long_description=long_description,
     long_description_content_type='text/markdown',
@@ -37,17 +38,15 @@ setuptools.setup(
         "scikit-image",
         "scipy",
         "segmentation-models==1.0.1",
-        # "tensorflow==2.1.0",
-        "tensorflow==2.1.0",
-        # "tensorflow-gpu==2.1.0",
-        "tensorflow-gpu==2.1.0",
+        "tensorflow>=2.0.0", # to allow for mac OS X conda support
+        "tensorflow-gpu>=2.0.0", # to allow for mac OS X conda support
         "tifffile",
         "tqdm",
         "natsort",
         "numexpr",
         "urllib3" # for model download
     ],
-    python_requires='>=3.6, <3.8' # tensorflow not supported in python 3.8 yet
+    python_requires='>=3.6, <=3.8' # tensorflow is supported in python 3.8
 )
 
 # pip3 freeze

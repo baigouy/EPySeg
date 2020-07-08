@@ -2,7 +2,6 @@
 # todo CAN i USE css to change font and apply style would be so much simpler and better than current stuff...
 
 import sys
-
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import QSize, QRect
 from PyQt5.QtGui import QPainter

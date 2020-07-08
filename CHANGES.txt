@@ -1,2 +1,6 @@
+08/07/2020
+-made the code backwards compatible with tf 2.0.0 to allow support for anaconda (https://anaconda.org/anaconda/tensorflow)
+-'refine' is now enabled by default when using a pre-trained model because it should increase output quality in most cases
+
 16/06/2020
 -First public release
