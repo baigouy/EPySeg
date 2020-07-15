@@ -706,6 +706,7 @@ class Img(np.ndarray):  # subclass ndarray
 
         '''
 
+        # TODO implement that more wisely asking just which dimension should be projected and projection type
         proj_dimensions = []
         if self.has_t():
             proj_dimensions.append(self.get_dimension('t'))

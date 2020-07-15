@@ -201,9 +201,8 @@ class My_saver_callback(tf.keras.callbacks.Callback):
                                 save_file_name2 = self.save_output_name + '-' + str(real_new_index) + '.h5'
                                 # print(os.path.exists(save_file_name2), self.loss_n_filename[val])
 
-                                os.rename( self.loss_n_filename[val],save_file_name2)
-
-
+                                # os.rename seems to cause a crash if file already exists on windows os see https://stackoverflow.com/questions/45636341/is-it-wise-to-remove-files-using-os-rename-instead-of-os-remove-in-python
+                                os.replace(self.loss_n_filename[val],save_file_name2)
 
                                 # print('new_name_for_the_file', save_file_name2, 'before', self.loss_n_filename[val])
                                 # self.loss_n_filename[val] = save_file_name2
@@ -274,7 +273,8 @@ class My_saver_callback(tf.keras.callbacks.Callback):
                                 new_index = self.best_kept.index(val)
                                 real_new_index = len(self.best_kept) - new_index - 1
                                 save_file_name2 = self.save_output_name + '-' + str(real_new_index) + '.h5'
-                                os.rename(self.loss_n_filename[val], save_file_name2)
+                                # os.rename seems to cause a crash if file already exists on windows os see https://stackoverflow.com/questions/45636341/is-it-wise-to-remove-files-using-os-rename-instead-of-os-remove-in-python
+                                os.replace(self.loss_n_filename[val], save_file_name2)
 
                                 # print('renaming 2', self.loss_n_filename[val], 'to', save_file_name2)
 

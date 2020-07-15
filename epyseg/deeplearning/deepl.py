@@ -4,7 +4,6 @@
 import os
 os.environ['SM_FRAMEWORK'] = 'tf.keras'  # set env var for changing the segmentation_model framework
 import traceback
-import re
 import matplotlib.pyplot as plt
 from epyseg.img import Img
 from epyseg.deeplearning.augmentation.generators.data import DataGenerator
@@ -12,6 +11,7 @@ import numpy as np
 import tensorflow as tf
 import urllib.request
 import hashlib
+import re
 from epyseg.postprocess.refine import EPySegPostProcess
 import segmentation_models as sm
 # sm.set_framework('tf.keras') # alternative fix = changing framework on the fly
@@ -257,7 +257,7 @@ class EZDeepLearning:
         try:
             physical_devices = tf.config.list_physical_devices('GPU')
         except:
-            # dirty hack for tf2.0 support for mac OS X
+            # dirty hack for tf2.0 support for mac OS X anaconda
             physical_devices = tf.config.experimental.list_physical_devices('GPU')
         for physical_device in physical_devices:
             try:

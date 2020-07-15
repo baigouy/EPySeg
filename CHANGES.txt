@@ -1,3 +1,6 @@
+15/07/2020
+-fixed a windows specific bug due to os.rename with existing file (changed to os.replace, see https://stackoverflow.com/questions/45636341/is-it-wise-to-remove-files-using-os-rename-instead-of-os-remove-in-python)
+
 08/07/2020
 -made the code backwards compatible with tf 2.0.0 to allow support for anaconda (https://anaconda.org/anaconda/tensorflow)
 -'refine' is now enabled by default when using a pre-trained model because it should increase output quality in most cases
