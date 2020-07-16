@@ -112,7 +112,6 @@ class My_saver_callback(tf.keras.callbacks.Callback):
             pass
         return
 
-
     # in fact need store rename first then run stuff
     def get_save_name(self, epoch, value):
         return self.save_output_name + '-ep%04d-l%0.6f.h5' % (epoch + 1, value)
@@ -120,9 +119,9 @@ class My_saver_callback(tf.keras.callbacks.Callback):
     def on_epoch_end(self, epoch, logs={}):
         try:
             end_time = timer()
-            epoch_time = end_time-self.start_time
-            total_time_in_hours = (epoch_time*(self.epochs-epoch))/3600
-            logger.info('estimated total run time: '+str(total_time_in_hours)+' hour(s)')
+            epoch_time = end_time - self.start_time
+            total_time_in_hours = (epoch_time * (self.epochs - epoch)) / 3600
+            logger.info('estimated total run time: ' + str(total_time_in_hours) + ' hour(s)')
         except:
             pass
 
@@ -172,8 +171,8 @@ class My_saver_callback(tf.keras.callbacks.Callback):
                         real_rank = len(self.best_kept) - current_rank - 1
                         # print('new image real rank', real_rank)
 
-
-                        save_file_name = self.save_output_name +'-'+str(real_rank)+'.h5' #+ str('-ep%04d-l%0.6f.h5' % (epoch + 1, logs.get(self.monitor))
+                        save_file_name = self.save_output_name + '-' + str(
+                            real_rank) + '.h5'  # + str('-ep%04d-l%0.6f.h5' % (epoch + 1, logs.get(self.monitor))
                         # print('filename ', save_file_name)
 
                         # en fait need rename tt les trucs de valeur superieure
@@ -185,37 +184,41 @@ class My_saver_callback(tf.keras.callbacks.Callback):
                         for val in self.best_kept:
                             # if val>=logs.get(self.monitor):
 
-                                if val == logs.get(self.monitor):
-                                    break
+                            if val == logs.get(self.monitor):
+                                break
 
-                                # need rename ? to rank + 1
-                                # if rank is superior to max then delete file
+                            # need rename ? to rank + 1
+                            # if rank is superior to max then delete file
 
-                                if not val in self.loss_n_filename:
-                                    continue
-                                # print('need rename ', self.loss_n_filename[val], ' to current rank + 1') # should be easy
+                            if not val in self.loss_n_filename:
+                                continue
+                            # print('need rename ', self.loss_n_filename[val], ' to current rank + 1') # should be easy
 
-                                new_index = self.best_kept.index(val)
-                                real_new_index = len(self.best_kept) - new_index -1
-                                # print('expected_new_index_for_the image', real_new_index)
-                                save_file_name2 = self.save_output_name + '-' + str(real_new_index) + '.h5'
-                                # print(os.path.exists(save_file_name2), self.loss_n_filename[val])
+                            new_index = self.best_kept.index(val)
+                            real_new_index = len(self.best_kept) - new_index - 1
+                            # print('expected_new_index_for_the image', real_new_index)
+                            save_file_name2 = self.save_output_name + '-' + str(real_new_index) + '.h5'
+                            # print(os.path.exists(save_file_name2), self.loss_n_filename[val])
 
-                                # os.rename seems to cause a crash if file already exists on windows os see https://stackoverflow.com/questions/45636341/is-it-wise-to-remove-files-using-os-rename-instead-of-os-remove-in-python
-                                os.replace(self.loss_n_filename[val],save_file_name2)
+                            try:
+                                # bug fix to prevent filling google drive bin
+                                open(save_file_name2,
+                                     'w').close()  # overwrite and make the file blank instead - ref: https://stackoverflow.com/a/4914288/3553367
+                            except:
+                                pass
+                            # os.rename seems to cause a crash if file already exists on windows os see https://stackoverflow.com/questions/45636341/is-it-wise-to-remove-files-using-os-rename-instead-of-os-remove-in-python
+                            os.replace(self.loss_n_filename[val], save_file_name2)
 
-                                # print('new_name_for_the_file', save_file_name2, 'before', self.loss_n_filename[val])
-                                # self.loss_n_filename[val] = save_file_name2
-                                updates[val] = save_file_name2
+                            # print('new_name_for_the_file', save_file_name2, 'before', self.loss_n_filename[val])
+                            # self.loss_n_filename[val] = save_file_name2
+                            updates[val] = save_file_name2
 
-                                # if counter == 0:
-                                #     print(remove)
-                                # counter+=1
+                            # if counter == 0:
+                            #     print(remove)
+                            # counter+=1
 
-
-                            # else:
-                            #     print(val,'<',logs.get(self.monitor))
-
+                        # else:
+                        #     print(val,'<',logs.get(self.monitor))
 
                         # print("updates",updates)
                         # print('orig', self.loss_n_filename)
@@ -224,7 +227,8 @@ class My_saver_callback(tf.keras.callbacks.Callback):
                         # then should save current as rank
 
                         # save rank and name
-                        self.loss_n_filename[logs.get(self.monitor)]=save_file_name #self.save_output_name + str('-ep%04d-l%0.6f.h5' % (epoch + 1, logs.get(self.monitor)))
+                        self.loss_n_filename[logs.get(
+                            self.monitor)] = save_file_name  # self.save_output_name + str('-ep%04d-l%0.6f.h5' % (epoch + 1, logs.get(self.monitor)))
                         # print('loss n filename',self.loss_n_filename)
 
                         # IN FACT SIMPLE ALWAYS NEED POP FIRST IN THE LIST THE WAY IT'S INVERTED
@@ -273,6 +277,12 @@ class My_saver_callback(tf.keras.callbacks.Callback):
                                 new_index = self.best_kept.index(val)
                                 real_new_index = len(self.best_kept) - new_index - 1
                                 save_file_name2 = self.save_output_name + '-' + str(real_new_index) + '.h5'
+                                try:
+                                    # bug fix to prevent filling google drive bin
+                                    open(save_file_name2,
+                                         'w').close()  # overwrite and make the file blank instead - ref: https://stackoverflow.com/a/4914288/3553367
+                                except:
+                                    pass
                                 # os.rename seems to cause a crash if file already exists on windows os see https://stackoverflow.com/questions/45636341/is-it-wise-to-remove-files-using-os-rename-instead-of-os-remove-in-python
                                 os.replace(self.loss_n_filename[val], save_file_name2)
 
@@ -295,7 +305,6 @@ class My_saver_callback(tf.keras.callbacks.Callback):
                             else:
                                 self.model.save_weights(save_file_name)
 
-
                             # logger.info('saving file: ' + self.save_output_name + str(
                             #     '-ep%04d-l%0.6f.h5' % (epoch + 1, logs.get(self.monitor))))
                             # if not self.save_weights_only:
@@ -314,17 +323,17 @@ class My_saver_callback(tf.keras.callbacks.Callback):
                 self.best_kept.append(logs.get(self.monitor))
                 if logs.get(self.monitor) is not None and not self.stop_me:
                     # self.loss_n_filename[logs.get(self.monitor)] = self.save_output_name + str(                        '-ep%04d-l%0.6f.h5' % (epoch + 1, logs.get(self.monitor))) # tada
-                    save_file_name = self.save_output_name + '-' + str(0)+'.h5'
+                    save_file_name = self.save_output_name + '-' + str(0) + '.h5'
                     self.loss_n_filename[logs.get(self.monitor)] = save_file_name
                     logger.info('saving file: ' + save_file_name)
                     if not self.save_weights_only:
                         # logger.info('saving file: ' + self.save_output_name + str(                            '-ep%04d-l%0.6f.h5' % (epoch + 1, logs.get(self.monitor))))
                         # self.model.save(                            self.save_output_name + '-ep%04d-l%0.6f.h5' % (epoch + 1, logs.get(self.monitor)))
-                        self.model.save(     save_file_name)
+                        self.model.save(save_file_name)
                     else:
                         # logger.info('saving file: ' + self.save_output_name + str(                            '-ep%04d-l%0.6f.h5' % (epoch + 1, logs.get(self.monitor))))
                         # self.model.save_weights(                            self.save_output_name + '-ep%04d-l%0.6f.h5' % (epoch + 1, logs.get(self.monitor)))
-                        self.model.save_weights(    save_file_name)
+                        self.model.save_weights(save_file_name)
 
             f = open(self.save_output_name + '_losses_n_corresponding_files' + '.log', "w")
             f.write(str(self.loss_n_filename))

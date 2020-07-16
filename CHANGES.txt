@@ -1,3 +1,6 @@
+16/07/2020
+-fixed a bug that may have filled the google drive trash bin unnecessarily
+
 15/07/2020
 -fixed a windows specific bug due to os.rename with existing file (changed to os.replace, see https://stackoverflow.com/questions/45636341/is-it-wise-to-remove-files-using-os-rename-instead-of-os-remove-in-python)
 
