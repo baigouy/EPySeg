@@ -1,3 +1,6 @@
+17/07/2020
+-tensorflow-gpu is not installed by default on Mac (i.e. fixed the setup.py file)
+
 16/07/2020
 -fixed a bug that may have filled the google drive trash bin unnecessarily
 
