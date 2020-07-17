@@ -39,14 +39,17 @@ setuptools.setup(
         "scipy",
         "segmentation-models==1.0.1",
         "tensorflow>=2.0.0", # to allow for mac OS X conda support
-        "tensorflow-gpu>=2.0.0", # to allow for mac OS X conda support
+        "tensorflow-gpu>=2.0.0;platform_system!='Darwin'",# "tensorflow-gpu>=2.0.0", # not required ? # make sure it does not install on OS X to prevent crash if does not exist
         "tifffile",
         "tqdm",
         "natsort",
         "numexpr",
         "urllib3" # for model download
     ],
-    python_requires='>=3.6, <=3.8' # tensorflow is supported in python 3.8
+    # extras_require = {
+    #     'all':  ["tensorflow-gpu>=2.0.0"]
+    # },
+    python_requires='>=3.6, <=3.8' # tensorflow is now supported by python 3.8
 )
 
 # pip3 freeze

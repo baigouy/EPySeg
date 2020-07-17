@@ -7,6 +7,7 @@ from PyQt5.QtCore import QSize, QRect
 from PyQt5.QtGui import QPainter
 from PyQt5.QtSvg import QSvgGenerator
 
+from epyseg.draw.shapes.graph2d import Graph2D
 from epyseg.draw.shapes.polygon2d import Polygon2D
 from epyseg.draw.shapes.line2d import Line2D
 from epyseg.draw.shapes.rect2d import Rect2D
@@ -97,6 +98,28 @@ class MyWidget(QtWidgets.QWidget):
             img8 = Image2D('/media/D/Sample_images/sample_images_PA/trash_test_mem/counter/08.png')
             img9 = Image2D('/media/D/Sample_images/sample_images_PA/trash_test_mem/counter/09.png')
             img10 = Image2D('/media/D/Sample_images/sample_images_PA/trash_test_mem/counter/10.png')
+            # Data for plotting
+            import numpy as np
+            import matplotlib.pyplot as plt
+
+            t = np.arange(0.0, 2.0, 0.01)
+            s = 1 + np.sin(2 * np.pi * t)
+
+            fig, ax = plt.subplots()
+            ax.plot(t, s)
+
+            ax.set(xlabel='time (s)', ylabel='voltage (mV)',
+                   title='About as simple as it gets, folks')
+            ax.grid()
+
+            # plt.show()
+            # fig.savefig("test.png")
+            # plt.show()
+            # ça marche --> voici deux examples de shapes
+
+            # first graph test --> TODO improve that
+            graph2d = Graph2D(fig)
+            # self.shapes_to_draw.append(graph2d)
 
             # img10 = Image2D('/media/D/Sample_images/sample_images_PA/trash_test_mem/counter/10.png')
             # img2 = Image2D('D:/dataset1/unseen/100708_png06.png')
@@ -138,7 +161,8 @@ class MyWidget(QtWidgets.QWidget):
             # self.shapes_to_draw.append(fig)
 
             # peut etre si rien n'est mis juste faire une row avec un panel
-            row1 = Row(img0, img1, img2)  # , img6, #, nCols=3, nRows=2
+            row1 = Row(img0, img1, img2, graph2d)  # , img6, #, nCols=3, nRows=2
+            # see how I should handle size of graphs but I'm almost there
 
             # marche pas en fait car un truc ne prend pas en charge les figs
 
@@ -349,7 +373,6 @@ if __name__ == '__main__':
     app = QtWidgets.QApplication(sys.argv)
     widget = MyWidget(demo=True)
     widget.show()
-
 
     # all seems to work now --> just finalize things
     # maybe do a panel and allow cols and rows and also allow same size because in some cases people may want that --> offer an option that is fill and

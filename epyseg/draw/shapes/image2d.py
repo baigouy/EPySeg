@@ -16,18 +16,30 @@ class Image2D(Rect2D):
                  stroke=0.65, **kwargs):
         self.isSet = False
 
+        self.img = None
         self.annotation = [] # should contain the objects for annotating imaging --> shapes and texts
         self.letter = None # when objects are swapped need change the letter
         if args:
             if len(args) == 1:
-                self.filename = args[0]
+                if isinstance(args[0], str):
+                    self.filename = args[0]
+                elif isinstance(args[0], Img):
+                    self.filename = None
+                    self.img = args[0]
+                    self.qimage = self.img.getQimage()
+                    if x is None:
+                        x = 0
+                    if y is None:
+                        y = 0
+                    super(Image2D, self).__init__(x, y, self.img.get_width(), self.img.get_height())
+                    self.isSet = True
         else:
             self.filename = None
 
         if x is None and y is None and width is not None and height is not None:
             super(Image2D, self).__init__(0, 0, width, height)
             self.isSet = True
-        elif x is None and y is None and width is None and height is None:
+        elif x is None and y is None and width is None and height is None and self.filename is not None:
             # print('in 0')
             self.img = Img(self.filename)
             self.qimage = self.img.getQimage()
@@ -35,7 +47,7 @@ class Image2D(Rect2D):
             height = self.img.get_height()
             super(Image2D, self).__init__(0, 0, width, height)
             self.isSet = True
-        elif x is not None and y is not None and width is not None and height is not None:
+        elif x is not None and y is not None and width is not None and height is not None and self.img is None:
             self.img = None
             super(Image2D, self).__init__(x, y, width, height)
             self.isSet = True

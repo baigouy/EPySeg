@@ -1,5 +1,4 @@
 # TODO do plots of the logs
-# TODO add an estimate of total run time
 from epyseg.tools.logger import TA_logger
 from timeit import default_timer as timer
 
@@ -8,8 +7,6 @@ logger = TA_logger()
 import traceback
 import tensorflow as tf
 import os
-import glob
-
 
 class My_saver_callback(tf.keras.callbacks.Callback):
     '''a custom saver callback
