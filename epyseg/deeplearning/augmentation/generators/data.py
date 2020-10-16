@@ -3,10 +3,9 @@ from natsort import natsorted
 import traceback
 from skimage import filters
 from skimage.util import random_noise
-from epyseg.binarytools.cell_center_detector import create_horizontal_gradient, create_vertical_gradient, \
-    get_gradient_and_seeds
+from epyseg.binarytools.cell_center_detector import get_seeds
 from skimage.measure import label
-from epyseg.img import Img
+from epyseg.img import Img, white_top_hat, black_top_hat
 import random
 from scipy import ndimage
 from skimage import transform
@@ -16,6 +15,7 @@ import os
 from pathlib import Path
 from skimage.util import invert
 from skimage import exposure
+import matplotlib.pyplot as plt
 
 # logging
 from epyseg.tools.logger import TA_logger
@@ -69,7 +69,8 @@ class DataGenerator:
                                        'individual_channels': True},
                  validation_split=0, test_split=0,
                  shuffle=True, clip_by_frequency=None, is_predict_generator=False, overlap_x=0, overlap_y=0,
-                 invert_image=False, remove_n_border_mask_pixels=None, is_output_1px_wide=False,
+                 invert_image=False, input_bg_subtraction=None, create_epyseg_style_output=None,
+                 remove_n_border_mask_pixels=None, is_output_1px_wide=False,
                  rebinarize_augmented_output=False, **kwargs):
 
         logger.debug('clip by freq' + str(clip_by_frequency))
@@ -80,7 +81,8 @@ class DataGenerator:
                                                'flip': self.flip, 'blur': self.blur,
                                                'translate': self.translate, 'invert': self.invert,
                                                'low noise': self.low_noise, 'high noise': self.high_noise,
-                                               'stretch': self.stretch, 'random_intensity_gamma_contrast':self.random_intensity_gamma_contrast_changer}
+                                               'stretch': self.stretch,
+                                               'random_intensity_gamma_contrast': self.random_intensity_gamma_contrast_changer}
 
         self.EXTRAPOLATION_MASKS = 1  # bicubic 0 # nearest # TODO keep like that because 3 makes really weird results for binary images
 
@@ -105,6 +107,9 @@ class DataGenerator:
             self.overlap_y = 0
 
         self.invert_image = invert_image  # first thing to do. Should not be applied to the output.
+        self.input_bg_subtraction = input_bg_subtraction  # bg subtraction for input
+        self.create_epyseg_style_output = create_epyseg_style_output  # to be used only for pre trained models
+
         self.clip_by_frequency = clip_by_frequency
         self.shuffle = shuffle
         self.output_folder = output_folder  # save folder --> if specified save images as .npi # TODO finalize
@@ -316,7 +321,7 @@ class DataGenerator:
             return 0
         return len(self.train_inputs[0])
 
-    def train_generator(self, skip_augment):
+    def train_generator(self, skip_augment, first_run):
         if self.shuffle:
             indices = random.sample(range(len(self.train_inputs[0])), len(self.train_inputs[0]))
         else:
@@ -326,7 +331,7 @@ class DataGenerator:
             try:
                 # can put whsed in there too
                 orig, mask = self.generate(self.train_inputs, self.train_outputs, idx,
-                                           skip_augment)  # need augment in there
+                                           skip_augment, first_run)  # need augment in there
                 # mask = self.extra_watershed_mask(mask) # shrink mask to 1 px wide irrespective of transfo
                 yield orig, mask
             except GeneratorExit:
@@ -350,18 +355,18 @@ class DataGenerator:
             # print('2', mask[idx].shape)
         return mask
 
-    def test_generator(self, skip_augment):
+    def test_generator(self, skip_augment, first_run):
         for idx in range(len(self.test_inputs[0])):
             try:
-                yield self.generate(self.test_inputs, self.test_outputs, idx, skip_augment)
+                yield self.generate(self.test_inputs, self.test_outputs, idx, skip_augment, first_run)
             except:
                 # erroneous/corrupt image detected --> continuing
                 continue
 
-    def validation_generator(self, skip_augment):
+    def validation_generator(self, skip_augment, first_run):
         for idx in range(len(self.validation_inputs[0])):
             try:
-                yield self.generate(self.validation_inputs, self.validation_outputs, idx, skip_augment)
+                yield self.generate(self.validation_inputs, self.validation_outputs, idx, skip_augment, first_run)
             except:
                 # erroneous/corrupt image detected --> continuing
                 continue
@@ -379,9 +384,9 @@ class DataGenerator:
         # unpack data...
         return data
 
-    def generate(self, inputs, outputs, cur_idx, skip_augment):
+    def generate(self, inputs, outputs, cur_idx, skip_augment, first_run=False):
         inp, out = self.augment(self._get_from(inputs, cur_idx),
-                                self._get_from(outputs, cur_idx), skip_augment)
+                                self._get_from(outputs, cur_idx), skip_augment, first_run)
 
         if self.rebinarize_augmented_output:
             # out[out > 0] = 1
@@ -452,6 +457,11 @@ class DataGenerator:
                     width = input_shape[-2]
                 if input_shape[-3] is not None:
                     height = input_shape[-3]
+                # nothing specified --> just take original width and height
+                if width is None:
+                    width = img.shape[-2]
+                if height is None:
+                    height = img.shape[-3]
                 crop_parameters, tiles2D_inp = Img.get_2D_tiles_with_overlap(
                     Img.normalization(img, **self.input_normalization), width=width - self.overlap_x,
                     height=height - self.overlap_y, overlap_x=self.overlap_x,
@@ -475,6 +485,11 @@ class DataGenerator:
                         width = input_shape[-2]
                     if input_shape[-3] is not None:
                         height = input_shape[-3]
+                    # nothing specified --> just take original width and height
+                    if width is None:
+                        width = img.shape[-2]
+                    if height is None:
+                        height = img.shape[-3]
                     _, tiles2D_out = Img.get_2D_tiles_with_overlap(img, width=width - self.overlap_x,
                                                                    height=height - self.overlap_y,
                                                                    overlap_x=self.overlap_x,
@@ -625,7 +640,8 @@ class DataGenerator:
         if '*' in folderpath:
             list_of_files = natsorted(glob.glob(folderpath))
         elif os.path.isdir(folderpath):
-            list_of_files = glob.glob(folderpath + "*.png") + glob.glob(folderpath + "*.jpg") + glob.glob(folderpath + "*.jpeg") + glob.glob(
+            list_of_files = glob.glob(folderpath + "*.png") + glob.glob(folderpath + "*.jpg") + glob.glob(
+                folderpath + "*.jpeg") + glob.glob(
                 folderpath + "*.tif") + glob.glob(folderpath + "*.tiff")
             list_of_files = natsorted(list_of_files)
         elif os.path.isfile(folderpath):
@@ -648,7 +664,7 @@ class DataGenerator:
         else:
             return None
 
-    def augment(self, inputs, outputs, skip_augment):
+    def augment(self, inputs, outputs, skip_augment, first_run):
         augmented_inputs = []
         augmented_outputs = []
         augmentation_parameters = None
@@ -662,14 +678,15 @@ class DataGenerator:
         for idx, input in enumerate(inputs):
             method, augmentation_parameters, augmented = self.augment_input(input, self.input_shape[idx], method,
                                                                             augmentation_parameters,
-                                                                            skip_augment)
+                                                                            skip_augment, first_run)
             if augmented is None:
                 inputs_outputs_to_skip.append(idx)
             augmented_inputs.append(augmented)
         if outputs is not None:
             for idx, output in enumerate(outputs):
                 method, augmentation_parameters, augmented = self.augment_output(output, self.output_shape[idx],
-                                                                                 method, augmentation_parameters)
+                                                                                 method, augmentation_parameters,
+                                                                                 first_run)
 
                 if augmented is None:
                     inputs_outputs_to_skip.append(idx)
@@ -683,12 +700,13 @@ class DataGenerator:
                 del augmented_outputs[el]
         return augmented_inputs, augmented_outputs
 
-    def augment_input(self, input, input_shape, last_method, parameters, skip_augment):
+    def augment_input(self, input, input_shape, last_method, parameters, skip_augment, first_run):
 
         logger.debug('method input ' + str(last_method) + ' ' + str(parameters) + ' ' + str(input))
 
         if isinstance(input, str):
             try:
+                # logger.info('processing', input)
                 input = Img(input)
             except:
                 logger.error('Missing/corrupt/unsupported file \'' + input + '\'')
@@ -701,6 +719,36 @@ class DataGenerator:
 
         if self.crop_parameters:
             input = self.crop(input, self.crop_parameters)
+
+        # if not skip_augment:
+        #     logger.info('running white tophat')
+        if self.input_bg_subtraction is not None:
+            if isinstance(self.input_bg_subtraction, str):
+                if 'dark' in self.input_bg_subtraction:
+                    input = black_top_hat(input)
+                elif 'ite' in self.input_bg_subtraction:
+                    input = white_top_hat(input)
+            else:
+                # this way I can pass white tophat or black tophat or any other algorithm we want
+                input = self.input_bg_subtraction(input)
+
+        # check where I do invert cause could be a part of it
+        # ça marche bien surtout sur les images super bruitées où ça fait des miracles
+        # try:
+        #     # just for a test of using tophat --> quite ok in fact see if that would work also for 3D --> need be the first step of all
+        #     from skimage.morphology import white_tophat, disk
+        #     from skimage.morphology import square, ball, diamond, octahedron, rectangle
+        #     # print(input.shape)
+        #     # if input.has_c():
+        #     input = input/input.max()
+        #     if len(input.shape) == 3:
+        #         # if input.has_c():
+        #             for ch in range(input.shape[-1]):
+        #                 input[..., ch] = white_tophat(input[..., ch], square(50))
+        #     elif len(input.shape) == 2:
+        #         input = white_tophat(input, square(50))
+        # except:
+        #     traceback.print_exc()
 
         method = last_method
 
@@ -719,40 +767,25 @@ class DataGenerator:
     # TODO store and reload accessory files --> store as npi
     # TODO could locally store data that takes long to generate as .npy files
     def augment_output(self, msk, output_shape, last_method,
-                       parameters):  # add as a parameter whether should do dilation or not and whether should change things --> then need add alos a parameter at the beginning of the class to handle that as well
+                       parameters, first_run):  # add as a parameter whether should do dilation or not and whether should change things --> then need add alos a parameter at the beginning of the class to handle that as well
 
         logger.debug('method output ' + str(last_method) + str(parameters))
 
         skip = False
-        filename = None
+        # filename = None
 
         if isinstance(msk, str):
             # print(msk)
-            filename = msk
+            # filename = msk
 
-            msk = Img(msk)
+            # msk = Img(msk)
+            # print('self.create_epyseg_style_output', self.create_epyseg_style_output)
 
-            # TODO remove after this training maybe skip stuff that can be skipped --> gains a lot of time for training and this is always the same
-            # TODO reactivate as an option some day but make sure it is run once at the beginning even if file exists --> do a first boolean set to false at the end
-            if False: # TODO reactivate as an option some day
-                filepath = os.path.dirname(filename)
-                # filename0_without_ext = os.path.splitext(filename0_without_path)[0]
-                try:
-                    print('loading npy file to speed up training')
-                    # print(os.path.join(filepath, 'epyseg.npy'))
-                    msk = Img(os.path.join(filepath, 'epyseg.npy'))
-                    if msk.shape[-1] != output_shape[-1]:  # check that it is correct too
-                        skip = False
-                        msk = Img(filename)
-                        print('dimension mismatch, assuming model changed')
-                    else:
-                        skip = True
-                        print('successfully loaded! --> speeding up')
-                except:
-                    # traceback.print_exc()
-                    print('npy file does not exist --> skipping')
-                    skip = False
-                    msk = Img(filename)
+            if self.create_epyseg_style_output:
+                skip, msk = self.generate_or_load_pretrained_epyseg_style_mask(msk, output_shape, first_run)
+            else:
+                msk = Img(msk)
+
 
         # print('skip', skip)
 
@@ -775,64 +808,14 @@ class DataGenerator:
 
             # maybe put a smart dilation mode here to genearte a safe zone
             # NB WOULD BE SMARTER TO DO BEFORE INCREASING THE NB OF CHANNELS...
-            if self.mask_dilations:
-
-                if True:
-                    s = ndimage.generate_binary_structure(2, 1)
-                    # Apply dilation to every channel then reinject
-                    for c in range(output_shape[-1]):
-                        dilated = msk[..., c]
-                        for dilation in range(self.mask_dilations):
-                            dilated = ndimage.grey_dilation(dilated, footprint=s)
-                        msk[..., c] = dilated
-                else:
-                    # TODO allow connection of this stuff so that users can train with their own stuff
-                    s = ndimage.generate_binary_structure(2, 1)
-
-                    for c in range(1, output_shape[-1]):
-                        # for c in range(1, output_shape[-1]):
-                        dilated = msk[..., c - 1]
+            if self.mask_dilations and not self.mask_dilations==0:
+                s = ndimage.generate_binary_structure(2, 1)
+                # Apply dilation to every channel then reinject
+                for c in range(output_shape[-1]):
+                    dilated = msk[..., c]
+                    for dilation in range(self.mask_dilations):
                         dilated = ndimage.grey_dilation(dilated, footprint=s)
-                        msk[..., c] = dilated
-
-                    seeds = np.zeros_like(msk[..., 1])
-                    seeds[msk[..., 1] == 0] = 255
-                    seeds[msk[..., 1] == 255] = 0
-                    msk[..., 3] = seeds
-
-                    seeds = np.zeros_like(msk[..., 2])
-                    seeds[msk[..., 2] == 0] = 255
-                    seeds[msk[..., 2] == 255] = 0
-
-                    msk[..., 4] = seeds
-
-                    cells = np.zeros_like(msk[..., 0], dtype=np.uint8)
-                    cells[msk[..., 0] > 0] = 255
-                    cells = label(invert(cells), connectivity=1, background=0)
-
-                    horiz_gradient = create_horizontal_gradient(cells)
-                    vertical_gradient = create_vertical_gradient(cells)
-
-                    _, highest_pixels = get_gradient_and_seeds(cells, horiz_gradient, vertical_gradient)
-                    msk[..., 5] = highest_pixels
-
-                    inverted_seeds = np.zeros_like(highest_pixels)
-                    inverted_seeds[highest_pixels == 0] = 255
-                    inverted_seeds[highest_pixels == 255] = 0
-                    msk[..., 6] = inverted_seeds
-
-            # TODO reactivate to increase speed do that later
-            if False:
-                filepath = os.path.dirname(filename)
-                # filename0_without_ext = os.path.splitext(filename0_without_path)[0]
-                try:
-                    # msk = Img(os.path.join(filename0_without_path, 'epyseg.npy'))
-                    Img(msk, dimensions='hwc').save(os.path.join(filepath, 'epyseg.npy'))
-                    # saving npy
-
-                    print('saving npy file', os.path.join(filepath, 'epyseg.npy'))
-                except:
-                    print('npy file does not exist --> skipping')
+                    msk[..., c] = dilated
 
         # pre crop images if asked
         if self.crop_parameters:
@@ -868,6 +851,116 @@ class DataGenerator:
             out = orig
 
         return [gaussian_blur], out
+
+    # only allow to load if not first pass
+    def generate_or_load_pretrained_epyseg_style_mask(self, filename, output_shape, first_pass):
+        
+        if output_shape[-1]!=7:
+            logger.error('Current model is incompatible with EPySeg, it will generate '+str(output_shape[-1]) +' outputs instead of the 7 required. Please uncheck "Produce EPySeg-style output" in output pre-processing') # only allow it to be ticked if model is compatible
+            return
+
+        filepath = filename # os.path.splitext(filename)[0]
+        try:
+            if not first_pass:
+                print('loading stored _epyseg.npy file to speed up training')
+                # print(os.path.join(filepath, 'epyseg.npy'))
+                msk = Img(filepath+ '_epyseg.npy')
+                if msk.shape[-1] != output_shape[-1]:  # check that it is correct too
+                    msk = Img(filename)
+                    print('dimension mismatch, assuming model architecture changed --> recreating mask')
+                else:
+                    print('successfully loaded! --> speeding up')
+                    return True, msk
+            else:
+                raise Exception("Image not found --> continuing")
+        except:
+            # traceback.print_exc()
+            print('npy file does not exist or first pass --> skipping')
+            msk = Img(filename)
+
+        # print(msk.shape)
+        # print(msk.has_c())
+
+        channel_to_get = self.output_channel_of_interest
+        if channel_to_get is None:
+            channel_to_get = 0
+
+        if msk.has_c():
+            if msk.shape[-1] != 1:
+
+                # print(channel_to_get)
+                # reduce number of channels --> take COI
+                msk = msk[..., channel_to_get]
+                # print('here', msk.shape)
+                # tmp = np.zeros((*msk.shape[:-1], 7), dtype=msk.dtype)
+                # tmp[..., 0] = msk
+        # else:
+        #     tmp = np.zeros((*msk.shape, 7), dtype=msk.dtype)
+        #     tmp[..., 0] = msk
+            tmp = np.zeros((*msk.shape, 7), dtype=msk.dtype)
+            tmp[..., 0] = msk
+        msk = tmp
+
+        # dilate the first 3 channels
+        s = ndimage.generate_binary_structure(2, 1)
+        for c in range(1, 3):
+            # print('c', c)
+            dilated = msk[..., c - 1]
+            dilated = ndimage.grey_dilation(dilated, footprint=s)
+            msk[..., c] = dilated
+
+        # so far so good...
+        #
+        # plt.imshow(msk[..., 2])
+        # plt.show()
+        #
+        # plt.imshow(msk[..., 3])
+        # plt.show()
+
+        # seeds = msk[..., 3]
+
+        msk[..., 3][msk[..., 1] == 0] = 255
+        msk[..., 3][msk[..., 1] == 255] = 0
+
+        # msk[..., 3] = seeds
+
+        # seeds = np.zeros_like(msk[..., 2])
+        msk[..., 4][msk[..., 2] == 0] = 255
+        msk[..., 4][msk[..., 2] == 255] = 0
+
+        # msk[..., 4] = seeds
+
+        # now we get the watershed seeds
+        cells = msk[..., 0].copy()
+        cells = label(invert(cells), connectivity=1, background=0)
+        # if several in one cell --> just keep the biggest
+        tmp, wshed_seeds = get_seeds(cells)
+        # plt.imshow(tmp)
+        # plt.show()
+        msk[..., 5] = wshed_seeds
+        # plt.imshow(cells)
+        # plt.show()
+
+        # inverted_seeds = np.zeros_like(wshed_seeds)
+        # invert the seeds
+        msk[..., 6][msk[..., 5] == 0] = 255
+        msk[..., 6][msk[..., 5] == 255] = 0
+        # msk[..., 6] = inverted_seeds
+
+        # plt.imshow(msk[..., 6])
+        # plt.show()
+
+        # print(msk.shape)
+
+        # filepath = os.path.dirname(filepath)
+        try:
+            Img(msk, dimensions='hwc').save(filepath+ '_epyseg.npy')
+            print('saving npy file to speed up further training', filepath+ '_epyseg.npy')
+        except:
+            traceback.print_exc()
+            print('could not save npy file --> skipping')
+
+        return True,msk
 
     def check_integrity(self):
         if self.train_inputs is None:
@@ -1237,7 +1330,8 @@ if __name__ == '__main__':
     # supported {'type': 'salt_n_pepper_noise'} {'type':'gaussian_noise'}{'type': 'zoom'}{'type': 'blur'}
     # {'type': 'translate'}{'type': 'flip'}, {'type': 'rotate'} {'type': 'invert'} {'type': 'shear'}
     # not finalize all noises {'type': 'poisson_noise'}
-    SELECTED_AUG = [{'type': 'random_intensity_gamma_contrast'}]  # [{'type': 'None'}]#[{'type': 'stretch'}] #[{'type': 'rotate'}] #[{'type': 'zoom'}]#[{'type': 'shear'}] #"[{'type': 'rotate'}] #[{'type': 'low noise'}] # en effet c'est destructeur... voir comment le restaurer avec un fesh wshed sur l'image originelle ou un wshed sur
+    SELECTED_AUG = [{
+                        'type': 'random_intensity_gamma_contrast'}]  # [{'type': 'None'}]#[{'type': 'stretch'}] #[{'type': 'rotate'}] #[{'type': 'zoom'}]#[{'type': 'shear'}] #"[{'type': 'rotate'}] #[{'type': 'low noise'}] # en effet c'est destructeur... voir comment le restaurer avec un fesh wshed sur l'image originelle ou un wshed sur
 
     augmenter = DataGenerator(
         # 'D:/dataset1/tests_focus_projection', 'D:/dataset1/tests_focus_projection',
@@ -1255,6 +1349,7 @@ if __name__ == '__main__':
         shuffle=False, input_shape=[(None, None, None, 1)], output_shape=[(None, None, None, 7)],
         augmentations=SELECTED_AUG,
         input_channel_of_interest=0,
+        output_channel_of_interest=0,
         mask_dilations=7,
         # default_input_tile_width=2048, default_input_tile_height=1128,
         # default_output_tile_width=2048, default_output_tile_height=1128,
@@ -1266,9 +1361,25 @@ if __name__ == '__main__':
         # rebinarize_augmented_output=True
     )
 
+    if True:
+        # seems fine but I really need the first pass or not now
+        # set a variable to false if not first pass --> TODO
+
+        # just for a test
+        _, test = augmenter.generate_or_load_pretrained_epyseg_style_mask(
+            # '/media/D/Sample_images/sample_images_epiguy_pyta/images_with_different_bits/predict/100708_png06.tif',
+            # '/media/D/Sample_images/sample_images_epiguy_pyta/images_with_different_bits/predict/single_8bits.tif',
+            '/media/D/Sample_images/sample_images_epiguy_pyta/images_with_different_bits/predict/100708_png06_rgb.tif',
+            (None, None, 7), False)
+        Img(test, dimensions='hwc').save(
+            '/media/D/Sample_images/sample_images_epiguy_pyta/images_with_different_bits/predict/test_7_masks.tif')
+        import sys
+
+        sys.exit(0)
+
     # check all augs are ok and check degradative ones
 
-    import matplotlib.pyplot as plt
+    # import matplotlib.pyplot as plt
 
     # TODO try run wshed on mask and or on orig --> TODO
     # would also be more consitent to model and better comparison with other available algos

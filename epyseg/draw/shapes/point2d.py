@@ -8,7 +8,7 @@ logger = TA_logger()
 
 class Point2D(QPointF):
 
-    def __init__(self, *args, color=0xFFFF00, fill_color=0xFFFF00, opacity=1., stroke=0.65, **kwargs):
+    def __init__(self, *args, color=0xFFFF00, fill_color=None, opacity=1., stroke=0.65, line_style=None, **kwargs):
         self.isSet = True
         if len(args)==2:
             self.size = 5
@@ -23,6 +23,21 @@ class Point2D(QPointF):
         self.fill_color = fill_color
         self.stroke = stroke
         self.opacity = opacity
+        self.scale = 1
+        self.translation = QPointF()
+        self.line_style = line_style
+
+    def set_opacity(self, opacity):
+        self.opacity = opacity
+
+    def set_line_style(self,style):
+        '''allows lines to be dashed or dotted or have custom pattern
+
+        :param style: a list of numbers or any of the following Qt.SolidLine, Qt.DashLine, Qt.DashDotLine, Qt.DotLine, Qt.DashDotDotLine but not Qt.CustomDashLine, Qt.CustomDashLine is assumed by default if a list is passed in. None is also a valid value that resets the line --> assume plain line
+        :return:
+        '''
+        self.line_style = style
+        # if style is a list then assume custom pattern otherwise apply solidline
 
     def contains(self, *args):
       x=0
@@ -39,35 +54,57 @@ class Point2D(QPointF):
         self.setY(self.y() + translation.y())
 
     def draw(self, painter, draw=True):
-        if draw:
-            painter.save()
-        pen = QPen(QColor(self.color))
-        if self.stroke is not None:
-            pen.setWidthF(self.stroke)
-        painter.setPen(pen)
-        painter.setOpacity(self.opacity)
-        if draw:
-            painter.drawEllipse(self.x()-self.stroke/2., self.y()-self.stroke/2, self.stroke, self.stroke)
-            painter.restore()
-
-    def fill(self, painter, draw=True):
-        if self.fill_color is None:
+        if self.color is None and self.fill_color is None:
             return
+
         if draw:
             painter.save()
-        painter.setBrush(QBrush(QColor(self.fill_color)))
-        painter.setOpacity(self.opacity)
+            painter.setOpacity(self.opacity)
+        if self.color is not None:
+            pen = QPen(QColor(self.color))
+            if self.stroke is not None:
+                pen.setWidthF(self.stroke)
+            if self.line_style is not None:
+                if self.line_style in [Qt.SolidLine, Qt.DashLine, Qt.DashDotLine, Qt.DotLine, Qt.DashDotDotLine]:
+                    pen.setStyle(self.line_style)
+                elif isinstance(self.line_style, list):
+                    pen.setStyle(Qt.CustomDashLine)
+                    pen.setDashPattern(self.line_style)
+            painter.setPen(pen)
+        else:
+            painter.setPen(Qt.NoPen)  # required to draw something filled without a border
+        if self.fill_color is not None:
+            painter.setBrush(QBrush(QColor(self.fill_color)))
         if draw:
-            painter.drawEllipse(self.x()-self.stroke/2., self.y()-self.stroke/2, self.stroke, self.stroke)
+            point_to_draw = QPointF(self.x(), self.y())
+            if self.scale is not None and self.scale != 1:
+                point_to_draw.setX(point_to_draw.x()*self.scale)
+                point_to_draw.setY(point_to_draw.y()*self.scale)
+            if self.translation is not None:
+                point_to_draw.setX(point_to_draw.x()+self.translation.x())
+                point_to_draw.setY(point_to_draw.y()+self.translation.y())
+
+            painter.drawEllipse(point_to_draw.x()-self.stroke/2., point_to_draw.y()-self.stroke/2, self.stroke, self.stroke)
             painter.restore()
 
-    def drawAndFill(self, painter):
-        painter.save()
-        self.draw(painter, draw=False)
-        self.fill(painter, draw=False)
-        size = max(self.size, self.stroke)
-        painter.drawEllipse(self.x()-size/2., self.y()-size/2, size, size) # drawEllipse (x, y, w, h)
-        painter.restore()
+    # def fill(self, painter, draw=True):
+    #     if self.fill_color is None:
+    #         return
+    #     if draw:
+    #         painter.save()
+    #     painter.setBrush(QBrush(QColor(self.fill_color)))
+    #     painter.setOpacity(self.opacity)
+    #     if draw:
+    #         painter.drawEllipse(self.x()-self.stroke/2., self.y()-self.stroke/2, self.stroke, self.stroke)
+    #         painter.restore()
+    #
+    # def drawAndFill(self, painter):
+    #     painter.save()
+    #     self.draw(painter, draw=False)
+    #     self.fill(painter, draw=False)
+    #     size = max(self.size, self.stroke)
+    #     painter.drawEllipse(self.x()-size/2., self.y()-size/2, size, size) # drawEllipse (x, y, w, h)
+    #     painter.restore()
 
     def boundingRect(self):
         return QRectF(self.x()-self.stroke/2., self.y()-self.stroke/2, self.stroke, self.stroke)
@@ -77,9 +114,35 @@ class Point2D(QPointF):
         self.setX(point.x())
         self.setY(point.y())
 
-    def setP1(self, point):
-        self.setX(point.x())
-        self.setY(point.y())
+    def set_P1(self, *args):
+        if not args:
+            logger.error("no coordinate set...")
+            return
+        if len(args) == 1:
+            # self.moveTo(args[0].x(), args[0].y())
+            self.setX(args[0].x())
+            self.setY(args[0].y())
+        else:
+            # self.moveTo(QPointF(args[0], args[1]))
+            self.setX(args[0])
+            self.setY(args[1])
+        # self.setX(point.x())
+        # self.setY(point.y())
+
+    def get_P1(self):
+        return self
+
+    def width(self):
+        return 0
+
+    def height(self):
+        return 0
+
+    def set_to_scale(self, factor):
+        self.scale = factor
+
+    def set_to_translation(self, translation):
+        self.translation = translation
 
 if __name__ == '__main__':
     # ça marche --> voici deux examples de shapes

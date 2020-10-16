@@ -1,8 +1,12 @@
 import json
+
+from PyQt5.QtCore import QPoint
+from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QApplication, QGridLayout, QComboBox, QLabel, \
-    QDoubleSpinBox, QDialog, QDialogButtonBox
+    QDoubleSpinBox, QDialog, QDialogButtonBox, QPushButton, QToolTip
 
 from epyseg.deeplearning.augmentation.generators.data import DataGenerator
+from epyseg.deeplearning.docs.doc2html import markdown_file_to_html
 from epyseg.dialogs.opensave import Open_Save_dialogs
 import sys
 from PyQt5 import QtCore
@@ -16,8 +20,9 @@ class DataAugmentationGUI(QDialog):
 
     def initUI(self):
         layout = QGridLayout()
-        layout.setColumnStretch(0, 80)
-        layout.setColumnStretch(1, 20)
+        layout.setColumnStretch(0, 90)
+        layout.setColumnStretch(1, 10)
+        layout.setColumnStretch(2, 2)
         layout.setHorizontalSpacing(3)
         layout.setVerticalSpacing(3)
 
@@ -47,15 +52,28 @@ class DataAugmentationGUI(QDialog):
 
         layout.addWidget(self.rate_spin, 1, 1)
 
+        # help for pre-processing
+        # help_ico = QIcon.fromTheme('help-contents')
+        self.help_button_in_data_aug = QPushButton('?', None)
+        bt_width = self.help_button_in_data_aug.fontMetrics().boundingRect(self.help_button_in_data_aug.text()).width() + 7
+        self.help_button_in_data_aug.setMaximumWidth(bt_width * 2)
+        self.help_button_in_data_aug.clicked.connect(self.show_tip)
+
+        layout.addWidget(self.help_button_in_data_aug, 0, 2, 2, 1)
+
         # OK and Cancel buttons
         buttons = QDialogButtonBox(
             QDialogButtonBox.Ok | QDialogButtonBox.Cancel,
             QtCore.Qt.Horizontal, self)
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
-        layout.addWidget(buttons)
+        layout.addWidget(buttons, 2,0,1,3)
 
         self.setLayout(layout)
+
+    def show_tip(self):
+        QToolTip.showText(self.sender().mapToGlobal(QPoint(30, 20)), markdown_file_to_html('data_augmentation.md'))
+        # QToolTip.showText(self.sender().mapToGlobal(QPoint(30, 20)), "unknown button")
 
     def on_combobox_changed(self):
         default_value = DataGenerator.augmentation_types_and_ranges[self.augmentation.currentText()]

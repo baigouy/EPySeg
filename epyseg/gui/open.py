@@ -82,6 +82,8 @@ class OpenFileOrFolderWidget(QWidget):
 
         open_ico = QIcon.fromTheme("folder-open")
         open_button = QPushButton(open_ico, "Open", self)
+        # bt_width = open_button.fontMetrics().boundingRect(open_button.text()).width() + 30
+        # open_button.setMaximumWidth(bt_width)
         if self.is_file:
             open_button.clicked.connect(self.open_file)
         else:

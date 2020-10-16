@@ -91,13 +91,13 @@ class VectorialDrawPane:
             if visibleRect is not None:
                 # only draws if in visible rect
                 if shape.boundingRect().intersects(QRectF(visibleRect)):
-                    shape.drawAndFill(painter)
+                    shape.draw(painter)
             else:
-                shape.drawAndFill(painter)
+                shape.draw(painter)
 
         if self.currently_drawn_shape is not None:
             if self.currently_drawn_shape.isSet:
-                self.currently_drawn_shape.drawAndFill(painter)
+                self.currently_drawn_shape.draw(painter)
 
         sel = self.create_master_rect()
         if sel is not None:

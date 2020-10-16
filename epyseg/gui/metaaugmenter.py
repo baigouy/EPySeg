@@ -94,7 +94,8 @@ class MetaAugmenterGUI(QDialog):
         self.channel_output_augmentation_rule.addItem('add empty channels (0 filled)')
         self.model_builder_layout.addWidget(self.channel_output_augmentation_rule, 10, 1, 1, 2)
 
-        crop_info_label = QLabel('If ROI should be used for training, please draw a rect over below images')
+        crop_info_label = QLabel('If ROI should be used for training, please draw a rectangle over below images')
+        crop_info_label.setStyleSheet("QLabel { color : red; }")
         self.model_builder_layout.addWidget(crop_info_label, 12, 0, 1, 3)
         input_preview_label = QLabel('input preview (channel of interest)')
         self.model_builder_layout.addWidget(input_preview_label, 14, 0, 1, 3)

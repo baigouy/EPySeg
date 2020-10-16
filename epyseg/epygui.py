@@ -1,8 +1,7 @@
 import os
+from epyseg.deeplearning.docs.doc2html import browse_tip, markdown_file_to_html
 os.environ['SM_FRAMEWORK'] = 'tf.keras'  # set env var for changing the segmentation_model framework
 import sys
-from epyseg.postprocess.gui import PostProcessGUI
-from epyseg.postprocess.refine import EPySegPostProcess
 from epyseg.worker.fake import FakeWorker
 from epyseg.uitools.blinker import Blinker
 import logging
@@ -13,17 +12,17 @@ from epyseg.deeplearning.augmentation.meta import MetaAugmenter
 from epyseg.gui.augmenter import DataAugmentationGUI
 from PyQt5.QtWidgets import QListWidgetItem, QAbstractItemView, QSpinBox, QComboBox, QProgressBar, \
     QVBoxLayout, QHBoxLayout, QLabel, QCheckBox, QRadioButton, QButtonGroup, QGroupBox, \
-    QTextBrowser
-from PyQt5.QtCore import Qt, QThreadPool
-from PyQt5.QtGui import QColor, QTextCharFormat, QTextCursor
+    QTextBrowser, QToolTip
+from PyQt5.QtCore import Qt, QThreadPool, QPoint, QRect
+from PyQt5.QtGui import QColor, QTextCharFormat, QTextCursor, QPixmap, QIcon
 from PyQt5.QtWidgets import QGridLayout, QListWidget, QFrame, QTabWidget
 from epyseg.gui.open import OpenFileOrFolderWidget
 from PyQt5.QtWidgets import QApplication
-from PyQt5 import QtWidgets, QtCore
+from PyQt5 import QtWidgets, QtCore, QtGui
 from epyseg.worker.threaded import Worker
 from epyseg.gui.img import image_input_settings
 from epyseg.tools.qthandler import XStream, QtHandler
-from epyseg.gui.markdown import PyQT_markdown
+from epyseg.gui.pyqtmarkdown import PyQT_markdown
 from epyseg.img import Img
 from PyQt5.QtWidgets import QPushButton, QWidget
 # logging
@@ -36,9 +35,10 @@ QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)  # 
 DEBUG = False  # set to True if GUI crashes
 __MAJOR__ = 0
 __MINOR__ = 1
-__MICRO__ = 11
+__MICRO__ = 14
 __RELEASE__ = ''  # a #b  # https://www.python.org/dev/peps/pep-0440/#public-version-identifiers --> alpha beta, ...
-__VERSION__ = ''.join([str(__MAJOR__), '.', str(__MINOR__), '.', str(__MICRO__)])# if __MICRO__ != 0 else '', __RELEASE__]) # bug here fix some day
+__VERSION__ = ''.join([str(__MAJOR__), '.', str(__MINOR__), '.',
+                       str(__MICRO__)])  # if __MICRO__ != 0 else '', __RELEASE__]) # bug here fix some day
 __AUTHOR__ = 'Benoit Aigouy'
 __NAME__ = 'EPySeg'
 __EMAIL__ = 'baigouy@gmail.com'
@@ -62,6 +62,7 @@ class EPySeg(QWidget):
         self.blinker = Blinker()
         self.initUI()
         self.to_blink_after_worker_execution = None
+        print('Need help getting started? Click the "Help" tab above\n')
         self.deepTA = EZDeepLearning()  # init empty model
 
     def initUI(self):
@@ -94,7 +95,7 @@ class EPySeg(QWidget):
         self.ensemble_tab = QWidget()
         self.predict_tab = QWidget()
         self.advanced_tab = QWidget()
-        self.post_process = QWidget()
+        # self.post_process = QWidget() # redundant with predict
 
         # Add tabs
         self.tabs.addTab(self.model_tab, 'Model')
@@ -109,7 +110,7 @@ class EPySeg(QWidget):
         self.tabs.setTabEnabled(4, False)
         self.advanced_tab.setVisible(False)
         # self.tabs.setVisible(False)
-        self.tabs.addTab(self.post_process, 'Post Process')
+        # self.tabs.addTab(self.post_process, 'Post Process') # redundant with predict
 
         self.tabs.currentChanged.connect(self._onTabChange)
 
@@ -124,7 +125,7 @@ class EPySeg(QWidget):
         # choice between opening an existing model, building a new model or using a pretrained model
         self.build_model_radio = QRadioButton('Build a new model')
         self.load_model_radio = QRadioButton('Load an existing model')
-        self.model_pretrain_on_epithelia = QRadioButton('Use a pre-trained model')
+        self.model_pretrain_on_epithelia = QRadioButton('Use a pre-trained model (2D epithelial segmentation)')
         model_build_load_radio_group = QButtonGroup()
         model_build_load_radio_group.addButton(self.load_model_radio)
         model_build_load_radio_group.addButton(self.build_model_radio)
@@ -132,33 +133,50 @@ class EPySeg(QWidget):
         # self.build_model_radio.setChecked(True)
         self.model_pretrain_on_epithelia.setChecked(True)
 
+        # help_ico = QIcon.fromTheme('help-contents')
+
+        # we add an help button
+        self.help_button_models = QPushButton('?', None)
+        bt_width = self.help_button_models.fontMetrics().boundingRect(self.help_button_models.text()).width() + 7
+        self.help_button_models.setMaximumWidth(bt_width * 2)
+        self.help_button_models.clicked.connect(self.show_tip)
+
         # if 'open an existing model' is selected then provide path to the model
         self.input_model = OpenFileOrFolderWidget(parent_window=self, is_file=True,
-                                                  extensions="Supported Files (*.h5 *.H5 *.hdf5 *.HDF5 *.json *.JSON);;All Files (*)")  # TODO check and add .pb (*.pb *.PB)
+                                                  extensions="Supported Files (*.h5 *.H5 *.hdf5 *.HDF5 *.json *.JSON *.model);;All Files (*)")  # TODO check and add .pb (*.pb *.PB)
 
         # parameters for the pretrained models
-        self.groupBox_pretrain = QGroupBox('Pretrained models')
+        self.groupBox_pretrain = QGroupBox('Model')
         self.groupBox_pretrain.setEnabled(True)
         # groupBox layout
         self.groupBox_pretrain_layout = QGridLayout()
         self.groupBox_pretrain_layout.setAlignment(Qt.AlignTop)
         self.groupBox_pretrain_layout.setColumnStretch(0, 25)
-        self.groupBox_pretrain_layout.setColumnStretch(1, 75)
+        self.groupBox_pretrain_layout.setColumnStretch(1, 25)
+        self.groupBox_pretrain_layout.setColumnStretch(2, 50)
+        self.groupBox_pretrain_layout.setColumnStretch(3, 2)
         self.groupBox_pretrain_layout.setHorizontalSpacing(3)
         self.groupBox_pretrain_layout.setVerticalSpacing(3)
 
         # populate the list of available pretrained model
-        pretrained_label = QLabel('Models trained on 2D epithelia')
-        self.pretrained_models = QComboBox()
-        for pretrained_model in EZDeepLearning.pretrained_models_2D_epithelia:
-            if EZDeepLearning.pretrained_models_2D_epithelia[pretrained_model] is not None:
-                self.pretrained_models.addItem(pretrained_model)
-        pretrained_label_infos = QLabel(
-            'NB: Pretrained models expect a dark backrgound (bg=low intensity), please invert your images if they have a white backrgound.')
+        # pretrained_label = QLabel('Models trained on 2D epithelia')
+        # self.pretrained_models = QComboBox()
+        # for pretrained_model in EZDeepLearning.pretrained_models_2D_epithelia:
+        #     if EZDeepLearning.pretrained_models_2D_epithelia[pretrained_model] is not None:
+        #         self.pretrained_models.addItem(pretrained_model)
+        # pretrained_label_infos = QLabel(
+        #     'NB: Pretrained models expect a dark background (bg=low intensity), please invert your images (in train and predict) if that is not the case.')
+        # pretrained_label_infos.setStyleSheet("QLabel { color : red; }")
 
-        self.groupBox_pretrain_layout.addWidget(pretrained_label, 0, 0)
-        self.groupBox_pretrain_layout.addWidget(self.pretrained_models, 0, 1)
-        self.groupBox_pretrain_layout.addWidget(pretrained_label_infos, 1, 0, 1, 2)
+        # self.groupBox_pretrain_layout.addWidget(pretrained_label, 0, 0)
+        # self.groupBox_pretrain_layout.addWidget(self.pretrained_models, 0, 1)
+        self.groupBox_pretrain_layout.addWidget(self.build_model_radio, 0, 0)
+        self.groupBox_pretrain_layout.addWidget(self.load_model_radio, 0, 1)
+        self.groupBox_pretrain_layout.addWidget(self.model_pretrain_on_epithelia, 0, 2)
+        # self.groupBox_pretrain_layout.addWidget(pretrained_label_infos, 1, 0, 1, 3)
+        self.groupBox_pretrain_layout.addWidget(self.help_button_models, 0, 3, 2, 1)
+        self.groupBox_pretrain_layout.addWidget(self.input_model, 1, 0,1,3)
+
         self.groupBox_pretrain.setLayout(self.groupBox_pretrain_layout)
 
         # parameters for the model
@@ -228,9 +246,14 @@ class EPySeg(QWidget):
         self.nb_classes.setRange(1, 1_000_000)  # nb 1000 would already be a lot but anyway...
         self.nb_classes.setValue(1)
 
+        self.help_button_build_model = QPushButton('?', None)
+        self.help_button_build_model.setMaximumWidth(bt_width * 2)
+        self.help_button_build_model.clicked.connect(self.show_tip)
+
         # parameters for the model
         # model weights optional
         groupBox_weights = QGroupBox('Model weights (can be optional)')
+        # groupBox_weights.setToolTip('this is a test of your system')
         groupBox_weights.setEnabled(True)
 
         # groupBox layout
@@ -243,7 +266,11 @@ class EPySeg(QWidget):
 
         self.input_weights = OpenFileOrFolderWidget(parent_window=self, label_text='Load weights',
                                                     is_file=True,
-                                                    extensions="Supported Files (*.h5 *.H5 *.hdf5 *.HDF5);;All Files (*)")
+                                                    extensions="Supported Files (*.h5 *.H5 *.hdf5 *.HDF5);;All Files (*)") # TODO shall i add *.model ???
+
+        self.help_button_input_weights =  QPushButton('?', None)
+        self.help_button_input_weights.setMaximumWidth(bt_width * 2)
+        self.help_button_input_weights.clicked.connect(self.show_tip)
 
         # arrange groupbox
         self.model_builder_layout.addWidget(model_architecture_label)
@@ -260,6 +287,7 @@ class EPySeg(QWidget):
         self.model_builder_layout.addWidget(self.model_last_layer_activation)
         self.model_builder_layout.addWidget(model_nb_classes_label)
         self.model_builder_layout.addWidget(self.nb_classes)
+        self.model_builder_layout.addWidget(self.help_button_build_model, 3, 8, 1, 8)
         self.groupBox.setLayout(self.model_builder_layout)
 
         # line separator
@@ -272,16 +300,17 @@ class EPySeg(QWidget):
         self.pushButton2.clicked.connect(self.load_or_build_model)
 
         # arrange tab layout
-        combo_hlayout = QHBoxLayout()
-        combo_hlayout.addWidget(self.build_model_radio)
-        combo_hlayout.addWidget(self.load_model_radio)
-        combo_hlayout.addWidget(self.model_pretrain_on_epithelia)
-        self.model_tab.layout.addLayout(combo_hlayout, 0, 0, 1, 2)
+        # combo_hlayout = QHBoxLayout()
+        # combo_hlayout.addWidget(self.build_model_radio)
+        # combo_hlayout.addWidget(self.load_model_radio)
+        # combo_hlayout.addWidget(self.model_pretrain_on_epithelia)
+        # self.model_tab.layout.addLayout(combo_hlayout, 0, 0, 1, 2)
         self.model_tab.layout.addWidget(self.groupBox_pretrain, 1, 0, 1, 2)
-        self.model_tab.layout.addWidget(self.input_model, 2, 0, 1, 2)
+        # self.model_tab.layout.addWidget(self.input_model, 2, 0, 1, 2)
         self.model_tab.layout.addWidget(self.groupBox, 3, 0, 1, 2)
 
         groupBox_weights_layout.addWidget(self.input_weights, 0, 0, 1, 2)
+        groupBox_weights_layout.addWidget(self.help_button_input_weights, 0, 2, 1, 2)
         groupBox_weights.setLayout(groupBox_weights_layout)
         self.model_tab.layout.addWidget(groupBox_weights, 4, 0, 1, 2)
 
@@ -298,23 +327,26 @@ class EPySeg(QWidget):
         self.train_tab.layout.setVerticalSpacing(3)
 
         # model compilation parameters
-        self.groupBox_compile = QGroupBox('Compile model')
+        self.groupBox_compile = QGroupBox('Compile/recompile model')
+        self.groupBox_compile.setCheckable(True)
+        self.groupBox_compile.setChecked(False)
         self.groupBox_compile.setEnabled(True)
 
         # sometimes can be useful to recompile a pretrained model to change learning rate or loss
-        self.force_recompile = QCheckBox('Force recompile')
-        self.force_recompile.setEnabled(False)
-        self.force_recompile.setChecked(False)
-        self.force_recompile.stateChanged.connect(
-            lambda: self.groupBox_compile.setEnabled(self.force_recompile.isChecked()))
+        # self.force_recompile = QCheckBox('Force recompile')
+        # self.force_recompile.setEnabled(False)
+        # self.force_recompile.setChecked(False)
+        # self.force_recompile.stateChanged.connect(
+        #     lambda: self.groupBox_compile.setEnabled(self.force_recompile.isChecked()))
 
         # model compilation groupBox layout
         groupBox_compile_layout = QGridLayout()
         groupBox_compile_layout.setAlignment(Qt.AlignTop)
-        groupBox_compile_layout.setColumnStretch(0, 25)
-        groupBox_compile_layout.setColumnStretch(1, 65)
-        groupBox_compile_layout.setColumnStretch(2, 5)
-        groupBox_compile_layout.setColumnStretch(3, 5)
+        groupBox_compile_layout.setColumnStretch(0, 3)
+        groupBox_compile_layout.setColumnStretch(1, 94)
+        groupBox_compile_layout.setColumnStretch(2, 1)
+        groupBox_compile_layout.setColumnStretch(3, 1)
+        groupBox_compile_layout.setColumnStretch(4, 1)
         groupBox_compile_layout.setHorizontalSpacing(3)
         groupBox_compile_layout.setVerticalSpacing(3)
 
@@ -325,11 +357,19 @@ class EPySeg(QWidget):
         for optimizer in EZDeepLearning.optimizers:
             self.model_optimizers.addItem(optimizer)
 
+        self.help_button_optimizer = QPushButton('?', None)
+        self.help_button_optimizer.setMaximumWidth(bt_width * 2)
+        self.help_button_optimizer.clicked.connect(self.show_tip)
+
         # loss used to update weights (determines how well the model fits the data)
         loss_label = QLabel('Loss')
         self.model_loss = QComboBox()
         for l in EZDeepLearning.loss:
             self.model_loss.addItem(l)
+
+        self.help_button_loss = QPushButton('?', None)
+        self.help_button_loss.setMaximumWidth(bt_width * 2)
+        self.help_button_loss.clicked.connect(self.show_tip)
 
         # metrics: measures how well the model fits the data (not used for backprop)
         metrics_label = QLabel('Metrics')
@@ -337,14 +377,26 @@ class EPySeg(QWidget):
         for metric in EZDeepLearning.metrics:
             self.model_metrics.addItem(metric)
 
-        self.add_metric = QPushButton('+')
-        self.add_metric.clicked.connect(self._add_selected_metric)
         # remove dataset
         self.remove_metric = QPushButton('-')
+        # bt_width = self.remove_metric.fontMetrics().boundingRect(self.remove_metric.text()).width() + 7
+        self.remove_metric.setMaximumWidth(bt_width*2)
         self.remove_metric.clicked.connect(self._remove_selected_metric)
+
+        self.add_metric = QPushButton('+')
+        # width = self.add_metric.fontMetrics().boundingRect(self.add_metric.text()).width() + 7
+        self.add_metric.setMaximumWidth(bt_width*2)
+        self.add_metric.clicked.connect(self._add_selected_metric)
+
+        self.help_button_metrics = QPushButton('?', None)
+        self.help_button_metrics.setMaximumWidth(bt_width * 2)
+        self.help_button_metrics.clicked.connect(self.show_tip)
 
         selected_metrics_label = QLabel('Selected metrics')
         self.selected_metrics = QLabel()
+
+        # self.help_button_compilation = QPushButton(help_ico, None)
+        # self.help_button_compilation.clicked.connect(self.show_tip)
 
         # ask user where models should be saved
         self.output_models_to = OpenFileOrFolderWidget(parent_window=self, label_text='Output models to')
@@ -420,6 +472,11 @@ class EPySeg(QWidget):
         self.validation_split.setRange(0, 100)
         self.validation_split.setValue(0)
 
+        # help with training parameters
+        self.help_button_train_parameters = QPushButton('?', None)
+        self.help_button_train_parameters.setMaximumWidth(bt_width * 2)
+        self.help_button_train_parameters.clicked.connect(self.show_tip)
+
         # Tiling parameters
         self.groupBox_tiling = QGroupBox('Tiling')
         self.groupBox_tiling.setEnabled(True)
@@ -442,6 +499,10 @@ class EPySeg(QWidget):
         self.tile_height.setSingleStep(1)
         self.tile_height.setRange(8, 1_000_000)  # 1_000_000 makes no sense but anyway
         self.tile_height.setValue(256)  # 128 could also be a good default value also
+        # help for tiling
+        self.help_button_tiling_train = QPushButton('?', None)
+        self.help_button_tiling_train.setMaximumWidth(bt_width * 2)
+        self.help_button_tiling_train.clicked.connect(self.show_tip)
 
         # TODO ALSO handle TA architecture of files --> can maybe add that all is ok if TA mode or put TA mode detected
 
@@ -452,8 +513,8 @@ class EPySeg(QWidget):
         # model compilation groupBox layout
         groupBox_training_dataset_layout = QGridLayout()
         groupBox_training_dataset_layout.setAlignment(Qt.AlignTop)
-        groupBox_training_dataset_layout.setColumnStretch(0, 10)
-        groupBox_training_dataset_layout.setColumnStretch(1, 90)
+        groupBox_training_dataset_layout.setColumnStretch(0, 99)
+        groupBox_training_dataset_layout.setColumnStretch(1, 1)
         groupBox_training_dataset_layout.setHorizontalSpacing(3)
         groupBox_training_dataset_layout.setVerticalSpacing(3)
 
@@ -462,10 +523,16 @@ class EPySeg(QWidget):
         self.list_datasets.setSelectionMode(QAbstractItemView.ExtendedSelection)
         # add dataset
         self.add_dataset = QPushButton('+')
+        self.add_dataset.setMaximumWidth(bt_width*2)
         self.add_dataset.clicked.connect(self._add_data)
         # remove dataset
         self.remove_dataset = QPushButton('-')
+        self.remove_dataset.setMaximumWidth(bt_width * 2)
         self.remove_dataset.clicked.connect(self._remove_data)
+        # help dataset
+        self.help_button_dataset = QPushButton('?', None)
+        self.help_button_dataset.setMaximumWidth(bt_width * 2)
+        self.help_button_dataset.clicked.connect(self.show_tip)
 
         # request user for its training sets
         self.groupBox_data_aug = QGroupBox('Data augmentation')
@@ -474,8 +541,8 @@ class EPySeg(QWidget):
         # model compilation groupBox layout
         groupBox_data_aug_layout = QGridLayout()
         groupBox_data_aug_layout.setAlignment(Qt.AlignTop)
-        groupBox_data_aug_layout.setColumnStretch(0, 10)
-        groupBox_data_aug_layout.setColumnStretch(1, 90)
+        groupBox_data_aug_layout.setColumnStretch(0, 98)
+        groupBox_data_aug_layout.setColumnStretch(1, 2)
         groupBox_data_aug_layout.setHorizontalSpacing(3)
         groupBox_data_aug_layout.setVerticalSpacing(3)
 
@@ -485,10 +552,16 @@ class EPySeg(QWidget):
         self.list_augmentations.setSelectionMode(QAbstractItemView.ExtendedSelection)
         # add new augmentation
         self.add_data_aug = QPushButton('+')
+        self.add_data_aug.setMaximumWidth(bt_width * 2)
         self.add_data_aug.clicked.connect(self._add_augmenter)
         # remove augmentation
         self.del_data_aug = QPushButton('-')
+        self.del_data_aug.setMaximumWidth(bt_width * 2)
         self.del_data_aug.clicked.connect(self._delete_augmentations)
+        # help data augmentation
+        self.help_button_dataaug = QPushButton('?', None)
+        self.help_button_dataaug.setMaximumWidth(bt_width * 2)
+        self.help_button_dataaug.clicked.connect(self.show_tip)
 
         # line separator
         line_sep_train = QFrame()
@@ -503,34 +576,41 @@ class EPySeg(QWidget):
         self.stop.clicked.connect(self._stop_training)
 
         # arrange groupBox_compile
-        groupBox_compile_layout.addWidget(optimizer_label, 0, 0, 1, 1)
-        groupBox_compile_layout.addWidget(self.model_optimizers, 0, 1, 1, 1)
-        groupBox_compile_layout.addWidget(loss_label, 1, 0, 1, 1)
-        groupBox_compile_layout.addWidget(self.model_loss, 1, 1, 1, 1)
-        groupBox_compile_layout.addWidget(metrics_label, 2, 0, 1, 1)
-        groupBox_compile_layout.addWidget(self.model_metrics, 2, 1, 1, 1)
-        groupBox_compile_layout.addWidget(self.add_metric, 2, 2, 1, 1)
-        groupBox_compile_layout.addWidget(self.remove_metric, 2, 3, 1, 1)
-        groupBox_compile_layout.addWidget(selected_metrics_label, 3, 0, 1, 1)
-        groupBox_compile_layout.addWidget(self.selected_metrics, 3, 1, 1, 1)
+        groupBox_compile_layout.addWidget(optimizer_label, 0, 0)
+        groupBox_compile_layout.addWidget(self.model_optimizers, 0, 1,1,3)
+        groupBox_compile_layout.addWidget(loss_label, 1, 0)
+        groupBox_compile_layout.addWidget(self.model_loss, 1, 1,1,3)
+        groupBox_compile_layout.addWidget(metrics_label, 2, 0)
+        groupBox_compile_layout.addWidget(self.model_metrics, 2, 1)
+        groupBox_compile_layout.addWidget(self.add_metric, 2, 2)
+        groupBox_compile_layout.addWidget(self.remove_metric, 2, 3)
+        groupBox_compile_layout.addWidget(selected_metrics_label, 3, 0)
+        groupBox_compile_layout.addWidget(self.selected_metrics, 3, 1, 1, 5)
+        # groupBox_compile_layout.addWidget(self.help_button_compilation, 0, 5, 3, 1)
+        groupBox_compile_layout.addWidget(self.help_button_optimizer, 0, 5, 1, 1)
+        groupBox_compile_layout.addWidget(self.help_button_loss, 1, 5, 1, 1)
+        groupBox_compile_layout.addWidget(self.help_button_metrics, 2, 5, 1, 1)
         self.groupBox_compile.setLayout(groupBox_compile_layout)
 
-        self.train_tab.layout.addWidget(self.force_recompile, 0, 0, 1, 3)
+        # self.train_tab.layout.addWidget(self.force_recompile, 0, 0, 1, 3)
         self.train_tab.layout.addWidget(self.groupBox_compile, 1, 0, 1, 3)
 
         # arrange dataset layout
-        groupBox_training_dataset_layout.addWidget(self.list_datasets, 0, 0, 3, 3)
-        groupBox_training_dataset_layout.addWidget(self.add_dataset, 0, 4, 1, 1)
-        groupBox_training_dataset_layout.addWidget(self.remove_dataset, 1, 4, 1, 1)
+        groupBox_training_dataset_layout.addWidget(self.list_datasets, 0, 0, 6, 1)
+        groupBox_training_dataset_layout.addWidget(self.add_dataset, 0, 1)
+        groupBox_training_dataset_layout.addWidget(self.remove_dataset, 1, 1)
+        groupBox_training_dataset_layout.addWidget(self.help_button_dataset, 2, 1)
         self.groupBox_training_dataset.setLayout(groupBox_training_dataset_layout)
 
         # arrange data aug layout
-        groupBox_data_aug_layout.addWidget(self.list_augmentations, 21, 0, 3, 3)
+        groupBox_data_aug_layout.addWidget(self.list_augmentations, 21, 0, 6, 3)
         groupBox_data_aug_layout.addWidget(self.add_data_aug, 21, 4, 1, 1)
         groupBox_data_aug_layout.addWidget(self.del_data_aug, 22, 4, 1, 1)
+        groupBox_data_aug_layout.addWidget(self.help_button_dataaug, 23, 4, 1, 1)
         self.groupBox_data_aug.setLayout(groupBox_data_aug_layout)
 
         group_dataset_n_aug = QHBoxLayout()
+        group_dataset_n_aug.setAlignment(Qt.AlignTop)
         group_dataset_n_aug.addWidget(self.groupBox_training_dataset)
         group_dataset_n_aug.addWidget(self.groupBox_data_aug)
         self.train_tab.layout.addLayout(group_dataset_n_aug, 3, 0, 1, 3)
@@ -540,6 +620,7 @@ class EPySeg(QWidget):
         groupBox_tiling_layout.addWidget(self.tile_width, 9, 1, 1, 2)
         groupBox_tiling_layout.addWidget(default_tile_height_label, 10, 0, 1, 1)
         groupBox_tiling_layout.addWidget(self.tile_height, 10, 1, 1, 2)
+        groupBox_tiling_layout.addWidget(self.help_button_tiling_train, 9, 3, 2, 1)
         self.groupBox_tiling.setLayout(groupBox_tiling_layout)
         self.train_tab.layout.addWidget(self.groupBox_tiling, 9, 0, 1, 3)
 
@@ -547,14 +628,22 @@ class EPySeg(QWidget):
         self.groupBox_input_output_normalization_method = QGroupBox('Normalization')
         self.groupBox_input_output_normalization_method.setEnabled(True)
         groupBox_input_output_normalization_method_layout = QGridLayout()
+        groupBox_input_output_normalization_method_layout.setAlignment(Qt.AlignTop)
         groupBox_input_output_normalization_method_layout.setContentsMargins(0, 0, 0, 0)
 
         self.input_output_normalization_method = image_input_settings(parent_window=self,
                                                                       show_normalization=True,
                                                                       show_preview=False)
+        # help for image normalization
+        # self.help_button_img_norm_train = QPushButton(help_ico, None)
+        # self.help_button_img_norm_train.clicked.connect(self.show_tip)
+
         groupBox_input_output_normalization_method_layout.addWidget(self.input_output_normalization_method)
+        # groupBox_input_output_normalization_method_layout.addWidget(self.help_button_img_norm_train, 0, 1)
+
         self.groupBox_input_output_normalization_method.setLayout(groupBox_input_output_normalization_method_layout)
-        self.train_tab.layout.addWidget(self.groupBox_input_output_normalization_method, 12, 0, 1, 3)
+        # self.groupBox_input_output_normalization_method.setMaximumHeight(self.groupBox_input_output_normalization_method.minimumHeight())
+        self.train_tab.layout.addWidget(self.groupBox_input_output_normalization_method, 10, 0,1,3)
 
         # arrange train tab
         groupBox_training_layout.addWidget(self.output_models_to, 3, 0, 1, 4)
@@ -581,12 +670,15 @@ class EPySeg(QWidget):
         groupBox_training_layout.addWidget(train_validation_split_label, 10, 0, 1, 2)
         groupBox_training_layout.addWidget(self.validation_split, 10, 2, 1, 2)
 
+        groupBox_training_layout.addWidget(self.help_button_train_parameters, 3, 4, 7, 1)
+
         self.groupBox_training.setLayout(groupBox_training_layout)
-        self.train_tab.layout.addWidget(self.groupBox_training, 21, 0, 1, 4)
+        self.train_tab.layout.addWidget(self.groupBox_training, 21, 0, 1, 3)
 
         self.train_tab.layout.addWidget(line_sep_train, 26, 0, 1, 3)
         self.train_tab.layout.addWidget(self.train, 27, 0, 1, 2)
         self.train_tab.layout.addWidget(self.stop, 27, 2)
+
 
         self.train_tab.setLayout(self.train_tab.layout)
 
@@ -608,7 +700,11 @@ class EPySeg(QWidget):
                                                                   input_mode_only=True,
                                                                   show_preview=True,
                                                                   show_HQ_settings=True,
-                                                                  show_run_post_process=True)
+                                                                  show_run_post_process=True,
+                                                                  allow_bg_subtraction=True,
+                                                                  show_preprocessing=True)
+        # by default we set bg sub to dark
+        self.set_custom_predict_parameters.bg_removal.setCurrentIndex(2)
 
         line_sep_predict = QFrame()
         line_sep_predict.setFrameShape(QFrame.HLine)
@@ -630,57 +726,58 @@ class EPySeg(QWidget):
         self.predict_tab.layout.addWidget(self.stop2, 9, 1)
         self.predict_tab.setLayout(self.predict_tab.layout)
 
-        # predict tab
-        self.post_process.layout = QGridLayout()
-        self.post_process.layout.setAlignment(Qt.AlignTop)
-        self.post_process.layout.setColumnStretch(0, 25)
-        self.post_process.layout.setColumnStretch(1, 75)
-        self.post_process.layout.setHorizontalSpacing(3)
-        self.post_process.layout.setVerticalSpacing(3)
+        # post process tab # removed because redundant with predict
+        # self.post_process.layout = QGridLayout()
+        # self.post_process.layout.setAlignment(Qt.AlignTop)
+        # self.post_process.layout.setColumnStretch(0, 25)
+        # self.post_process.layout.setColumnStretch(1, 75)
+        # self.post_process.layout.setHorizontalSpacing(3)
+        # self.post_process.layout.setVerticalSpacing(3)
 
         # Post processing tab to refine the watershed masks from raw data
-        self.groupBox_post_process = PostProcessGUI(parent_window=self)
+        # self.groupBox_post_process = PostProcessGUI(parent_window=self)
         # self.set_custom_predict_parameters.setVisible(False)
 
-        self.input_output_normalization_method = image_input_settings(parent_window=self,
-                                                                      show_normalization=True,
-                                                                      show_preview=False)
-
-        line_sep_predict3 = QFrame()
-        line_sep_predict3.setFrameShape(QFrame.HLine)
-        line_sep_predict3.setFrameShadow(QFrame.Sunken)
-
-        # launch predictions
-        self.post_proc = QPushButton('Go (Refine masks)')
-        self.post_proc.clicked.connect(self.run_post_process)
-
-        self.stop_post_process = QPushButton('Stop ASAP')
-        self.stop_post_process.setEnabled(self.threading_enabled)
-        self.stop_post_process.clicked.connect(self._stop_post_process)
-
-        # Post processing tab to refine the watershed masks from raw data
-        self.set_custom_post_process = image_input_settings(show_input=True,
-                                                            show_channel_nb_change_rules=False,
-                                                            show_normalization=False,
-                                                            show_tiling=False,
-                                                            show_overlap=False,
-                                                            show_predict_output=True,
-                                                            input_mode_only=True,
-                                                            show_preview=False, label_input='Path to EPySeg raw output')
-
-        self.post_process.layout.addWidget(self.set_custom_post_process, 0, 0, 4, 4)
-        self.post_process.layout.addWidget(self.groupBox_post_process, 5, 0, 4, 4)
-        self.post_process.layout.addWidget(line_sep_predict3, 10, 0, 1, 4)
-        self.post_process.layout.addWidget(self.post_proc, 11, 0, 1, 3)
-        self.post_process.layout.addWidget(self.stop_post_process, 11, 3, 1, 1)
-        self.post_process.setLayout(self.post_process.layout)
-        # see what it will do
+        # self.input_output_normalization_method = image_input_settings(parent_window=self,
+        #                                                               show_normalization=True,
+        #                                                               show_preview=False)
+        #
+        # line_sep_predict3 = QFrame()
+        # line_sep_predict3.setFrameShape(QFrame.HLine)
+        # line_sep_predict3.setFrameShadow(QFrame.Sunken)
+        #
+        # # launch predictions
+        # self.post_proc = QPushButton('Go (Refine masks)')
+        # self.post_proc.clicked.connect(self.run_post_process)
+        #
+        # self.stop_post_process = QPushButton('Stop ASAP')
+        # self.stop_post_process.setEnabled(self.threading_enabled)
+        # self.stop_post_process.clicked.connect(self._stop_post_process)
+        #
+        # # Post processing tab to refine the watershed masks from raw data
+        # self.set_custom_post_process = image_input_settings(show_input=True,
+        #                                                     show_channel_nb_change_rules=False,
+        #                                                     show_normalization=False,
+        #                                                     show_tiling=False,
+        #                                                     show_overlap=False,
+        #                                                     show_predict_output=True,
+        #                                                     input_mode_only=True,
+        #                                                     show_preview=False, label_input='Path to EPySeg raw output')
+        #
+        # self.post_process.layout.addWidget(self.set_custom_post_process, 0, 0, 4, 4)
+        # self.post_process.layout.addWidget(self.groupBox_post_process, 5, 0, 4, 4)
+        # self.post_process.layout.addWidget(line_sep_predict3, 10, 0, 1, 4)
+        # self.post_process.layout.addWidget(self.post_proc, 11, 0, 1, 3)
+        # self.post_process.layout.addWidget(self.stop_post_process, 11, 3, 1, 1)
+        # self.post_process.setLayout(self.post_process.layout)
 
         # widget global layout
         table_widget_layout = QVBoxLayout()
+        table_widget_layout.setAlignment(Qt.AlignTop)
         table_widget_layout.addWidget(self.tabs)
 
         log_and_main_layout = QHBoxLayout()
+        log_and_main_layout.setAlignment(Qt.AlignTop)
 
         # TODO put this in a group to get the stuff
         log_groupBox = QGroupBox('Log')
@@ -693,6 +790,8 @@ class EPySeg(QWidget):
                                         title='getting started: predict using pre-trained network')
             help.set_markdown_from_file(os.path.join(this_dir, 'deeplearning/docs', 'getting_started.md'),
                                         title='getting started: build and train a custom network')
+            help.set_markdown_from_file(os.path.join(this_dir, 'deeplearning/docs', 'getting_started3.md'),
+                                        title='getting started: further train the EPySeg model on your data')
             help.set_markdown_from_file(os.path.join(this_dir, 'deeplearning/docs', 'pretrained_model.md'),
                                         title='Load a pre-trained model')
             help.set_markdown_from_file(os.path.join(this_dir, 'deeplearning/docs', 'model.md'),
@@ -701,7 +800,7 @@ class EPySeg(QWidget):
                                         title='Load a model')
             help.set_markdown_from_file(os.path.join(this_dir, 'deeplearning/docs', 'train.md'), title='Train')
             help.set_markdown_from_file(os.path.join(this_dir, 'deeplearning/docs', 'predict.md'), title='Predict')
-            help.set_markdown_from_file(os.path.join(this_dir, 'deeplearning/docs', 'training_dataset.md'),
+            help.set_markdown_from_file(os.path.join(this_dir, 'deeplearning/docs', 'preprocessing.md'),
                                         title='Training dataset parameters')
             help.set_markdown_from_file(os.path.join(this_dir, 'deeplearning/docs', 'data_augmentation.md'),
                                         title='Data augmentation')
@@ -729,12 +828,13 @@ class EPySeg(QWidget):
         self.pbar = QProgressBar(self)
 
         self.log_tab.layout.addWidget(self.logger_console)
+        # self.log_tab.layout.addWidget(self.instant_help)
         self.log_tab.layout.addWidget(self.pbar)
         self.log_tab.setLayout(self.log_tab.layout)
 
         self.help_html_tab.layout = QVBoxLayout()
-        self.help_html_tab.layout.setContentsMargins(0, 0, 0, 0)
         self.help_html_tab.layout.setAlignment(Qt.AlignTop)
+        self.help_html_tab.layout.setContentsMargins(0, 0, 0, 0)
         self.help_html_tab.layout.addWidget(help)
         self.help_html_tab.setLayout(self.help_html_tab.layout)
 
@@ -760,6 +860,9 @@ class EPySeg(QWidget):
                                           self.height()))
         except:
             pass
+
+        # # monitor mouse position to show helpful tips/guide the user
+        # self.setMouseTracking(True) # does not work well because of contained objects capturing mouse --> maybe simplest is to have the
         self.show()
 
     def set_html_red(self, text):
@@ -782,6 +885,25 @@ class EPySeg(QWidget):
         format.setForeground(QColor(0, 0, 0))  # black
         self.logger_console.setCurrentCharFormat(format)
         self.logger_console.insertPlainText(text)
+
+    #
+    # def mouseMoveEvent(self, event):
+    #     # print('mouseMoveEvent: x=%d, y=%d' % (event.x(), event.y()), self.sender())
+    #     # self.instant_help.setText('mouseMoveEvent: x=%d, y=%d' % (event.x(), event.y()))
+    #     # QToolTip.hideText()
+    #     # QToolTip.showText(event.pos(), 'this is a test')
+    #
+    #     # check if tab1 is under mouse
+    #
+    #     # dirty way but maybe ok
+    #     if self.instant_help.underMouse():
+    #         # logger.info('true')
+    #         # QToolTip.hideText()
+    #         # QToolTip.showText(self.tab1.mapToGlobal(QPoint(0, 0)), "instant_help")
+    #         self.instant_help.setText('mouseMoveEvent: x=%d, y=%d' % (event.x(), event.y()))
+    #     # elif self.tab2.underMouse():
+    #     #     QToolTip.hideText()
+    #     #     QToolTip.showText(self.tab2.mapToGlobal(QPoint(0, 0)), "tab2")
 
     def print_output(self, s):
         print(s)
@@ -847,7 +969,7 @@ class EPySeg(QWidget):
         else:
             # load pretrained model
             pretrained_model_parameters = self.deepTA.pretrained_models_2D_epithelia[
-                self.pretrained_models.currentText()]
+                'Linknet-vgg16-sigmoid']
             self.model_parameters['model'] = pretrained_model_parameters['model']
             self.model_parameters['model_weights'] = pretrained_model_parameters['model_weights']
             self.model_parameters['architecture'] = pretrained_model_parameters['architecture']
@@ -857,7 +979,7 @@ class EPySeg(QWidget):
             self.model_parameters['input_width'] = pretrained_model_parameters['input_width']
             self.model_parameters['input_height'] = pretrained_model_parameters['input_height']
             self.model_parameters['input_channels'] = pretrained_model_parameters['input_channels']
-            self.model_parameters['pretraining'] = self.pretrained_models.currentText()
+            self.model_parameters['pretraining'] = 'Linknet-vgg16-sigmoid'
             # except:
             #     traceback.print_exc()
             #     logger.error('could not load url of pretrained model, please check pretraining parameters')
@@ -936,7 +1058,7 @@ class EPySeg(QWidget):
         Returns
         -------
         dict
-            containing training parameters
+            containing predict parameters
 
         '''
 
@@ -1001,17 +1123,67 @@ class EPySeg(QWidget):
                 self.set_custom_predict_parameters.tile_height_pred.setEnabled(False)
                 self.set_custom_predict_parameters.tile_height_pred.setValue(inputs[0][-3])
 
+    def show_tip(self):
+        this_dir, _ = os.path.split(__file__)
+        if self.sender() == self.help_button_models:
+            QToolTip.showText(self.sender().mapToGlobal(QPoint(30, 20)), markdown_file_to_html('model_selection.md'))
+        elif self.sender() == self.help_button_build_model:
+                QToolTip.showText(self.sender().mapToGlobal(QPoint(30, 20)), markdown_file_to_html('model_parameters.md'))
+        elif self.sender() == self.help_button_input_weights:
+                QToolTip.showText(self.sender().mapToGlobal(QPoint(30, 20)), markdown_file_to_html('model_weights.md'))
+        elif self.sender() == self.help_button_tiling_train:
+            browse_tip('tiling.md')
+        elif self.sender() == self.help_button_optimizer:
+            browse_tip('https://developers.google.com/machine-learning/glossary?hl=en#optimizer')
+        elif self.sender() == self.help_button_loss:
+            # browse_tip('https://developers.google.com/machine-learning/glossary?hl=en#loss')
+            browse_tip('https://keras.io/api/losses/') # better definition
+        elif self.sender() == self.help_button_metrics:
+            # browse_tip('https://developers.google.com/machine-learning/glossary?hl=en#metrics-api-tf.metrics')
+            browse_tip('https://keras.io/api/metrics/') # better definition
+        elif self.sender() == self.help_button_dataaug:
+            QToolTip.showText(self.sender().mapToGlobal(QPoint(30, 20)), markdown_file_to_html('data_augmentation.md'))
+        elif self.sender() == self.help_button_train_parameters:
+            QToolTip.showText(self.sender().mapToGlobal(QPoint(30, 20)), markdown_file_to_html('model_training_parameters.md'))
+        elif self.sender() == self.help_button_dataset:
+            QToolTip.showText(self.sender().mapToGlobal(QPoint(30, 20)), markdown_file_to_html('training_datasets.md'))
+            # browse_tip('data_augmentation.md')
+        else:
+            QToolTip.showText(self.sender().mapToGlobal(QPoint(0, 20)),   "unknown button")
+
+            # QToolTip.showText(self.sender().mapToGlobal(QPoint(0, 20)), self.markdown_file_to_html(os.path.join(this_dir, 'deeplearning/docs', 'tiling.md'))) # ça marche bien --> voir comment je peux faire...
+            # self.open_tmp_web_page(self.markdown_file_to_html(os.path.join(this_dir, 'deeplearning/docs', 'tiling.md')))
+            # QToolTip.showText(self.sender().mapToGlobal(QPoint(30, 20)), "<img src='" + str(
+            #     os.path.join(this_dir, 'deeplearning/docs', 'image_plant.png') + "'>Message"))
+            # QToolTip.showText(self.sender().mapToGlobal(QPoint(0, 20)), self.markdown_to_html('![]('+str(os.path.join(this_dir, 'deeplearning/docs', 'image_plant.png')+')')))
+            # QToolTip.showText(self.sender().mapToGlobal(QPoint(0, 20)), '<a href="https://www.google.fr/">Link text</a>', self.sender(), QRect(0,0,2048, 2048),  10000) # ça marche mais impossible de cliquer dessus
+
     # also upon model check just see if I have the corresponding model and architecture present
     def _load_or_build_model_settings(self):
         self.groupBox.setEnabled(self.build_model_radio.isChecked())
         self.input_model.setEnabled(self.load_model_radio.isChecked())
-        self.groupBox_pretrain.setEnabled(self.model_pretrain_on_epithelia.isChecked())
+        # self.groupBox_pretrain.setEnabled(self.model_pretrain_on_epithelia.isChecked())
         # enable load weights if load model or if no epithelial training is checked
         if self.load_model_radio.isChecked():
             self.input_weights.setEnabled(True)
         else:
             self.input_weights.setEnabled(not self.model_pretrain_on_epithelia.isChecked())
         # if people changed settings assume model reset (TODO improve that later)
+
+        # if we are using a pretrained model then enable post proc by default and select dark mode
+        if self.model_pretrain_on_epithelia.isChecked():
+            # A set of settings to apply only when using pre-trained models
+            # idx = self.set_custom_predict_parameters.bg_removal.findData(Img.background_removal[2])
+            self.set_custom_predict_parameters.bg_removal.setCurrentIndex(2)
+            self.set_custom_predict_parameters.enable_post_process.setChecked(True)
+            self.set_custom_predict_parameters.enable_post_process.post_process_method_selection.setCurrentIndex(0)
+            # choose optimal parameters by default
+        else:
+            # A set of settings to apply when using custom models
+            self.set_custom_predict_parameters.bg_removal.setCurrentIndex(0)
+            self.set_custom_predict_parameters.enable_post_process.setChecked(False)
+            self.set_custom_predict_parameters.enable_post_process.post_process_method_selection.setCurrentIndex(3)
+
         self._enable_training(False)
         self._enable_predict(False)
 
@@ -1033,6 +1205,40 @@ class EPySeg(QWidget):
         '''Loads or builds a model, warns upon errors
 
         '''
+
+        # TODO offer learning rate as this is really important also
+        # could be another parameter of the soft
+        if self.model_pretrain_on_epithelia.isChecked():
+            # load some of the optimal parameters if the user wants to retrain the model
+            try:
+                index = self.model_optimizers.findText('adam')
+                if index != -1:
+                    self.model_optimizers.setCurrentIndex(index)
+                index = self.model_loss.findText('bce_jaccard_loss')
+                if index != -1:
+                    self.model_loss.setCurrentIndex(index)
+                index = self.model_metrics.findText('iou_score')
+                if index != -1:
+                    self.model_metrics.setCurrentIndex(index)
+            except:
+                # no big deal if that does not work
+                pass
+        else:
+            # load some default parameters that may work with any model
+            try:
+                # index = self.model_optimizers.findText('adam')
+                # if index != -1:
+                self.model_optimizers.setCurrentIndex(0)
+                # index = self.model_loss.findText('mean_square_error')
+                # if index != -1:
+                self.model_loss.setCurrentIndex(0)
+                # index = self.model_metrics.findText('iou_score')
+                # if index != -1:
+                self.model_metrics.setCurrentIndex(0)
+            except:
+                pass
+
+
         self._reset_metrics_on_model_change()
         model_parameters = self.get_model_parameters()
         if self.load_model_radio.isChecked() and self.model_parameters['model'] is None:
@@ -1042,7 +1248,7 @@ class EPySeg(QWidget):
 
         # force refine mask when custom model is loaded TODO make that more wisely at some point
         if self.model_pretrain_on_epithelia.isChecked():
-            self.set_custom_predict_parameters.enable_post_process.setChecked(True) # else keep unchanged
+            self.set_custom_predict_parameters.enable_post_process.setChecked(True)  # else keep unchanged
         else:
             self.set_custom_predict_parameters.enable_post_process.setChecked(False)
 
@@ -1083,8 +1289,16 @@ class EPySeg(QWidget):
                 return
 
             if self.deepTA.is_model_compiled():
-                self.groupBox_compile.setEnabled(False)
-                self.force_recompile.setEnabled(True)
+                logger.info('Model is compiled')
+                self.groupBox_compile.setCheckable(True)
+                self.groupBox_compile.setChecked(False)
+                # self.groupBox_compile.setEnabled(False)
+                # self.force_recompile.setEnabled(True)
+            else:
+                logger.info(
+                    'Model is not compiled, it can be used right away for predict but must be compiled for training')
+                self.groupBox_compile.setChecked(True)
+                self.groupBox_compile.setCheckable(False)
             self.deepTA.summary()
 
             self._enable_training(True)
@@ -1110,9 +1324,22 @@ class EPySeg(QWidget):
                 return
             if self.deepTA.model is None:
                 logger.error('Model building failed')
+                return
+            # if self.deepTA.is_model_compiled():
+            #     # self.groupBox_compile.setEnabled(True)
+            #     self.groupBox_compile.setChecked(False)
+            #     # self.force_recompile.setEnabled(False)
             if self.deepTA.is_model_compiled():
-                self.groupBox_compile.setEnabled(True)
-                self.force_recompile.setEnabled(False)
+                logger.info('Model is compiled')
+                self.groupBox_compile.setCheckable(True)
+                self.groupBox_compile.setChecked(False)
+                # self.groupBox_compile.setEnabled(False)
+                # self.force_recompile.setEnabled(True)
+            else:
+                logger.info(
+                    'Model is not compiled, it can be used right away for predict but must be compiled for training')
+                self.groupBox_compile.setChecked(True)
+                self.groupBox_compile.setCheckable(False)
 
             progress_callback.emit(100)
 
@@ -1159,6 +1386,7 @@ class EPySeg(QWidget):
 
         '''
 
+        # check if model is potentiatlly compatible with EPySeg-style output and if so allow speed up otherwise deactivate
         augment, ok = image_input_settings.getDataAndParameters(parent_window=self,
                                                                 show_preprocessing=True,
                                                                 show_channel_nb_change_rules=True,
@@ -1243,7 +1471,7 @@ class EPySeg(QWidget):
             pass
 
         is_compiled = self.deepTA.is_model_compiled()
-        if not is_compiled or self.groupBox_compile.isEnabled():
+        if not is_compiled or self.groupBox_compile.isChecked():
             cur_info = 'compiling the model'
             if is_compiled:
                 cur_info = 're' + cur_info
@@ -1251,11 +1479,11 @@ class EPySeg(QWidget):
             self.deepTA.compile(**self.get_train_parameters())
             is_compiled = self.deepTA.is_model_compiled()
             if not is_compiled:
-                logger.error('model could not be compiled, please try another set of optimizer, loss and metrics')
+                logger.error('Model could not be compiled, please try another set of optimizer, loss and metrics')
             else:
-                logger.info('model successfully compiled')
+                logger.info('Model successfully compiled')
         else:
-            logger.info('model is already compiled, nothing to do...')
+            logger.info('Model is already compiled, nothing to do...')
 
         input_shape = self.deepTA.get_inputs_shape()
         output_shape = self.deepTA.get_outputs_shape()
@@ -1331,53 +1559,53 @@ class EPySeg(QWidget):
             except:
                 pass
 
-    def run_post_process(self):
-        # run the image post process
-        post_process_params = self.get_post_process_parameters()
-
-        if 'input' not in post_process_params or post_process_params['input'] is None:
-            logger.error('Please provide epyseg raw output files (highlighted in red)')
-            self.blinker.blink(self.set_custom_post_process.open_input_button)
-            return
-
-        if 'output_folder' not in post_process_params or post_process_params['output_folder'] is None:
-            logger.error('Please provide a valid output folder')
-            self.blinker.blink(self.set_custom_post_process.output_predictions_to)
-            return
-
-        # check output and if not correct say the pb
-        # self.set_custom_post_process.check_custom_dir()
-
-        worker = self._get_worker(self._run_post_process, model_parameters=post_process_params)
-        worker.signals.result.connect(self.print_output)
-        worker.signals.finished.connect(self.thread_complete)
-        worker.signals.progress.connect(self.progress_fn)
-
-        # Execute+
-        if isinstance(worker, FakeWorker):
-            # no threading
-            worker.run()
-        else:
-            # threading
-            self.threadpool.start(worker)
-
-    def _run_post_process(self, progress_callback, model_parameters={}):
-        # run post process
-        self.post_process_func = EPySegPostProcess(**model_parameters, progress_callback=progress_callback)
-
-        return "Done."
-
-    def _stop_post_process(self):
-        # stop immediately the post process --> see how to do --> best is to use a worker and a global variable maybe ???
-        try:
-
-            logger.info('Stopping post process')
-            # self.post_process_func.early_stop()
-            EPySegPostProcess.stop_now = True
-            self.pbar.reset()  # setValue(0)
-        except:
-            # traceback.print_exc()
-            pass
+    # def run_post_process(self):
+    #     # run the image post process
+    #     post_process_params = self.get_post_process_parameters()
+    #
+    #     if 'input' not in post_process_params or post_process_params['input'] is None:
+    #         logger.error('Please provide epyseg raw output files (highlighted in red)')
+    #         self.blinker.blink(self.set_custom_post_process.open_input_button)
+    #         return
+    #
+    #     if 'output_folder' not in post_process_params or post_process_params['output_folder'] is None:
+    #         logger.error('Please provide a valid output folder')
+    #         self.blinker.blink(self.set_custom_post_process.output_predictions_to)
+    #         return
+    #
+    #     # check output and if not correct say the pb
+    #     # self.set_custom_post_process.check_custom_dir()
+    #
+    #     worker = self._get_worker(self._run_post_process, model_parameters=post_process_params)
+    #     worker.signals.result.connect(self.print_output)
+    #     worker.signals.finished.connect(self.thread_complete)
+    #     worker.signals.progress.connect(self.progress_fn)
+    #
+    #     # Execute+
+    #     if isinstance(worker, FakeWorker):
+    #         # no threading
+    #         worker.run()
+    #     else:
+    #         # threading
+    #         self.threadpool.start(worker)
+    #
+    # def _run_post_process(self, progress_callback, model_parameters={}):
+    #     # run post process
+    #     self.post_process_func = EPySegPostProcess(**model_parameters, progress_callback=progress_callback)
+    #
+    #     return "Done."
+    #
+    # def _stop_post_process(self):
+    #     # stop immediately the post process --> see how to do --> best is to use a worker and a global variable maybe ???
+    #     try:
+    #
+    #         logger.info('Stopping post process')
+    #         # self.post_process_func.early_stop()
+    #         EPySegPostProcess.stop_now = True
+    #         self.pbar.reset()  # setValue(0)
+    #     except:
+    #         # traceback.print_exc()
+    #         pass
 
     def predict_using_model(self):
         '''run the model (get the predictions), warns upon errors

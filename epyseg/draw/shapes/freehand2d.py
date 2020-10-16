@@ -4,58 +4,67 @@ from PyQt5.QtGui import QPainter, QBrush, QPen, QImage, QColor
 from epyseg.draw.shapes.polygon2d import Polygon2D
 # from PyQt5.Qt
 # from PyQt5.Qt import (QPaintEngine, QPaintDevice,  QTransform, QBrush)
+from epyseg.draw.shapes.polyline2d import PolyLine2D
 
 from epyseg.tools.logger import TA_logger
 logger = TA_logger()
 
-class Freehand2D(Polygon2D):
+class Freehand2D(PolyLine2D):
 
-    def __init__(self, *args, color=0xFFFF00, fill_color=None, opacity=1., stroke=0.65, **kwargs):
+    def __init__(self, *args, color=0xFFFF00, opacity=1., stroke=0.65, line_style=None, theta=0, **kwargs):
         super(Freehand2D, self).__init__()
+        self.isSet = False
         if len(args) > 0:
             for i in range(0, len(args), 2):
                 self.append(QPointF(args[i], args[i+1]))
+            self.isSet = True
         self.color = color
-        self.fill_color = fill_color
+        self.fill_color = None
         self.stroke = stroke
         self.opacity = opacity
+        self.line_style = line_style
+        # rotation
+        self.theta = theta
 
-    def draw(self, painter, draw=True):
-        if draw:
-            painter.save()
-        pen = QPen(QColor(self.color))
-        if self.stroke is not None:
-            pen.setWidthF(self.stroke)
-        painter.setPen(pen)
-        painter.setOpacity(self.opacity)
-        if draw:
-            painter.drawPolyline(self)
-            painter.restore()
+# it's simply a polygon so draw it as such
 
-    def fill(self, painter, draw=True):
-        if self.fill_color is None:
-            return
-        if draw:
-            painter.save()
-        painter.setBrush(QBrush(QColor(self.fill_color)))
-        painter.setOpacity(self.opacity)
-        if draw:
-            painter.drawPolyline(self)
-            painter.restore()
+    # def draw(self, painter, draw=True):
+    #     if draw:
+    #         painter.save()
+    #     pen = QPen(QColor(self.color))
+    #     if self.stroke is not None:
+    #         pen.setWidthF(self.stroke)
+    #     painter.setPen(pen)
+    #     painter.setOpacity(self.opacity)
+    #     if draw:
+    #         painter.drawPolyline(self)
+    #         painter.restore()
 
-    # TODO pb will draw the shape twice.... ---> because painter drawpolygon is called twice
-    def drawAndFill(self, painter):
-        painter.save()
-        self.draw(painter, draw=False)
-        self.fill(painter, draw=False)
-        painter.drawPolyline(self)
-        painter.restore()
+    # def fill(self, painter, draw=True):
+    #     if self.fill_color is None:
+    #         return
+    #     if draw:
+    #         painter.save()
+    #     painter.setBrush(QBrush(QColor(self.fill_color)))
+    #     painter.setOpacity(self.opacity)
+    #     if draw:
+    #         painter.drawPolyline(self)
+    #         painter.restore()
+    #
+    # # TODO pb will draw the shape twice.... ---> because painter drawpolygon is called twice
+    # def drawAndFill(self, painter):
+    #     painter.save()
+    #     self.draw(painter, draw=False)
+    #     self.fill(painter, draw=False)
+    #     painter.drawPolyline(self)
+    #     painter.restore()
 
     def setP1(self, point):
         self.append(point)
 
     def add(self, *args):
         self.append(args[1])
+        self.isSet=True
 
 if __name__ == '__main__':
     test = Freehand2D(0, 0, 10, 0, 10, 20, 0, 20, 0, 0)

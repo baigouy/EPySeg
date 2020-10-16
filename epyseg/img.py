@@ -24,6 +24,12 @@ import json
 from PyQt5.QtGui import QImage, QColor  # allows for qimage creation
 from natsort import natsorted  # sort strings as humans would do
 import xml.etree.ElementTree as ET  # to handle xml metadata of images
+import base64
+import io
+import matplotlib.pyplot as plt
+import traceback
+from skimage.morphology import white_tophat, black_tophat, disk
+from skimage.morphology import square, ball, diamond, octahedron, rectangle
 
 
 # for future development
@@ -33,8 +39,72 @@ import xml.etree.ElementTree as ET  # to handle xml metadata of images
 # except:
 #     np = __import__('numpy')
 
+
+
+
+def black_top_hat(image, structuring_element=square(50), preserve_range = True):
+    logger.debug('bg subtraction black_top_hat')
+    try:
+        if len(image.shape) == 3:
+            out = np.zeros_like(image)
+            for ch in range(image.shape[-1]):
+                out[..., ch] = _black_top_hat_single_channel(image[..., ch], structuring_element=structuring_element, preserve_range=preserve_range)
+            return out
+        elif len(image.shape) == 2:
+            out = _black_top_hat_single_channel(image, structuring_element=structuring_element, preserve_range=preserve_range)
+            return out
+        else:
+            print('invalid shape --> white top hat failed, sorry...')
+    except:
+        print('white top hat failed, sorry...')
+        traceback.print_exc()
+        return image
+
+def _black_top_hat_single_channel(single_channel_image, structuring_element=square(50), preserve_range = True):
+    dtype = single_channel_image.dtype
+    min = single_channel_image.min()
+    max = single_channel_image.max()
+    out = black_tophat(single_channel_image, structuring_element)
+    if preserve_range and (out.min()!=min or out.max()!=max):
+        out = out/out.max()
+        out = (out * (max - min)) + min
+        out = out.astype(dtype)
+    return out
+
+def white_top_hat(image, structuring_element=square(50), preserve_range = True):
+    logger.debug('bg subtraction white_top_hat')
+    try:
+        if len(image.shape) == 3:
+            out = np.zeros_like(image)
+            for ch in range(image.shape[-1]):
+                out[..., ch] = _white_top_hat_single_channel(image[..., ch], structuring_element=structuring_element, preserve_range=preserve_range)
+            return out
+        elif len(image.shape) == 2:
+            out = _white_top_hat_single_channel(image, structuring_element=structuring_element, preserve_range=preserve_range)
+            return out
+        else:
+            print('invalid shape --> white top hat failed, sorry...')
+    except:
+        print('white top hat failed, sorry...')
+        traceback.print_exc()
+        return image
+
+def _white_top_hat_single_channel(single_channel_image, structuring_element=square(50), preserve_range = True):
+    dtype = single_channel_image.dtype
+    min = single_channel_image.min()
+    max = single_channel_image.max()
+    out = white_tophat(single_channel_image, structuring_element)
+    if preserve_range and (out.min()!=min or out.max()!=max):
+        out = out/out.max()
+        out = (out * (max - min)) + min
+        out = out.astype(dtype)
+    return out
+
+
 class Img(np.ndarray):  # subclass ndarray
 
+
+    background_removal = ['No', 'White bg', 'Dark bg']
     # see https://en.wikipedia.org/wiki/Feature_scaling
     normalization_methods = ['Rescaling (min-max normalization)', 'Standardization (Z-score Normalization)',
                              'Mean normalization', 'Max normalization (auto)', 'Max normalization (x/255)',
@@ -570,6 +640,28 @@ class Img(np.ndarray):  # subclass ndarray
         output_folder, filename = os.path.split(output_name)
         os.makedirs(output_folder, exist_ok=True)
 
+    @staticmethod
+    def img2Base64(img):
+        # save it as png and encode it
+        if img is not None:
+            # assume image
+            buf = io.BytesIO()
+            im = Image.fromarray(img)
+            im.save(buf, format='png')
+            buf.seek(0)  # rewind file
+            figdata_png = base64.b64encode(buf.getvalue()).decode("utf-8")
+            buf.close()
+            return figdata_png
+        else:
+            # assume pyplot image then
+            print('Please call this before plt.show() to avoid getting a blank output')
+            buf = io.BytesIO()
+            plt.savefig(buf, format='png', bbox_inches='tight')  # TO REMOVE UNNECESSARY WHITE SPACE AROUND GRAPH...
+            buf.seek(0)  # rewind file
+            figdata_png = base64.b64encode(buf.getvalue()).decode("utf-8")
+            buf.close()
+            return figdata_png
+
     def save(self, output_name):
         '''saves the current image
 
@@ -614,7 +706,7 @@ class Img(np.ndarray):  # subclass ndarray
                 out = np.moveaxis(out, -1, -3)
                 tifffile.imwrite(output_name, out, imagej=True)  # this is the way to get the data compatible with IJ
         else:
-            if output_name.lower().endswith('.npy'):
+            if output_name.lower().endswith('.npy') or output_name.lower().endswith('.epyseg'):
                 # directly save as .npy --> the numpy default array format
                 self._create_dir(output_name)
                 np.save(output_name, self,
@@ -1172,10 +1264,9 @@ class Img(np.ndarray):  # subclass ndarray
                 max = img.max()
                 min = img.min()
                 if max != 0 and max != min:
-                    if norm_range is None or norm_range == [0,
-                                                            1] or norm_range == '[0, 1]' or norm_range == 'default' or isinstance(
-                        norm_range, int):
-                        img = (img - min) / (max - min)  # TODO will it take less momory if I split it into two lines
+                    if norm_range is None or norm_range == [0, 1] or norm_range == '[0, 1]' or norm_range == 'default' \
+                            or isinstance(norm_range, int):
+                        img = (img - min) / (max - min)  # TODO will it take less memory if I split it into two lines
                     elif norm_range == [-1, 1] or norm_range == '[-1, 1]':
                         img = -1 + ((img - min) * (1 - -1)) / (max - min)
             elif method == 'Mean normalization':

@@ -1,0 +1,11 @@
+# Channel number adjustment
+
+To explain the concept of 'channel number adjustment', let's take a simple example:  Our **pre-trained model** only **requires a single channel image** (typically a channel containing cell outlines) to predict/segment cells. **However user data may have several channels** (e.g. a channel with nuclei in addition to the cell outline channel). **The model must therefore be told which channel to use**, this is channel number adjustment.
+   
+**Channel number adjustment is a set of rules to match the number of channels of input and output GT datasets to model input and output, respectively.** It is used (i.e. needs be set) only when the number of channels of the user images don't match the number of channels of the model.
+
+* **Channel of interest**: in the case of the example cited above, this is the channel that contains the cell outlines (**once selected the 'preview' gets updated automatically**, so that the user can visually check that the correct channel was picked). **NB: When user images are single channel images this parameter cannot (and needs not) be set.**
+* **Rule to reduce nb of channels (if needed)**: let's assume the user image has too many channels compared to model expectations. We must therefore reduce the number of channels of the user images so that it matches model expectations. This can be achieved by selecting one of the available options.
+* **Rule to increase nb of channels (if needed)**: let's assume the user image has too few channels compared to model expectations. We must therefore increase the number of channels of the user images so that it matches model expectations. This can be achieved by selecting one of the available options.
+
+**NB: The number of channels is determined only for the first image of the input and output GT datasets, and the software expects all the images within a folder to obey the same rules, if that is not the case, please sort the differing images into different folders or there will be errors or poor predictions...**

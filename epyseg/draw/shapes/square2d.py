@@ -1,4 +1,6 @@
-from epyseg.draw.shapes.rect2d import *
+from PyQt5.QtCore import QPointF
+
+from epyseg.draw.shapes.rect2d import Rect2D
 
 from epyseg.tools.logger import TA_logger
 
@@ -6,7 +8,7 @@ logger = TA_logger()
 
 class Square2D(Rect2D):
 
-    def __init__(self, *args, color=0xFFFF00, fill_color=None, opacity=1., stroke=0.65, **kwargs):
+    def __init__(self, *args, color=0xFFFF00, fill_color=None, opacity=1., stroke=0.65, line_style=None, theta=0, **kwargs):
         if len(args) == 3:
             super(Square2D, self).__init__(*args, args[-1])
         elif len(args) == 4:
@@ -17,6 +19,9 @@ class Square2D(Rect2D):
         self.fill_color = fill_color
         self.stroke = stroke
         self.opacity = opacity
+        self.line_style = line_style
+         # rotation
+        self.theta = theta
 
     def add(self, *args):
             p1 = args[0]

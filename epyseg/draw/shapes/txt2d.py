@@ -13,6 +13,7 @@ logger = TA_logger()
 
 class TAText2D(Rect2D):
 
+    # TODO add bg to it so that it can be drawn
     def __init__(self, text=None, doc=None, opacity=1., *args, **kwargs):
         if doc is not None and isinstance(doc, QTextDocument):
             self.doc = doc
@@ -33,6 +34,8 @@ class TAText2D(Rect2D):
         super(TAText2D, self).__init__(0, 0, size.width(), size.height())
         self.opacity = opacity
 
+    def set_opacity(self, opacity):
+        self.opacity = opacity
 
     def setText(self, html):
         self.doc.setHtml(html)
@@ -53,10 +56,11 @@ class TAText2D(Rect2D):
       painter.translate(self.x(), self.y())
       self.doc.drawContents(painter)
       painter.restore()
-      painter.save()
-      painter.setPen(QtCore.Qt.red)
-      painter.drawRect(self)
-      painter.restore()
+      # maybe activate this upon debug
+      # painter.save()
+      # painter.setPen(QtCore.Qt.red)
+      # painter.drawRect(self)
+      # painter.restore()
 
     def boundingRect(self):
         return self
@@ -94,7 +98,6 @@ class TAText2D(Rect2D):
         return self.doc.toHtml()
 
 if __name__ == '__main__':
-    # IMPORTANT KEEP !!!!!!!!!!! NB THIS IS ABSOLUTELY REQUIRED --> A QAPP IN ORDER TO DRAW FONTS --> should work in my code but really sucks for testing
     # this could be a pb ...
     app = QApplication(sys.argv)# IMPORTANT KEEP !!!!!!!!!!!
 

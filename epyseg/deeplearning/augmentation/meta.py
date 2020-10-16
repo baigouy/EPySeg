@@ -82,7 +82,7 @@ class MetaAugmenter:
                                        'individual_channels': True},
                  validation_split=0, test_split=0,
                  shuffle=True, clip_by_frequency=None, is_predict_generator=False, overlap_x=0, overlap_y=0,
-                 batch_size=None, batch_size_auto_adjust=False, invert_image=False, remove_n_border_mask_pixels=None,
+                 batch_size=None, batch_size_auto_adjust=False, invert_image=False, input_bg_subtraction=None, create_epyseg_style_output=None, remove_n_border_mask_pixels=None,
                  is_output_1px_wide=False, rebinarize_augmented_output=False, **kwargs):
 
         self.augmenters = []
@@ -105,6 +105,8 @@ class MetaAugmenter:
         self.batch_size = batch_size
         self.batch_size_auto_adjust = batch_size_auto_adjust
         self.invert_image = invert_image
+        self.input_bg_subtraction = input_bg_subtraction
+        self.create_epyseg_style_output=create_epyseg_style_output
         self.remove_n_border_mask_pixels = remove_n_border_mask_pixels
         self.is_output_1px_wide = is_output_1px_wide
         self.rebinarize_augmented_output = rebinarize_augmented_output
@@ -152,7 +154,7 @@ class MetaAugmenter:
                                   shuffle=shuffle,
                                   clip_by_frequency=clip_by_frequency,
                                   is_predict_generator=is_predict_generator, overlap_x=overlap_x, overlap_y=overlap_y,
-                                  invert_image=invert_image, remove_n_border_mask_pixels=remove_n_border_mask_pixels,
+                                  invert_image=invert_image, input_bg_subtraction=input_bg_subtraction, create_epyseg_style_output=create_epyseg_style_output, remove_n_border_mask_pixels=remove_n_border_mask_pixels,
                                   is_output_1px_wide=is_output_1px_wide,
                                   rebinarize_augmented_output=rebinarize_augmented_output))
 
@@ -187,7 +189,7 @@ class MetaAugmenter:
                default_output_tile_height=None, keep_original_sizes=None, input_normalization=None,
                output_normalization=None, validation_split=None, test_split=None,
                shuffle=None, clip_by_frequency=None,
-               is_predict_generator=None, overlap_x=None, overlap_y=None, invert_image=None,
+               is_predict_generator=None, overlap_x=None, overlap_y=None, invert_image=None, input_bg_subtraction=None,create_epyseg_style_output=None,
                remove_n_border_mask_pixels=None, is_output_1px_wide=None, rebinarize_augmented_output=None, **kwargs):
 
         # print('debug 123', inputs, outputs, self.inputs, self.outputs)
@@ -234,6 +236,8 @@ class MetaAugmenter:
                           overlap_x=self._get_significant_parameter(overlap_x, self.overlap_x),
                           overlap_y=self._get_significant_parameter(overlap_y, self.overlap_y),
                           invert_image=self._get_significant_parameter(invert_image, self.invert_image),
+                          input_bg_subtraction=self._get_significant_parameter(input_bg_subtraction, self.input_bg_subtraction),
+                          create_epyseg_style_output=self._get_significant_parameter(create_epyseg_style_output, self.create_epyseg_style_output),
                           remove_n_border_mask_pixels=self._get_significant_parameter(remove_n_border_mask_pixels,
                                                                                       self.remove_n_border_mask_pixels),
                           input_normalization=self._get_significant_parameter(input_normalization,
@@ -250,46 +254,76 @@ class MetaAugmenter:
         if infinite:
             while True:
                 for orig, label in self._validation_generator(skip_augment=True):
+                    # bug fix for recent tensorflow that really needs true and pred to be unpacked if single input and output
+                    if len(orig) == 1:
+                        orig = orig[0]
+                    if len(label) == 1:
+                        label = label[0]
                     yield orig, label
         else:
             for orig, label in self._validation_generator(skip_augment=True):
+                # bug fix for recent tensorflow that really needs true and pred to be unpacked if single input and output
+                if len(orig) == 1:
+                    orig = orig[0]
+                if len(label) == 1:
+                    label = label[0]
                 yield orig, label
 
     def train_generator(self, infinite=False):
         if infinite:
             while True:
                 for orig, label in self._train_generator(skip_augment=False):
+                    # bug fix for recent tensorflow that really needs true and pred to be unpacked if single input and output
+                    if len(orig) == 1:
+                        orig = orig[0]
+                    if len(label) == 1:
+                        label = label[0]
                     yield orig, label
         else:
             for orig, label in self._train_generator(skip_augment=False):
+                # bug fix for recent tensorflow that really needs true and pred to be unpacked if single input and output
+                if len(orig) == 1:
+                    orig = orig[0]
+                if len(label) == 1:
+                    label = label[0]
                 yield orig, label
 
     def test_generator(self, infinite=False):
         if infinite:
             while True:
                 for orig, label in self._test_generator(skip_augment=True):
+                    # bug fix for recent tensorflow that really needs true and pred to be unpacked if single input and output
+                    if len(orig) == 1:
+                        orig = orig[0]
+                    if len(label) == 1:
+                        label = label[0]
                     yield orig, label
         else:
             for orig, label in self._test_generator(skip_augment=True):
+                # bug fix for recent tensorflow that really needs true and pred to be unpacked if single input and output
+                if len(orig) == 1:
+                    orig = orig[0]
+                if len(label) == 1:
+                    label = label[0]
                 yield orig, label
 
-    def _train_generator(self, skip_augment):
+    def _train_generator(self, skip_augment, first_run=False):
         train = MetaGenerator(self.augmenters, shuffle=self.shuffle, batch_size=self.batch_size, gen_type='train')
-        for out in train.generator(skip_augment):
+        for out in train.generator(skip_augment, first_run):
             try:
                 yield out
             except:
                 # failed to generate output --> continue
                 continue
 
-    def _test_generator(self, skip_augment):
+    def _test_generator(self, skip_augment, first_run=False):
         test = MetaGenerator(self.augmenters, shuffle=False, batch_size=self.batch_size, gen_type='test')
-        for out in test.generator(skip_augment):
+        for out in test.generator(skip_augment, first_run):
             yield out
 
-    def _validation_generator(self, skip_augment):
+    def _validation_generator(self, skip_augment, first_run=False):
         valid = MetaGenerator(self.augmenters, shuffle=self.shuffle, batch_size=self.batch_size, gen_type='valid')
-        for out in valid.generator(skip_augment):
+        for out in valid.generator(skip_augment, first_run):
             yield out
 
     def predict_generator(self):  # TODO can use datagen for now
@@ -302,25 +336,26 @@ class MetaAugmenter:
         return len(self.augmenters)
 
     # returns the real nb of batches with the current parameters...
-    def get_train_length(self):
+    def get_train_length(self, first_run=False):
         # need run the train algo once with real tiled data to get the counts
-        train_generator = self._train_generator(skip_augment=True)
+        train_generator = self._train_generator(skip_augment=True, first_run=first_run)
         nb_batches = 0
         for _, _ in train_generator:
             nb_batches += 1
         return nb_batches
 
-    def get_test_length(self):
+    def get_test_length(self, first_run=False):
         # need run the train algo once with real tiled data to get the counts
-        test_generator = self._test_generator(skip_augment=True)
+        test_generator = self._test_generator(skip_augment=True, first_run=first_run)
         nb_batches = 0
         for _, _ in test_generator:
             nb_batches += 1
         return nb_batches
 
-    def get_validation_length(self):
+
+    def get_validation_length(self, first_run=False):
         # need run the train algo once with real tiled data to get the counts
-        validation_generator = self._validation_generator(skip_augment=True)
+        validation_generator = self._validation_generator(skip_augment=True, first_run=first_run)
         nb_batches = 0
         for _, _ in validation_generator:
             nb_batches += 1

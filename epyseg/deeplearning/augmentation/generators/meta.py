@@ -15,19 +15,19 @@ class MetaGenerator:
         self.shuffle = shuffle
         self.gen_type = gen_type
 
-    def generator(self, skip_augment):
+    def generator(self, skip_augment, first_run):
         self.remains_of_previous_batch = None
         generators = []
         for gen in self.augmenters:
             if self.gen_type == 'train':
                 if gen.has_train_set():
-                    generators.append(gen.train_generator(skip_augment=skip_augment))
+                    generators.append(gen.train_generator(skip_augment=skip_augment, first_run=first_run))
             elif self.gen_type == 'test':
                 if gen.has_test_set():
-                    generators.append(gen.test_generator(skip_augment=skip_augment))
+                    generators.append(gen.test_generator(skip_augment=skip_augment, first_run=first_run))
             elif self.gen_type == 'valid':
                 if gen.has_validation_set():
-                    generators.append(gen.validation_generator(skip_augment=skip_augment))
+                    generators.append(gen.validation_generator(skip_augment=skip_augment, first_run=first_run))
             else:
                 logger.error('unsupported generator ' + self.gen_type)
 

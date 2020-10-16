@@ -38,9 +38,12 @@ class crop_or_preview(QWidget):
         self.paint.mouseMoveEvent = self.mouseMoveEvent
         self.paint.mousePressEvent = self.mousePressEvent
         self.paint.mouseReleaseEvent = self.mouseReleaseEvent
-        self.scrollArea.setGeometry(QRect(0, 0, 256, 256))
 
-        self.setGeometry(QRect(0, 0, 256, 256))
+        self.prev_width = 192
+        self.prev_height = 192
+
+        self.scrollArea.setGeometry(QRect(0, 0, self.prev_width, self.prev_height))
+        self.setGeometry(QRect(0, 0, self.prev_width, self.prev_height))
         self.setFixedSize(self.size())
         layout.addWidget(self.scrollArea)
 
@@ -52,7 +55,7 @@ class crop_or_preview(QWidget):
         if img is None:
             self.paint.scale = self.scale = self.paint.vdp.scale = 1.
         else:
-            max_size = min(256 / img.get_width(), 256 / img.get_height())
+            max_size = min(self.prev_width / img.get_width(), self.prev_height / img.get_height())
             self.paint.scale = self.scale = self.paint.vdp.scale = max_size
 
         if self.paint.image is not None:

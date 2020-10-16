@@ -1,0 +1,3 @@
+# Weights
+ 
+A **trained/pre-trained model** is a model that comes with **tuned weights**. **Please bear in mind that models may come with or without weights**. For example a .json file will not have weights whereas a .model will. **If the aim is to use the model directly for prediction, then the model must have weights** and it is important to also load weights if they are not present in the loaded model file (typically a weight file will have a .h5 extension). **On the other hand, if the aim is to train a model from scratch on new data, then weigths are not required (the weights will be determined during the training steps)**. 

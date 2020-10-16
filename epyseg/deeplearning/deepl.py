@@ -1,7 +1,8 @@
-# TODO add vgg normalization
-# TODO design a metrics BASED ON CELLS OR SEEDS --> HOW MANY SEEDS/CELLS OVELAP WITH EXPECTED --> COULD EVEN BE MY REAL METRIC ULTIMATELY
-
 import os
+
+from epyseg.postprocess.filtermask import simpleFilter
+from epyseg.postprocess.refine_v2 import RefineMaskUsingSeeds
+
 os.environ['SM_FRAMEWORK'] = 'tf.keras'  # set env var for changing the segmentation_model framework
 import traceback
 import matplotlib.pyplot as plt
@@ -137,33 +138,35 @@ class EZDeepLearning:
         'FPN-densenet169-sigmoid': None,
         'FPN-densenet121-sigmoid': None,
         'Linknet-vgg19-sigmoid': None,
-        #'https://github.com/baigouy/models/raw/master/model_linknet-vgg16_shells.h5'
+        # 'https://github.com/baigouy/models/raw/master/model_linknet-vgg16_shells.h5'
         # ça marche donc faut voir si bug dans tensorflow  wget 'https://gitlab.com/baigouy/models/raw/master/model_linknet-vgg16_shells.h5'
         # qsdqsdqs
-        'Linknet-vgg16-sigmoid': {'url': 'https://gitlab.com/baigouy/models/raw/master/model_linknet-vgg16_shells.h5', # TODO change this
-                               'md5': '266ca9acd9d7a4fe74a473e17952fb6c',#'toto'
-                               'model': None,
-                               'model_weights': None,
-                               'architecture': 'Linknet',
-                               'backbone': 'vgg16',
-                               'activation': 'sigmoid',
-                               'classes': 7,
-                               'input_width': None,
-                               'input_height': None,
-                               'input_channels': 1},
+        'Linknet-vgg16-sigmoid': {'url': 'https://gitlab.com/baigouy/models/raw/master/model_linknet-vgg16_shells.h5',
+                                  # TODO change this
+                                  'md5': '266ca9acd9d7a4fe74a473e17952fb6c',  # 'toto'
+                                  'model': None,
+                                  'model_weights': None,
+                                  'architecture': 'Linknet',
+                                  'backbone': 'vgg16',
+                                  'activation': 'sigmoid',
+                                  'classes': 7,
+                                  'input_width': None,
+                                  'input_height': None,
+                                  'input_channels': 1},
         'Linknet-seresnext50-sigmoid': None,
-        #'https://github.com/baigouy/models/raw/master/model_Linknet-seresnext101.h5'
-        'Linknet-seresnext101-sigmoid': {'url': 'https://gitlab.com/baigouy/models/raw/master/model_Linknet-seresnext101.h5',
-                               'md5': '209f3bf53f3e2f5aaeef62d517e8b8d8',
-                               'model': None,
-                               'model_weights': None,
-                               'architecture': 'Linknet',
-                               'backbone': 'seresnext101',
-                               'activation': 'sigmoid',
-                               'classes': 1,
-                               'input_width': None,
-                               'input_height': None,
-                               'input_channels': 1},
+        # 'https://github.com/baigouy/models/raw/master/model_Linknet-seresnext101.h5'
+        'Linknet-seresnext101-sigmoid': {
+            'url': 'https://gitlab.com/baigouy/models/raw/master/model_Linknet-seresnext101.h5',
+            'md5': '209f3bf53f3e2f5aaeef62d517e8b8d8',
+            'model': None,
+            'model_weights': None,
+            'architecture': 'Linknet',
+            'backbone': 'seresnext101',
+            'activation': 'sigmoid',
+            'classes': 1,
+            'input_width': None,
+            'input_height': None,
+            'input_channels': 1},
         'Linknet-seresnet50-sigmoid': None,
         'Linknet-seresnet34-sigmoid': None,
         'Linknet-seresnet18-sigmoid': None,
@@ -195,8 +198,8 @@ class EZDeepLearning:
 
     # https://www.tensorflow.org/api_docs/python/tf/keras/metrics
     # TODO add smlosses iou... also add shortcuts
-    metrics = {'iou_score': iou_score, 'accuracy': 'accuracy', 'f1_score': f1_score, 'f2_score': f2_score,
-               'precision': precision,
+    metrics = {'accuracy': 'accuracy', 'f1_score': f1_score, 'f2_score': f2_score,
+               'precision': precision, 'iou_score': iou_score,
                'recall': recall, 'kullback_leibler_divergence': 'kullback_leibler_divergence',
                'mean_absolute_error': 'mean_absolute_error',
                'mean_absolute_percentage_error': 'mean_absolute_percentage_error',
@@ -210,9 +213,9 @@ class EZDeepLearning:
                'cosine_proximity': 'cosine_proximity'}
 
     # https://keras.io/losses/
-    loss = {'jaccard_loss': jaccard_loss, 'binary_crossentropy': 'binary_crossentropy',
-            'mean_squared_error': 'mean_squared_error',
-            'mean_absolute_error': 'mean_absolute_error', 'dice_loss': dice_loss,
+    loss = {'mean_squared_error': 'mean_squared_error',
+            'mean_absolute_error': 'mean_absolute_error',
+            'jaccard_loss': jaccard_loss, 'binary_crossentropy': 'binary_crossentropy', 'dice_loss': dice_loss,
             'binary_focal_loss': binary_focal_loss, 'categorical_focal_loss': categorical_focal_loss,
             'binary_crossentropy': binary_crossentropy, 'categorical_crossentropy': categorical_crossentropy,
             'bce_dice_loss': bce_dice_loss, 'bce_jaccard_loss': bce_jaccard_loss, 'cce_dice_loss': cce_dice_loss,
@@ -228,6 +231,7 @@ class EZDeepLearning:
             'kullback_leibler_divergence': 'kullback_leibler_divergence', 'poisson': 'poisson',
             'cosine_proximity': 'cosine_proximity', 'is_categorical_crossentropy': 'is_categorical_crossentropy'}
 
+    # TODO explain activation layers
     # https://keras.io/activations/
     last_layer_activation = ['sigmoid', 'softmax', 'linear', 'relu', 'elu', 'tanh', 'selu', 'softplus', 'softsign',
                              'hard_sigmoid', 'exponential', 'None']
@@ -389,7 +393,8 @@ class EZDeepLearning:
                                 #                                         cache_subdir='epyseg', hash_algorithm='auto',
                                 #                                         extract=False, archive_format='auto')
                                 #                                         #extract=True, archive_format='auto') # zipping is not a good idea as there is no gain in space
-                                model_weights = self.get_file(pretraining + '.h5', url, file_hash=file_hash, cache_subdir='epyseg')
+                                model_weights = self.get_file(pretraining + '.h5', url, file_hash=file_hash,
+                                                              cache_subdir='epyseg')
                                 # extract=True, archive_format='auto') # zipping is not a good idea as there is no gain in space
 
                             except:
@@ -452,7 +457,7 @@ class EZDeepLearning:
         os.makedirs(final_path, exist_ok=True)
 
         # try read the file and check if hash is ok --> if so no action taken otherwise --> take action
-        file_name = os.path.join(final_path,output_name_without_path)
+        file_name = os.path.join(final_path, output_name_without_path)
         if file_hash is not None:
             if self.get_md5_hash(file_name) == file_hash:
                 # file is ok, no action taken
@@ -922,31 +927,53 @@ class EZDeepLearning:
         if self.model._name is not None:
             name = self.model._name
 
+        # try on an old untouched version
+        # this works --> where is the fucking bug ????
         # DEBUG
         # gener = metagenerator.train_generator(infinite=True)
         # for inp, out in  gener:
         #     print('saving')
         #     # en tout cas ça ne marche pas
         #     print(inp[0].shape, out[0].shape)
+        #
+        #     print(isinstance(inp, tuple), type(inp))
         #     Img(inp[0], dimensions='dhwc').save('/home/aigouy/Bureau/trashme_inp.tif')
         #     Img(out[0], dimensions='dhwc').save('/home/aigouy/Bureau/trashme.tif')
         #     import sys
         #     sys.exit(0)
 
+        try:
+            validation_data = metagenerator.validation_generator(infinite=True)
+            validation_steps = metagenerator.get_validation_length(first_run=True)  # use this to generate data
+            validation_freq = 5  # checks on validation data every 5 steps # TODO set this as a parameter
+
+            # TODO IMPORTANT link on how to set the parameters https://segmentation-models.readthedocs.io/en/latest/api.html#unet
+            if validation_steps is None:
+                validation_steps = 0
+
+            # TODO VERY IMPORTANT need shuffle if not steps_per_epoch == -1 (fullset) --> TODO
+            if steps_per_epoch == -1:
+                run_steps_per_epoch = metagenerator.get_train_length(first_run=True)
+                logger.info('train dataset batches: ' + str(
+                    run_steps_per_epoch) + '\nvalidation dataset batches: ' + str(validation_steps))
+            else:
+                # TODO VERY IMPORTANT need shuffle if not steps_per_epoch == -1 (fullset) --> TODO
+                run_steps_per_epoch = steps_per_epoch
+            train_data = metagenerator.train_generator(infinite=True)
+        except:
+            traceback.print_exc()
+            logger.error(
+                'Failed to create datagenerators (see log above), training is therefore impossible, sorry...')
+            return
+
+        fake_crash = True
+
         result = None
         while result is None and metagenerator.batch_size > 0:
             try:
-                validation_data = metagenerator.validation_generator(infinite=True)
-                validation_steps = metagenerator.get_validation_length()
-                validation_freq = 5  # checks on validation data every 5 steps # TODO set this as a parameter
-
-                if steps_per_epoch == -1:
-                    run_steps_per_epoch = metagenerator.get_train_length()
-                    logger.info('train dataset batches: ' + str(
-                        run_steps_per_epoch) + '\nvalidation dataset batches: ' + str(validation_steps))
-                else:
-                    run_steps_per_epoch = steps_per_epoch
-
+                if fake_crash:
+                    fake_crash = False
+                    raise Exception('test crash')
                 self.stop_cbk = myStopCallback()
                 self.saver_cbk = My_saver_callback(name, self, epochs=epochs,
                                                    output_folder_for_models=output_folder_for_models,
@@ -959,24 +986,19 @@ class EZDeepLearning:
                         initial_lr=tf.keras.backend.eval(self.model.optimizer.lr))
                     callbacks.append(reduce_learning_rate)
 
-                # TODO IMPORTANT link on how to set the parameters https://segmentation-models.readthedocs.io/en/latest/api.html#unet
-
-                if validation_steps is None:
-                    validation_steps = 0
-
                 if validation_steps != 0:
                     if tf.__version__ <= "2.0.0":
                         # hack for tf 2.0.0 support for mac osX (weird bug in tf.keras somewhere)
                         # https://github.com/tensorflow/tensorflow/issues/31231#issuecomment-586630019
-                        result = self.model.fit_generator(metagenerator.train_generator(infinite=True),
-                                            validation_data=validation_data,
-                                            validation_steps=validation_steps,
-                                            validation_freq=validation_freq,
-                                            steps_per_epoch=run_steps_per_epoch, epochs=epochs,
-                                            callbacks=callbacks,
-                                            verbose=1)
+                        result = self.model.fit_generator(train_data,
+                                                          validation_data=validation_data,
+                                                          validation_steps=validation_steps,
+                                                          validation_freq=validation_freq,
+                                                          steps_per_epoch=run_steps_per_epoch, epochs=epochs,
+                                                          callbacks=callbacks,
+                                                          verbose=1)
                     else:
-                        result = self.model.fit(metagenerator.train_generator(infinite=True),
+                        result = self.model.fit(train_data,
                                                 validation_data=validation_data,
                                                 validation_steps=validation_steps,
                                                 validation_freq=validation_freq,
@@ -988,20 +1010,23 @@ class EZDeepLearning:
                     if tf.__version__ <= "2.0.0":
                         # hack for tf 2.0.0 support for mac osX (weird bug in tf.keras somewhere)
                         # https://github.com/tensorflow/tensorflow/issues/31231#issuecomment-586630019
-                        result = self.model.fit_generator(metagenerator.train_generator(infinite=True),
-                                            steps_per_epoch=run_steps_per_epoch, epochs=epochs,
-                                            callbacks=callbacks,
-                                            verbose=1)
+                        result = self.model.fit_generator(train_data,
+                                                          steps_per_epoch=run_steps_per_epoch, epochs=epochs,
+                                                          callbacks=callbacks,
+                                                          verbose=1)
                     else:
-                        result = self.model.fit(metagenerator.train_generator(infinite=True),
+                        result = self.model.fit(train_data,
                                                 steps_per_epoch=run_steps_per_epoch, epochs=epochs,
                                                 callbacks=callbacks,
                                                 verbose=1)
-
             except:
                 traceback.print_exc()
                 if batch_size_auto_adjust:
                     metagenerator.batch_size = int(metagenerator.batch_size / 2)
+                    if validation_steps != 0:
+                        validation_steps = metagenerator.get_validation_length()
+                    if steps_per_epoch == -1:
+                        run_steps_per_epoch = metagenerator.get_train_length() # need recompute how many steps there will be because of the batch size reduction by 2
                 else:
                     traceback.print_exc()
                     # if user does not want batch size to be adjusted --> quit loop
@@ -1045,8 +1070,7 @@ class EZDeepLearning:
             traceback.print_exc()
 
     def predict(self, datagenerator, output_shapes, progress_callback=None, batch_size=1, predict_output_folder=None,
-                hq_predictions=True,
-                **kwargs):
+                hq_predictions='mean', post_process_algorithm=None, **kwargs):
         '''run the model
 
         Parameters
@@ -1064,9 +1088,10 @@ class EZDeepLearning:
 
         '''
 
+        logger.debug('hq_predictions mode' + str(hq_predictions))
         predict_generator = datagenerator.predict_generator()
 
-        bckup_predict_output_folder = predict_output_folder
+        # bckup_predict_output_folder = predict_output_folder
         TA_mode = False
         if predict_output_folder == 'TA_mode':
             TA_mode = True
@@ -1097,7 +1122,8 @@ class EZDeepLearning:
             filename0_without_ext = os.path.splitext(filename0_without_path)[0]
             parent_dir_of_filename0 = os.path.dirname(filename0)
 
-            TA_output_filename = os.path.join(parent_dir_of_filename0, filename0_without_ext, 'raw_epyseg_output.tif') # TODO allow custom names here to allow ensemble methods
+            TA_output_filename = os.path.join(parent_dir_of_filename0, filename0_without_ext,
+                                              'epyseg_raw_predict.tif')  # TODO allow custom names here to allow ensemble methods
             non_TA_final_output_name = os.path.join(predict_output_folder, filename0_without_ext + '.tif')
 
             filename_to_use_to_save = non_TA_final_output_name
@@ -1106,8 +1132,9 @@ class EZDeepLearning:
 
             try:
                 results = self.model.predict(files, verbose=1, batch_size=batch_size)
-                if hq_predictions:
-                    results = self.get_HQ_predictions(files, results, batch_size=batch_size)
+                if hq_predictions is not None:
+                    results = self.get_HQ_predictions(files, results, batch_size=batch_size,
+                                                      projection_method=hq_predictions)
 
             except:
                 traceback.print_exc()
@@ -1124,10 +1151,57 @@ class EZDeepLearning:
 
                 if len(output_shape) == 4:
                     reconstructed_tile = Img.reassemble_tiles(ordered_tiles, crop_parameters[j])
-                    Img(reconstructed_tile, dimensions='hwc').save(filename_to_use_to_save)
+                    # run post process directly on the image if available
+                    if output_shape[-1]!=7 and (post_process_algorithm is not None or (isinstance(post_process_algorithm, str) and 'imply' in post_process_algorithm)):
+                        logger.error('Model is not compatible with epyseg and cannot be optimized, so it will simply be thresholded according to selected options, sorry...')
+
+                    if isinstance(post_process_algorithm, str) and 'imply' in post_process_algorithm or output_shape[-1]!=7: # if model is incompatible
+                        # simply binarise all
+                        reconstructed_tile = simpleFilter(Img(reconstructed_tile, dimensions='hwc'), **kwargs)
+                        Img(reconstructed_tile, dimensions='hwc').save(filename_to_use_to_save)
+                    elif post_process_algorithm is not None:
+                        try:
+                            logger.info('post processing/refining mask, please wait...')
+                            reconstructed_tile = self.run_post_process(Img(reconstructed_tile, dimensions='hwc'),
+                                                                       post_process_algorithm,
+                                                                       progress_callback=progress_callback, **kwargs)
+                            if 'epyseg_raw_predict.tif' in filename_to_use_to_save:
+                                filename_to_use_to_save = filename_to_use_to_save.replace('epyseg_raw_predict.tif',
+                                                                                          'handCorrection.tif')
+                            Img(reconstructed_tile, dimensions='hw').save(filename_to_use_to_save)
+                        except:
+                            logger.error('running post processing/refine mask failed')
+                            traceback.print_exc()
+                    else:
+                        Img(reconstructed_tile, dimensions='hwc').save(filename_to_use_to_save)
                 else:
                     reconstructed_tile = Img.reassemble_tiles(ordered_tiles, crop_parameters[j], three_d=True)
-                    Img(reconstructed_tile, dimensions='dhwc').save(filename_to_use_to_save)
+                    # run post process directly on the image if available
+                    if output_shape[-1] != 7 and (post_process_algorithm is not None or (
+                            isinstance(post_process_algorithm, str) and 'imply' in post_process_algorithm)):
+                        logger.error(
+                            'Model is not compatible with epyseg and cannot be optimized, so it will simply be thresholded according to selected options, sorry...')
+                    if isinstance(post_process_algorithm, str) and 'imply' in post_process_algorithm or output_shape[-1]!=7:
+                        # simply binarise all
+                        # nb that will NOT WORK TODO FIX BUT OK FOR NOW
+                        # reconstructed_tile = simpleFilter(Img(reconstructed_tile, dimensions='dhwc'), **kwargs)
+                        logger.error('not supported yet please threshold outside the software')
+                        Img(reconstructed_tile, dimensions='dhwc').save(filename_to_use_to_save)
+                    elif post_process_algorithm is not None:
+                        try:
+                            logger.info('post processing/refining mask, please wait...')
+                            reconstructed_tile = self.run_post_process(Img(reconstructed_tile, dimensions='dhwc'),
+                                                                       post_process_algorithm,
+                                                                       progress_callback=progress_callback, **kwargs)
+                            if 'epyseg_raw_predict.tif' in filename_to_use_to_save:
+                                filename_to_use_to_save = filename_to_use_to_save.replace('epyseg_raw_predict.tif',
+                                                                                          'handCorrection.tif')  # nb java TA does not support 3D masks yet --> maybe do that specifically for the python version
+                            Img(reconstructed_tile, dimensions='dhw').save(filename_to_use_to_save)
+                        except:
+                            logger.error('running post processing/refine mask failed')
+                            traceback.print_exc()
+                    else:
+                        Img(reconstructed_tile, dimensions='dhwc').save(filename_to_use_to_save)
                 logger.info('saving file as ' + str(filename_to_use_to_save))
 
         try:
@@ -1138,20 +1212,51 @@ class EZDeepLearning:
         except:
             pass
 
+    def run_post_process(self, image_to_process, post_process_algorithm, progress_callback=None, **kwargs):
+        # do I really need that ???
         # now refine masks if the user wants it, even though it can be done as a post process
-        if 'filter' in kwargs:
-            if TA_mode:
-                kwargs['input'] = kwargs['inputs'][0]
-            else:
-                kwargs['input'] = bckup_predict_output_folder
-            if TA_mode:
-                kwargs['output_folder'] = bckup_predict_output_folder
-            else:
-                kwargs['output_folder'] = os.path.join(bckup_predict_output_folder,'refined_predictions')
-            EPySegPostProcess(**kwargs, progress_callback=progress_callback)
 
-    def get_HQ_predictions(self, files, results, batch_size=1, avg_method='max'):  # 'max' #'mean' # max_mean # do max for flips and mean for increase contrast
-        DEBUG = False # True
+        # Default(Moderately fast but robust)')
+        # self.post_process_method_selection.addItem('Fast (More errors)')
+        # # self.post_process_method_selection.addItem('Slow') # check if I add this ???
+        # self.post_process_method_selection.addItem('Old method (Overall less constant, sometimes better)')
+        # self.post_process_method_selection.addItem('None (Raw model output)')
+
+        # if does not have 7 ouputs --> deactivate my own post proc and only allow none or simply threshold
+
+        method = post_process_algorithm
+
+        if isinstance(post_process_algorithm, str):
+
+            # print('chosen', post_process_algorithm)
+            if 'ld' in post_process_algorithm:
+                method = EPySegPostProcess
+            # elif 'imply' in post_process_algorithm:
+            #     method = SimplyThresholdMask
+            else:  # MEGA TODO add parameters with partial according to input
+                method = RefineMaskUsingSeeds
+
+        return method().process(input=image_to_process, mode=post_process_algorithm, **kwargs,
+                                progress_callback=progress_callback)
+
+        # if method is EPySegPostProcess:
+        #     # if 'filter' in kwargs:
+        #     # if TA_mode:
+        #     #     kwargs['input'] = kwargs['inputs'][0]
+        #     # else:
+        #     #     kwargs['input'] = bckup_predict_output_folder
+        #     # if TA_mode:
+        #     #     kwargs['output_folder'] = bckup_predict_output_folder
+        #     # else:
+        #     #     kwargs['output_folder'] = os.path.join(bckup_predict_output_folder,'refined_predictions')
+        #     return method.process(input=image_to_process, **kwargs, progress_callback=progress_callback)
+        # else:
+        #     return method(input=image_to_process, **kwargs, progress_callback=progress_callback)
+
+    # TODO add median as avg_method
+    def get_HQ_predictions(self, files, results, batch_size=1,
+                           projection_method='mean'):  # 'max' #'mean' # max_mean # do max for flips and mean for increase contrast
+        DEBUG = False  # True
         path = '/media/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/output_models/test_spliiting_augs'
         counter = 1
 
@@ -1201,11 +1306,11 @@ class EZDeepLearning:
                 if DEBUG:
                     Img(result, dimensions='dhwc').save(
                         os.path.join(os.path.splitext(path)[0], '0-' + str(idx) + '.tif'))
-                if avg_method == 'max':
+                if projection_method == 'max':
                     results[idx] = np.maximum(results[idx], result)  # restore original rotation angle
-                elif avg_method == 'mean':
+                elif projection_method == 'mean':
                     results[idx] += result
-            if avg_method == 'mean':
+            if projection_method == 'mean':
                 counter += 1
             del results2
 
@@ -1221,11 +1326,11 @@ class EZDeepLearning:
                 if DEBUG:
                     Img(result, dimensions='dhwc').save(
                         os.path.join(os.path.splitext(path)[0], '1-' + str(idx) + '.tif'))
-                if avg_method == 'max':
+                if projection_method == 'max':
                     results[idx] = np.maximum(results[idx], result)
-                elif avg_method == 'mean':
+                elif projection_method == 'mean':
                     results[idx] += result
-            if avg_method == 'mean':
+            if projection_method == 'mean':
                 counter += 1
             del results2
 
@@ -1241,11 +1346,11 @@ class EZDeepLearning:
                 if DEBUG:
                     Img(result, dimensions='dhwc').save(
                         os.path.join(os.path.splitext(path)[0], '2-' + str(idx) + '.tif'))
-                if avg_method == 'max':
+                if projection_method == 'max':
                     results[idx] = np.maximum(results[idx], result)
-                elif avg_method == 'mean':
+                elif projection_method == 'mean':
                     results[idx] += result
-            if avg_method == 'mean':
+            if projection_method == 'mean':
                 counter += 1
             del results2
             del files3
@@ -1263,11 +1368,11 @@ class EZDeepLearning:
                 if DEBUG:
                     Img(result, dimensions='dhwc').save(
                         os.path.join(os.path.splitext(path)[0], '3-' + str(idx) + '.tif'))
-                if avg_method == 'max':
+                if projection_method == 'max':
                     results[idx] = np.maximum(results[idx], result)
-                elif avg_method == 'mean':
+                elif projection_method == 'mean':
                     results[idx] += result
-            if avg_method == 'mean':
+            if projection_method == 'mean':
                 counter += 1
             del results2
         else:
@@ -1287,11 +1392,11 @@ class EZDeepLearning:
             result = np.rot90(result, 2, axes=(-3, -2))  # restore original rotation angle
             if DEBUG:
                 Img(result, dimensions='dhwc').save(os.path.join(os.path.splitext(path)[0], '4-' + str(idx) + '.tif'))
-            if avg_method == 'max':
+            if projection_method == 'max':
                 results[idx] = np.maximum(results[idx], result)
-            elif avg_method == 'mean':
+            elif projection_method == 'mean':
                 results[idx] += result
-        if avg_method == 'mean':
+        if projection_method == 'mean':
             counter += 1
         del results2
 
@@ -1307,11 +1412,11 @@ class EZDeepLearning:
             result = np.flip(result, -2)  # restore original orientation
             if DEBUG:
                 Img(result, dimensions='dhwc').save(os.path.join(os.path.splitext(path)[0], '5-' + str(idx) + '.tif'))
-            if avg_method == 'max':
+            if projection_method == 'max':
                 results[idx] = np.maximum(results[idx], result)
-            elif avg_method == 'mean':
+            elif projection_method == 'mean':
                 results[idx] += result
-        if avg_method == 'mean':
+        if projection_method == 'mean':
             counter += 1
         del results2
 
@@ -1327,11 +1432,11 @@ class EZDeepLearning:
             result = np.flip(result, -3)  # restore original orientation
             if DEBUG:
                 Img(result, dimensions='dhwc').save(os.path.join(os.path.splitext(path)[0], '6-' + str(idx) + '.tif'))
-            if avg_method == 'max':
+            if projection_method == 'max':
                 results[idx] = np.maximum(results[idx], result)
-            elif avg_method == 'mean':
+            elif projection_method == 'mean':
                 results[idx] += result
-        if avg_method == 'mean':
+        if projection_method == 'mean':
             counter += 1
         del results2
 
@@ -1359,11 +1464,11 @@ class EZDeepLearning:
                     if DEBUG:
                         Img(result, dimensions='dhwc').save(
                             os.path.join(os.path.splitext(path)[0], '7-' + str(idx) + '.tif'))
-                    if avg_method == 'max':
+                    if projection_method == 'max':
                         results[idx] = np.maximum(results[idx], result)
-                    elif avg_method == 'mean':
+                    elif projection_method == 'mean':
                         results[idx] += result
-                if avg_method == 'mean':
+                if projection_method == 'mean':
                     counter += 1
                 del results2
 
@@ -1380,11 +1485,11 @@ class EZDeepLearning:
                     if DEBUG:
                         Img(result, dimensions='dhwc').save(
                             os.path.join(os.path.splitext(path)[0], '8-' + str(idx) + '.tif'))
-                    if avg_method == 'max':
+                    if projection_method == 'max':
                         results[idx] = np.maximum(results[idx], result)
-                    elif avg_method == 'mean':
+                    elif projection_method == 'mean':
                         results[idx] += result
-                if avg_method == 'mean':
+                if projection_method == 'mean':
                     counter += 1
                 del results2
 
@@ -1400,11 +1505,11 @@ class EZDeepLearning:
                     if DEBUG:
                         Img(result, dimensions='dhwc').save(
                             os.path.join(os.path.splitext(path)[0], '10-' + str(idx) + '.tif'))
-                    if avg_method == 'max':
+                    if projection_method == 'max':
                         results[idx] = np.maximum(results[idx], result)
-                    elif avg_method == 'mean':
+                    elif projection_method == 'mean':
                         results[idx] += result
-                if avg_method == 'mean':
+                if projection_method == 'mean':
                     counter += 1
                 del results2
 
@@ -1420,11 +1525,11 @@ class EZDeepLearning:
                     if DEBUG:
                         Img(result, dimensions='dhwc').save(
                             os.path.join(os.path.splitext(path)[0], '11-' + str(idx) + '.tif'))
-                    if avg_method == 'max':
+                    if projection_method == 'max':
                         results[idx] = np.maximum(results[idx], result)
-                    elif avg_method == 'mean':
+                    elif projection_method == 'mean':
                         results[idx] += result
-                if avg_method == 'mean':
+                if projection_method == 'mean':
                     counter += 1
                 del results2
 
@@ -1440,11 +1545,11 @@ class EZDeepLearning:
                     if DEBUG:
                         Img(result, dimensions='dhwc').save(
                             os.path.join(os.path.splitext(path)[0], '12-' + str(idx) + '.tif'))
-                    if avg_method == 'max':
+                    if projection_method == 'max':
                         results[idx] = np.maximum(results[idx], result)
-                    elif avg_method == 'mean':
+                    elif projection_method == 'mean':
                         results[idx] += result
-                if avg_method == 'mean':
+                if projection_method == 'mean':
                     counter += 1
                 del results2
             else:
@@ -1454,7 +1559,7 @@ class EZDeepLearning:
         except:
             traceback.print_exc()
 
-        if avg_method == 'mean':
+        if projection_method == 'mean':
             results /= counter
 
         return results

@@ -1,0 +1,14 @@
+# Refine segmentation
+
+If you chose to **uncheck** this the **raw model output** will be saved. **Otherwise**, this **raw output is further post-processed to generate a single segmentation mask from it**. This 'refined' segmentation is usually of better quality than raw output. Practically, the single output is obtained by combining the 5 watershed-like segmentations and the 2 watershed-like seeds the model produces.  
+
+**NB: Before getting started please be aware that most options in 'refine segmentation' can only be applied to our pre-trained model**
+
+* **Threshold:** when **too many cells are found**, try to **increase** this value (e.g. 0.74) on the other hand if **too few cells** are found, try to **decrease** this value (e.g. 0.24). **This is the main parameter of the software** and it can be seen as a bond likelyhood (a bond that is always present will have a value of 1 and a bond that is present in a quarter of the images will have a value of 0.25). **I would highly recommend tuning this parameter only**.
+* **Further filter segmentation by size:** in rare cases one may want to get rid of small cells (those cells may even be real but the user does not want them to be part of the segmentation). This can be achieved by setting a threshold cell size.
+* **Do not exclude groups bigger than:** if too many adjacent cells are removed locally then it is likely that those cells are real and need be restored (this allows for setting a size threshold high while preventing regions with small cells from being completely removed). 
+* **Restore most likely cells:** restores cells with highest bond scores 
+
+## How is bond probability obtained ?
+
+The **pre-trained model makes a 7 channel prediction** based on the input image. Practically, each of these **images are either watershed-like outputs or watershed-seeds outputs**. Altogether, it is possible to produce 7 watershed masks from the pre-trained model prediction. Upon averaging of these 7 watershed masks one obtains a single average image that contains bonds with values ranging from 0.14 (bonds present in 1 out of the 7 watershed masks) to 1 (bonds present in all the 7 watershed masks). **This bond likelihood image can be thresholded (using the 'Threshold' parameter) to obtain the refined watershed mask/segmentation**. This mask is saved in the 'predict' folder if 'Auto' or 'Custom' is enabled. In contrast, if 'Tissue Analyzer' mode is selected the refined mask is saved in a folder with the same name as the input file without the extension (the file is named 'handCorrection.tif' and can readily be used with Tissue Analyzer).  
