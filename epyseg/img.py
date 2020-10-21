@@ -662,7 +662,7 @@ class Img(np.ndarray):  # subclass ndarray
             buf.close()
             return figdata_png
 
-    def save(self, output_name):
+    def save(self, output_name, print_file_name=False):
         '''saves the current image
 
         Parameters
@@ -671,6 +671,9 @@ class Img(np.ndarray):  # subclass ndarray
             name of the file to save
 
         '''
+
+        if print_file_name:
+            print('saving', output_name)
 
         if output_name is None:
             logger.error("No output name specified... ignoring...")

@@ -966,14 +966,14 @@ class EZDeepLearning:
                 'Failed to create datagenerators (see log above), training is therefore impossible, sorry...')
             return
 
-        fake_crash = True
+        # fake_crash = True
 
         result = None
         while result is None and metagenerator.batch_size > 0:
             try:
-                if fake_crash:
-                    fake_crash = False
-                    raise Exception('test crash')
+                # if fake_crash:
+                #     fake_crash = False
+                #     raise Exception('test crash')
                 self.stop_cbk = myStopCallback()
                 self.saver_cbk = My_saver_callback(name, self, epochs=epochs,
                                                    output_folder_for_models=output_folder_for_models,

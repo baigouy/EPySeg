@@ -1240,7 +1240,7 @@ class image_input_settings(QDialog):
                 # we add the possibility to generate epyseg style mask from the software
                 try:
                     if self.generate_default_epyseg_output_from_mask.isChecked():
-                        data['remove_n_border_mask_pixels'] = 'sevenmasks' if not self.store_mask_on_drive_to_gain_speed.isChecked() else 'sevenmaskssave'
+                        data['create_epyseg_style_output'] = 'sevenmasks' if not self.store_mask_on_drive_to_gain_speed.isChecked() else 'sevenmaskssave'
                 except:
                     # if model is not compatible with EPySeg --> do not allow speed up
                     pass
