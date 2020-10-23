@@ -17,7 +17,6 @@ import czifile  # open .czi spim files
 import glob
 from skimage.transform import rescale
 from skimage.util import img_as_ubyte
-import matplotlib.pyplot as plt  # to do plots
 import scipy.signal  # convolution of images
 import numpy as np
 import json
