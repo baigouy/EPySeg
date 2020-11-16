@@ -1,5 +1,6 @@
 import os
 from epyseg.deeplearning.docs.doc2html import browse_tip, markdown_file_to_html
+
 os.environ['SM_FRAMEWORK'] = 'tf.keras'  # set env var for changing the segmentation_model framework
 import sys
 from epyseg.worker.fake import FakeWorker
@@ -12,7 +13,7 @@ from epyseg.deeplearning.augmentation.meta import MetaAugmenter
 from epyseg.gui.augmenter import DataAugmentationGUI
 from PyQt5.QtWidgets import QListWidgetItem, QAbstractItemView, QSpinBox, QComboBox, QProgressBar, \
     QVBoxLayout, QHBoxLayout, QLabel, QCheckBox, QRadioButton, QButtonGroup, QGroupBox, \
-    QTextBrowser, QToolTip
+    QTextBrowser, QToolTip, QDoubleSpinBox
 from PyQt5.QtCore import Qt, QThreadPool, QPoint, QRect
 from PyQt5.QtGui import QColor, QTextCharFormat, QTextCursor, QPixmap, QIcon
 from PyQt5.QtWidgets import QGridLayout, QListWidget, QFrame, QTabWidget
@@ -35,13 +36,14 @@ QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)  # 
 DEBUG = False  # set to True if GUI crashes
 __MAJOR__ = 0
 __MINOR__ = 1
-__MICRO__ = 15
+__MICRO__ = 16
 __RELEASE__ = ''  # a #b  # https://www.python.org/dev/peps/pep-0440/#public-version-identifiers --> alpha beta, ...
 __VERSION__ = ''.join([str(__MAJOR__), '.', str(__MINOR__), '.',
                        str(__MICRO__)])  # if __MICRO__ != 0 else '', __RELEASE__]) # bug here fix some day
 __AUTHOR__ = 'Benoit Aigouy'
 __NAME__ = 'EPySeg'
 __EMAIL__ = 'baigouy@gmail.com'
+
 
 class EPySeg(QWidget):
     '''a deep learning GUI
@@ -175,7 +177,7 @@ class EPySeg(QWidget):
         self.groupBox_pretrain_layout.addWidget(self.model_pretrain_on_epithelia, 0, 2)
         # self.groupBox_pretrain_layout.addWidget(pretrained_label_infos, 1, 0, 1, 3)
         self.groupBox_pretrain_layout.addWidget(self.help_button_models, 0, 3, 2, 1)
-        self.groupBox_pretrain_layout.addWidget(self.input_model, 1, 0,1,3)
+        self.groupBox_pretrain_layout.addWidget(self.input_model, 1, 0, 1, 3)
 
         self.groupBox_pretrain.setLayout(self.groupBox_pretrain_layout)
 
@@ -266,9 +268,9 @@ class EPySeg(QWidget):
 
         self.input_weights = OpenFileOrFolderWidget(parent_window=self, label_text='Load weights',
                                                     is_file=True,
-                                                    extensions="Supported Files (*.h5 *.H5 *.hdf5 *.HDF5);;All Files (*)") # TODO shall i add *.model ???
+                                                    extensions="Supported Files (*.h5 *.H5 *.hdf5 *.HDF5);;All Files (*)")  # TODO shall i add *.model ???
 
-        self.help_button_input_weights =  QPushButton('?', None)
+        self.help_button_input_weights = QPushButton('?', None)
         self.help_button_input_weights.setMaximumWidth(bt_width * 2)
         self.help_button_input_weights.clicked.connect(self.show_tip)
 
@@ -357,9 +359,24 @@ class EPySeg(QWidget):
         for optimizer in EZDeepLearning.optimizers:
             self.model_optimizers.addItem(optimizer)
 
+        self.default_lr_checkbox = QCheckBox('Default optimizer learning rate')
+        # connect this to the
+        self.default_lr_checkbox.setChecked(True)
+        self.default_lr_checkbox.stateChanged.connect(self._learning_rate_changed)
+        # TODO connect that in order to do learning rate
+        self.learning_rate_spin = QDoubleSpinBox()
+        self.learning_rate_spin.setDecimals(10)  # required to see decimals
+        self.learning_rate_spin.setSingleStep(0.0001)
+        self.learning_rate_spin.setRange(0.0000000001,
+                                         10000)  # most likely ok, or even too much, but check the literature for range
+        self.learning_rate_spin.setValue(0.001)  # Adam default could also put 10-4 maybe ???
+        self.learning_rate_spin.setEnabled(False)
+
         self.help_button_optimizer = QPushButton('?', None)
         self.help_button_optimizer.setMaximumWidth(bt_width * 2)
         self.help_button_optimizer.clicked.connect(self.show_tip)
+
+        # add stuff there like learning rate and co...
 
         # loss used to update weights (determines how well the model fits the data)
         loss_label = QLabel('Loss')
@@ -380,12 +397,12 @@ class EPySeg(QWidget):
         # remove dataset
         self.remove_metric = QPushButton('-')
         # bt_width = self.remove_metric.fontMetrics().boundingRect(self.remove_metric.text()).width() + 7
-        self.remove_metric.setMaximumWidth(bt_width*2)
+        self.remove_metric.setMaximumWidth(bt_width * 2)
         self.remove_metric.clicked.connect(self._remove_selected_metric)
 
         self.add_metric = QPushButton('+')
         # width = self.add_metric.fontMetrics().boundingRect(self.add_metric.text()).width() + 7
-        self.add_metric.setMaximumWidth(bt_width*2)
+        self.add_metric.setMaximumWidth(bt_width * 2)
         self.add_metric.clicked.connect(self._add_selected_metric)
 
         self.help_button_metrics = QPushButton('?', None)
@@ -465,6 +482,28 @@ class EPySeg(QWidget):
         best_or_last_radio_group.addButton(self.load_last_model_upon_completion)
         self.load_best_model_upon_completion.setChecked(True)
 
+        # offer reduce LR on plateau
+        self.reduce_lr_on_plateau_checkbox = QCheckBox('Reduce lr on plateau')
+        self.reduce_lr_on_plateau_checkbox.setChecked(False)
+        self.reduce_lr_on_plateau_checkbox.stateChanged.connect(self._reduce_lr_on_plateau_changed)
+
+        self.reduce_lr_on_plateau_label = QLabel('factor (e.g. 0.5 means reduce lr by a factor 2)')
+        self.reduce_lr_on_plateau_label.setEnabled(False)
+        self.reduce_lr_on_plateau_spinbox = QDoubleSpinBox()
+        self.reduce_lr_on_plateau_spinbox.setEnabled(False)
+        self.reduce_lr_on_plateau_spinbox.setDecimals(2)
+        self.reduce_lr_on_plateau_spinbox.setSingleStep(0.01)
+        self.reduce_lr_on_plateau_spinbox.setRange(0, 1)
+        self.reduce_lr_on_plateau_spinbox.setValue(0.5)
+
+        self.patience_label = QLabel('Patience')
+        self.patience_label.setEnabled(False)
+        self.patience_spinbox = QSpinBox()
+        self.patience_spinbox.setEnabled(False)
+        self.patience_spinbox.setSingleStep(1)
+        self.patience_spinbox.setRange(2, 1000)
+        self.patience_spinbox.setValue(10)
+
         train_validation_split_label = QLabel('Validation split (please keep this % low or null)')
 
         self.validation_split = QSpinBox()
@@ -523,7 +562,7 @@ class EPySeg(QWidget):
         self.list_datasets.setSelectionMode(QAbstractItemView.ExtendedSelection)
         # add dataset
         self.add_dataset = QPushButton('+')
-        self.add_dataset.setMaximumWidth(bt_width*2)
+        self.add_dataset.setMaximumWidth(bt_width * 2)
         self.add_dataset.clicked.connect(self._add_data)
         # remove dataset
         self.remove_dataset = QPushButton('-')
@@ -563,6 +602,12 @@ class EPySeg(QWidget):
         self.help_button_dataaug.setMaximumWidth(bt_width * 2)
         self.help_button_dataaug.clicked.connect(self.show_tip)
 
+        self.rotate_n_flip_independently_of_augmentation_checkbox = QCheckBox(
+            'Rotate (interpolation free) and flip randomly the augmented output')
+        self.rotate_n_flip_independently_of_augmentation_checkbox.setChecked(
+            True)  # good idea to have it checked by default I guess --> would probably increase robustness of the model
+        # TODO should I apply that to the test and val data or not ??? --> think about it
+
         # line separator
         line_sep_train = QFrame()
         line_sep_train.setFrameShape(QFrame.HLine)
@@ -577,33 +622,36 @@ class EPySeg(QWidget):
 
         # arrange groupBox_compile
         groupBox_compile_layout.addWidget(optimizer_label, 0, 0)
-        groupBox_compile_layout.addWidget(self.model_optimizers, 0, 1,1,3)
+        groupBox_compile_layout.addWidget(self.model_optimizers, 0, 1)  # , 0, 1,1,3
+        groupBox_compile_layout.addWidget(self.default_lr_checkbox, 0, 2)
+        groupBox_compile_layout.addWidget(self.learning_rate_spin, 0, 3)
         groupBox_compile_layout.addWidget(loss_label, 1, 0)
-        groupBox_compile_layout.addWidget(self.model_loss, 1, 1,1,3)
+        groupBox_compile_layout.addWidget(self.model_loss, 1, 1, 1, 5)
         groupBox_compile_layout.addWidget(metrics_label, 2, 0)
-        groupBox_compile_layout.addWidget(self.model_metrics, 2, 1)
-        groupBox_compile_layout.addWidget(self.add_metric, 2, 2)
-        groupBox_compile_layout.addWidget(self.remove_metric, 2, 3)
+        groupBox_compile_layout.addWidget(self.model_metrics, 2, 1, 1, 5)
+        groupBox_compile_layout.addWidget(self.add_metric, 2, 6)
+        groupBox_compile_layout.addWidget(self.remove_metric, 2, 7)
         groupBox_compile_layout.addWidget(selected_metrics_label, 3, 0)
-        groupBox_compile_layout.addWidget(self.selected_metrics, 3, 1, 1, 5)
+        groupBox_compile_layout.addWidget(self.selected_metrics, 3, 1, 1, 7)
         # groupBox_compile_layout.addWidget(self.help_button_compilation, 0, 5, 3, 1)
-        groupBox_compile_layout.addWidget(self.help_button_optimizer, 0, 5, 1, 1)
-        groupBox_compile_layout.addWidget(self.help_button_loss, 1, 5, 1, 1)
-        groupBox_compile_layout.addWidget(self.help_button_metrics, 2, 5, 1, 1)
+        groupBox_compile_layout.addWidget(self.help_button_optimizer, 0, 8, 1, 1)
+        groupBox_compile_layout.addWidget(self.help_button_loss, 1, 8, 1, 1)
+        groupBox_compile_layout.addWidget(self.help_button_metrics, 2, 8, 1, 1)
         self.groupBox_compile.setLayout(groupBox_compile_layout)
 
         # self.train_tab.layout.addWidget(self.force_recompile, 0, 0, 1, 3)
         self.train_tab.layout.addWidget(self.groupBox_compile, 1, 0, 1, 3)
 
         # arrange dataset layout
-        groupBox_training_dataset_layout.addWidget(self.list_datasets, 0, 0, 6, 1)
+        groupBox_training_dataset_layout.addWidget(self.list_datasets, 0, 0, 4, 1)
         groupBox_training_dataset_layout.addWidget(self.add_dataset, 0, 1)
         groupBox_training_dataset_layout.addWidget(self.remove_dataset, 1, 1)
         groupBox_training_dataset_layout.addWidget(self.help_button_dataset, 2, 1)
         self.groupBox_training_dataset.setLayout(groupBox_training_dataset_layout)
 
         # arrange data aug layout
-        groupBox_data_aug_layout.addWidget(self.list_augmentations, 21, 0, 6, 3)
+        groupBox_data_aug_layout.addWidget(self.list_augmentations, 21, 0, 4, 3)
+        groupBox_data_aug_layout.addWidget(self.rotate_n_flip_independently_of_augmentation_checkbox, 27, 0, 1, 3)
         groupBox_data_aug_layout.addWidget(self.add_data_aug, 21, 4, 1, 1)
         groupBox_data_aug_layout.addWidget(self.del_data_aug, 22, 4, 1, 1)
         groupBox_data_aug_layout.addWidget(self.help_button_dataaug, 23, 4, 1, 1)
@@ -643,34 +691,43 @@ class EPySeg(QWidget):
 
         self.groupBox_input_output_normalization_method.setLayout(groupBox_input_output_normalization_method_layout)
         # self.groupBox_input_output_normalization_method.setMaximumHeight(self.groupBox_input_output_normalization_method.minimumHeight())
-        self.train_tab.layout.addWidget(self.groupBox_input_output_normalization_method, 10, 0,1,3)
+        self.train_tab.layout.addWidget(self.groupBox_input_output_normalization_method, 10, 0, 1, 3)
 
         # arrange train tab
-        groupBox_training_layout.addWidget(self.output_models_to, 3, 0, 1, 4)
+        groupBox_training_layout.addWidget(self.output_models_to, 3, 0, 1, 7)
         # groupBox_training_layout.addWidget(self.encoder_freeze, 4, 0, 1, 3) # coming soon
         groupBox_training_layout.addWidget(nb_epochs_label, 5, 0)
         groupBox_training_layout.addWidget(self.nb_epochs, 5, 1)
         groupBox_training_layout.addWidget(steps_per_epoch_label, 5, 2)
-        groupBox_training_layout.addWidget(self.steps_per_epoch, 5, 3)
+        groupBox_training_layout.addWidget(self.steps_per_epoch, 5, 3, 1, 4)
 
-        groupBox_training_layout.addWidget(bs_label, 7, 0, 1, 1)
-        groupBox_training_layout.addWidget(self.bs, 7, 1, 1, 1)
-        groupBox_training_layout.addWidget(self.bs_checkbox, 7, 2, 1, 2)
+        groupBox_training_layout.addWidget(bs_label, 7, 0)
+        groupBox_training_layout.addWidget(self.bs, 7, 1, 1, 2)
+        groupBox_training_layout.addWidget(self.bs_checkbox, 7, 3,1,3)
 
-        groupBox_training_layout.addWidget(keep_n_best_models_label, 8, 0, 1, 1)
-        groupBox_training_layout.addWidget(self.keep_n_best_models, 8, 1, 1, 1)
-        groupBox_training_layout.addWidget(keep_n_best_models_label2, 8, 2, 1, 2)
+        groupBox_training_layout.addWidget(keep_n_best_models_label, 8, 0)
+        groupBox_training_layout.addWidget(self.keep_n_best_models, 8, 1)
+        groupBox_training_layout.addWidget(keep_n_best_models_label2, 8, 2)
 
         # groupBox_training_layout.addWidget(self.shuffle)
 
-        groupBox_training_layout.addWidget(load_model_upon_completion_of_training, 9, 0, 1, 1)
-        groupBox_training_layout.addWidget(self.load_best_model_upon_completion, 9, 1, 1, 1)
-        groupBox_training_layout.addWidget(self.load_last_model_upon_completion, 9, 2, 1, 1)
+        groupBox_training_layout.addWidget(load_model_upon_completion_of_training, 8, 3)
+        groupBox_training_layout.addWidget(self.load_best_model_upon_completion, 8, 4)
+        groupBox_training_layout.addWidget(self.load_last_model_upon_completion, 8, 6)
+
+        groupBox_training_layout.addWidget(self.reduce_lr_on_plateau_checkbox, 9, 0,1,2)
+        groupBox_training_layout.addWidget(self.reduce_lr_on_plateau_label, 9, 2,1,2)
+        groupBox_training_layout.addWidget(self.reduce_lr_on_plateau_spinbox, 9, 4)
+        groupBox_training_layout.addWidget(self.patience_label, 9, 5)
+        groupBox_training_layout.addWidget(self.patience_spinbox, 9, 6)
+
 
         groupBox_training_layout.addWidget(train_validation_split_label, 10, 0, 1, 2)
-        groupBox_training_layout.addWidget(self.validation_split, 10, 2, 1, 2)
+        groupBox_training_layout.addWidget(self.validation_split, 10, 2, 1, 5)
 
-        groupBox_training_layout.addWidget(self.help_button_train_parameters, 3, 4, 7, 1)
+        groupBox_training_layout.addWidget(self.help_button_train_parameters, 3, 7, 7, 1)
+
+
 
         self.groupBox_training.setLayout(groupBox_training_layout)
         self.train_tab.layout.addWidget(self.groupBox_training, 21, 0, 1, 3)
@@ -678,7 +735,6 @@ class EPySeg(QWidget):
         self.train_tab.layout.addWidget(line_sep_train, 26, 0, 1, 3)
         self.train_tab.layout.addWidget(self.train, 27, 0, 1, 2)
         self.train_tab.layout.addWidget(self.stop, 27, 2)
-
 
         self.train_tab.setLayout(self.train_tab.layout)
 
@@ -865,6 +921,9 @@ class EPySeg(QWidget):
         # self.setMouseTracking(True) # does not work well because of contained objects capturing mouse --> maybe simplest is to have the
         self.show()
 
+    def _learning_rate_changed(self):
+        self.learning_rate_spin.setEnabled(not self.default_lr_checkbox.isChecked())
+
     def set_html_red(self, text):
         # quick n dirty log coloring --> improve when I have time
         textCursor = self.logger_console.textCursor()
@@ -926,6 +985,12 @@ class EPySeg(QWidget):
         if self.to_blink_after_worker_execution is not None:
             self.blinker.blink(self.to_blink_after_worker_execution)
             self.to_blink_after_worker_execution = None
+
+    def _reduce_lr_on_plateau_changed(self):
+        self.reduce_lr_on_plateau_label.setEnabled(self.reduce_lr_on_plateau_checkbox.isChecked())
+        self.reduce_lr_on_plateau_spinbox.setEnabled(self.reduce_lr_on_plateau_checkbox.isChecked())
+        self.patience_label.setEnabled(self.reduce_lr_on_plateau_checkbox.isChecked())
+        self.patience_spinbox.setEnabled(self.reduce_lr_on_plateau_checkbox.isChecked())
 
     def progress_fn(self, current_progress):
         '''basic progress function
@@ -1029,6 +1094,8 @@ class EPySeg(QWidget):
             self.model_metrics.currentText()]
         self.train_parameters['datasets'] = self.get_list_of_datasets()
         self.train_parameters['augmentations'] = self.get_list_of_augmentations()
+        self.train_parameters[
+            'rotate_n_flip_independently_of_augmentation'] = self.rotate_n_flip_independently_of_augmentation_checkbox.isChecked()
         output = self.input_output_normalization_method.get_parameters_directly()
         self.train_parameters['input_normalization'] = output['input_normalization']
         self.train_parameters['output_normalization'] = output['output_normalization']
@@ -1046,10 +1113,14 @@ class EPySeg(QWidget):
         self.train_parameters['batch_size'] = self.bs.value()
         self.train_parameters['batch_size_auto_adjust'] = self.bs_checkbox.isChecked()
         self.train_parameters['clip_by_frequency'] = self.input_output_normalization_method.get_clip_by_freq()
-        self.train_parameters['validation_split'] = self.validation_split.value()
+        self.train_parameters['validation_split'] = self.validation_split.value()/100
         # TODO add a parameter for 'upon_train_completion_load' 'best' or 'last' model
         self.train_parameters[
             'upon_train_completion_load'] = 'best' if self.load_best_model_upon_completion.isChecked() else 'last'
+        self.train_parameters[
+            'lr'] = None if not self.learning_rate_spin.isEnabled() else self.learning_rate_spin.value()
+        self.train_parameters['reduce_lr_on_plateau'] = None if not self.reduce_lr_on_plateau_checkbox.isChecked() else self.reduce_lr_on_plateau_spinbox.value()
+        self.train_parameters['patience'] = self.patience_spinbox.value()
         return self.train_parameters
 
     def get_predict_parameters(self):
@@ -1128,28 +1199,29 @@ class EPySeg(QWidget):
         if self.sender() == self.help_button_models:
             QToolTip.showText(self.sender().mapToGlobal(QPoint(30, 20)), markdown_file_to_html('model_selection.md'))
         elif self.sender() == self.help_button_build_model:
-                QToolTip.showText(self.sender().mapToGlobal(QPoint(30, 20)), markdown_file_to_html('model_parameters.md'))
+            QToolTip.showText(self.sender().mapToGlobal(QPoint(30, 20)), markdown_file_to_html('model_parameters.md'))
         elif self.sender() == self.help_button_input_weights:
-                QToolTip.showText(self.sender().mapToGlobal(QPoint(30, 20)), markdown_file_to_html('model_weights.md'))
+            QToolTip.showText(self.sender().mapToGlobal(QPoint(30, 20)), markdown_file_to_html('model_weights.md'))
         elif self.sender() == self.help_button_tiling_train:
             browse_tip('tiling.md')
         elif self.sender() == self.help_button_optimizer:
             browse_tip('https://developers.google.com/machine-learning/glossary?hl=en#optimizer')
         elif self.sender() == self.help_button_loss:
             # browse_tip('https://developers.google.com/machine-learning/glossary?hl=en#loss')
-            browse_tip('https://keras.io/api/losses/') # better definition
+            browse_tip('https://keras.io/api/losses/')  # better definition
         elif self.sender() == self.help_button_metrics:
             # browse_tip('https://developers.google.com/machine-learning/glossary?hl=en#metrics-api-tf.metrics')
-            browse_tip('https://keras.io/api/metrics/') # better definition
+            browse_tip('https://keras.io/api/metrics/')  # better definition
         elif self.sender() == self.help_button_dataaug:
             QToolTip.showText(self.sender().mapToGlobal(QPoint(30, 20)), markdown_file_to_html('data_augmentation.md'))
         elif self.sender() == self.help_button_train_parameters:
-            QToolTip.showText(self.sender().mapToGlobal(QPoint(30, 20)), markdown_file_to_html('model_training_parameters.md'))
+            QToolTip.showText(self.sender().mapToGlobal(QPoint(30, 20)),
+                              markdown_file_to_html('model_training_parameters.md'))
         elif self.sender() == self.help_button_dataset:
             QToolTip.showText(self.sender().mapToGlobal(QPoint(30, 20)), markdown_file_to_html('training_datasets.md'))
             # browse_tip('data_augmentation.md')
         else:
-            QToolTip.showText(self.sender().mapToGlobal(QPoint(0, 20)),   "unknown button")
+            QToolTip.showText(self.sender().mapToGlobal(QPoint(0, 20)), "unknown button")
 
             # QToolTip.showText(self.sender().mapToGlobal(QPoint(0, 20)), self.markdown_file_to_html(os.path.join(this_dir, 'deeplearning/docs', 'tiling.md'))) # ça marche bien --> voir comment je peux faire...
             # self.open_tmp_web_page(self.markdown_file_to_html(os.path.join(this_dir, 'deeplearning/docs', 'tiling.md')))
@@ -1237,7 +1309,6 @@ class EPySeg(QWidget):
                 self.model_metrics.setCurrentIndex(0)
             except:
                 pass
-
 
         self._reset_metrics_on_model_change()
         model_parameters = self.get_model_parameters()

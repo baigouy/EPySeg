@@ -51,7 +51,7 @@ class crop_or_preview(QWidget):
 
     def set_image(self, img):
         self.paint.vdp.shapes.clear()
-        self.paint.setImage(img)
+        self.paint.setImage(img) # bug is here
         if img is None:
             self.paint.scale = self.scale = self.paint.vdp.scale = 1.
         else:
@@ -145,7 +145,8 @@ if __name__ == '__main__':
     # img = Img('/home/aigouy/mon_prog/Python/data/3D_bicolor_ovipo.tif')
     # img = Img('/home/aigouy/mon_prog/Python/data/Image11.lsm')
     # img = Img('/home/aigouy/mon_prog/Python/data/lion.jpeg')
-    img = Img('/home/aigouy/mon_prog/Python/data/epi_test.png')
+    # img = Img('/home/aigouy/mon_prog/Python/data/epi_test.png')
+    img = Img('/home/aigouy/Bureau/201106_armGFP_49hAPF/tests_CARE_stack_foc/predict_raw_CARE_their_training_my_soft/200709_armGFP_suz_46hAPF_ON.lif - Series008.tif')
     ex.set_image(img)
     # ex.set_image(None)
     ex.show()

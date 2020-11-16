@@ -1,3 +1,18 @@
+12-16/11/2020
+-Fixed a bug when 'rotate (interpolation free)' was used as an augmentation and image had different width and height
+-Fixed float32 image preview when they had negative values...
+-Fixed a bug when retraining the EPySeg model (bug was linked to the nb of channels of GT)
+-Replaced from skimage.morphology import watershed with from skimage.segmentation import watershed (as it will be removed in future versions)
+-Added support for setting learning rate to the EPySeg GUI
+-Added reduce learning rate on plateau to the EPySeg GUI
+-Re-trained model will be pushed later this week or the week after
+-Fixed an issue with validation data (validation dataset was not properly created)
+-Enabled interpolation free data augmentation by default (check box at the bottom of data augmentation)
+
+10/11/2020
+-Fixed a big bug forcing binarisation of model predictions (the bug affects custom/user loaded models, except if it has 7 classes)
+-Added support for *.lsm files (may crash if lsm contain more than one time point, same is true for tifs btw --> need do some changes in the code at some point to support time)
+
 10/09/2020
 -Reduced number of pretrained models to one (that model is globally more sensitive/precise/versatile than the other)
 -Changed the mask refinement algorithm for the pretrained model

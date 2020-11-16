@@ -4,6 +4,7 @@ from timeit import default_timer as timer
 import numpy as np
 import matplotlib.pyplot as plt
 
+
 def add_2d_border(image2d):
     insertHere = (slice(1, image2d.shape[0] - 1), slice(1, image2d.shape[1] - 1))
     cells_with_borders = np.zeros_like(image2d)
@@ -17,6 +18,7 @@ def add_2d_border(image2d):
 
     # print(image2d.shape)
     return image2d
+
 
 def create_horizontal_gradient(cells):
     cells = add_2d_border(cells)
@@ -50,6 +52,7 @@ def create_horizontal_gradient(cells):
                 counter += 1
     return horiz_gradient
 
+
 def create_vertical_gradient(cells):
     cells = add_2d_border(cells)
     vertical_gradient = np.zeros_like(cells)
@@ -78,6 +81,7 @@ def create_vertical_gradient(cells):
                 vertical_gradient[j][i] = counter
                 counter += 1
     return vertical_gradient
+
 
 def get_seeds(cells, one_seed_per_cell=True):
     # TODO really need make sure there is only one seed per cell --> if many then reduce to one by keeping only the biggest --> good idea and may improve things
@@ -114,8 +118,9 @@ def get_seeds(cells, one_seed_per_cell=True):
             for coordinates in region.coords:
                 cells_found.append(new_seeds[coordinates[0], coordinates[1]])
             cells_found = list(dict.fromkeys(cells_found))
-            cells_found.remove(0)
-            if len(cells_found)>1:
+            if 0 in cells_found:
+                cells_found.remove(0)
+            if len(cells_found) > 1:
                 # extra_seeds_to_remove
                 # loop over seeds by area and keep only the best/biggest
                 # see
@@ -131,9 +136,10 @@ def get_seeds(cells, one_seed_per_cell=True):
         for region in props_seeds:
             if region.label in extra_seeds_to_remove:
                 for coordinates in region.coords:
-                    seeds[coordinates[0], coordinates[1]]=0 # do remove the seed
+                    seeds[coordinates[0], coordinates[1]] = 0  # do remove the seed
 
     return combined_gradients_ready_for_wshed, seeds
+
 
 def _get_seeds(cells, horiz_gradient, vertical_gradient):
     # combine gradients
@@ -144,21 +150,23 @@ def _get_seeds(cells, horiz_gradient, vertical_gradient):
     for region in regionprops(cells, intensity_image=combined_gradients_ready_for_wshed):
         max_val = 0
 
-        factor = math.sqrt(region.area)*30/100 # try scale seed by cell size --> use area for that # ideally should have jut one seed per cell and scale with size
+        factor = math.sqrt(
+            region.area) * 30 / 100  # try scale seed by cell size --> use area for that # ideally should have jut one seed per cell and scale with size
 
         for j in range(0, region.intensity_image.shape[-2], 1):
             for i in range(0, region.intensity_image.shape[-1], 1):
                 if region.intensity_image[j, i] >= max_val:
-                    max_val = region.intensity_image[j,i]
+                    max_val = region.intensity_image[j, i]
 
         # region.image[...] = False  # do it better with fill
         region.image.fill(False)
 
-        region.image[region.intensity_image >= (max_val-factor)] = True
+        region.image[region.intensity_image >= (max_val - factor)] = True
 
         for coordinates in region.coords:
             highest_pixels[coordinates[0], coordinates[1]] = 255
     return combined_gradients_ready_for_wshed, highest_pixels
+
 
 if __name__ == '__main__':
     start = timer()

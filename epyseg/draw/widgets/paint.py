@@ -1,4 +1,5 @@
 from PyQt5.QtCore import QRect, QTimer
+from PyQt5.QtGui import QPixmap
 from PyQt5.QtWidgets import QWidget
 from epyseg.draw.widgets.vectorial import VectorialDrawPane
 from PyQt5.QtWidgets import qApp, QMenu, QApplication
@@ -39,7 +40,9 @@ class Createpaintwidget(QWidget):
             self.update()
             return
         else:
-            self.image = img.getQimage()
+            self.image = img.getQimage() # bug is here
+
+            # self.image = QPixmap(100,200).toImage()
         width = self.image.size().width()
         height = self.image.size().height()
         top = self.geometry().x()

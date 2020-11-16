@@ -1,5 +1,7 @@
 import os
 
+from tensorflow.python.keras.callbacks import ReduceLROnPlateau
+
 from epyseg.postprocess.filtermask import simpleFilter
 from epyseg.postprocess.refine_v2 import RefineMaskUsingSeeds
 
@@ -894,7 +896,7 @@ class EZDeepLearning:
 
     def train(self, metagenerator, progress_callback=None, output_folder_for_models=None, keep_n_best=5,
               steps_per_epoch=-1, epochs=100,
-              batch_size_auto_adjust=False, upon_train_completion_load='last', **kwargs):
+              batch_size_auto_adjust=False, upon_train_completion_load='last', lr=None, reduce_lr_on_plateau=None, patience=10,  **kwargs):
         '''train the model
 
         Parameters
@@ -942,10 +944,16 @@ class EZDeepLearning:
         #     import sys
         #     sys.exit(0)
 
+        if lr is not None:
+            self.set_learning_rate(lr)
+
         try:
             validation_data = metagenerator.validation_generator(infinite=True)
             validation_steps = metagenerator.get_validation_length(first_run=True)  # use this to generate data
-            validation_freq = 5  # checks on validation data every 5 steps # TODO set this as a parameter
+            if reduce_lr_on_plateau is None:
+                validation_freq = 5  # checks on validation data every 5 steps # TODO set this as a parameter
+            else:
+                validation_freq = 1
 
             # TODO IMPORTANT link on how to set the parameters https://segmentation-models.readthedocs.io/en/latest/api.html#unet
             if validation_steps is None:
@@ -979,12 +987,23 @@ class EZDeepLearning:
                                                    output_folder_for_models=output_folder_for_models,
                                                    keep_n_best=keep_n_best, progress_callback=progress_callback)
                 callbacks = [self.saver_cbk, self.stop_cbk]
+                if reduce_lr_on_plateau is not None and reduce_lr_on_plateau < 1:
+                    logger.info('Reduce learning rate on plateau is enabled.')
+                    monitor = "val_loss"
+                    if validation_steps == 0:
+                        monitor='loss'
+                    logger.info('Reduce learning rate is monitoring "'+monitor+'"')
+                    self.reduce_lr = ReduceLROnPlateau(monitor=monitor, factor=reduce_lr_on_plateau, patience=patience, verbose=1, cooldown=1)
+                    # https://stackoverflow.com/questions/51889378/how-to-use-keras-reducelronplateau
+                    callbacks.append(self.reduce_lr)
+                else:
+                    logger.info('Reduce learning rate on plateau is disabled.')
 
-                if 'reduce_learning_rate' in kwargs and kwargs['reduce_learning_rate']:
-                    # URGENT TODO add parameters such as decay and epoch
-                    reduce_learning_rate = self.step_decay_schedule(
-                        initial_lr=tf.keras.backend.eval(self.model.optimizer.lr))
-                    callbacks.append(reduce_learning_rate)
+                # if 'reduce_learning_rate' in kwargs and kwargs['reduce_learning_rate']:
+                #     # URGENT TODO add parameters such as decay and epoch
+                #     reduce_learning_rate = self.step_decay_schedule(
+                #         initial_lr=tf.keras.backend.eval(self.model.optimizer.lr))
+                #     callbacks.append(reduce_learning_rate) # TODO not great --> change that soon
 
                 if validation_steps != 0:
                     if tf.__version__ <= "2.0.0":
@@ -1151,13 +1170,21 @@ class EZDeepLearning:
 
                 if len(output_shape) == 4:
                     reconstructed_tile = Img.reassemble_tiles(ordered_tiles, crop_parameters[j])
+
+                    # print('post_process_algorithm', post_process_algorithm)
+                    # print(reconstructed_tile.dtype)
+                    # print(reconstructed_tile.min())
+                    # print(reconstructed_tile.max())
+                    # print(reconstructed_tile[50,50])
+
                     # run post process directly on the image if available
                     if output_shape[-1]!=7 and (post_process_algorithm is not None or (isinstance(post_process_algorithm, str) and 'imply' in post_process_algorithm)):
                         logger.error('Model is not compatible with epyseg and cannot be optimized, so it will simply be thresholded according to selected options, sorry...')
 
-                    if isinstance(post_process_algorithm, str) and 'imply' in post_process_algorithm or output_shape[-1]!=7: # if model is incompatible
+                    if isinstance(post_process_algorithm, str) and 'imply' in post_process_algorithm: #  or output_shape[-1]!=7 # bug why did I put that ??? # if model is incompatible
                         # simply binarise all
                         reconstructed_tile = simpleFilter(Img(reconstructed_tile, dimensions='hwc'), **kwargs)
+                        # print('oubsi 1')
                         Img(reconstructed_tile, dimensions='hwc').save(filename_to_use_to_save)
                     elif post_process_algorithm is not None:
                         try:
@@ -1168,11 +1195,15 @@ class EZDeepLearning:
                             if 'epyseg_raw_predict.tif' in filename_to_use_to_save:
                                 filename_to_use_to_save = filename_to_use_to_save.replace('epyseg_raw_predict.tif',
                                                                                           'handCorrection.tif')
+                            # print('oubsi 2')
                             Img(reconstructed_tile, dimensions='hw').save(filename_to_use_to_save)
                         except:
                             logger.error('running post processing/refine mask failed')
                             traceback.print_exc()
                     else:
+                        # import tifffile
+                        # tifffile.imwrite('/home/aigouy/Bureau/201104_armGFP_different_lines_tila/predict/test_direct_save.tif', reconstructed_tile, imagej=True)
+                        # print('oubsi 3')
                         Img(reconstructed_tile, dimensions='hwc').save(filename_to_use_to_save)
                 else:
                     reconstructed_tile = Img.reassemble_tiles(ordered_tiles, crop_parameters[j], three_d=True)
@@ -1181,7 +1212,7 @@ class EZDeepLearning:
                             isinstance(post_process_algorithm, str) and 'imply' in post_process_algorithm)):
                         logger.error(
                             'Model is not compatible with epyseg and cannot be optimized, so it will simply be thresholded according to selected options, sorry...')
-                    if isinstance(post_process_algorithm, str) and 'imply' in post_process_algorithm or output_shape[-1]!=7:
+                    if isinstance(post_process_algorithm, str) and 'imply' in post_process_algorithm: #or output_shape[-1]!=7 --> there was a bug here ...
                         # simply binarise all
                         # nb that will NOT WORK TODO FIX BUT OK FOR NOW
                         # reconstructed_tile = simpleFilter(Img(reconstructed_tile, dimensions='dhwc'), **kwargs)
@@ -1687,6 +1718,16 @@ class EZDeepLearning:
         except:
             pass
 
+    def set_learning_rate(self, learning_rate):
+        if self.model is None:
+            logger.error('Please load/build a model first')
+            return
+        try:
+            import tensorflow.keras.backend as K
+            K.set_value(self.model.optimizer.learning_rate, learning_rate)
+        except:
+            traceback.print_exc()
+            logger.error('Could not change learning rate, sorry...')
 
 if __name__ == '__main__':
     deepTA = EZDeepLearning()
@@ -1739,5 +1780,6 @@ if __name__ == '__main__':
 
     predict_output_folder = os.path.join('/media/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/trash',
                                          deepTA.model._name if deepTA.model._name is not None else 'model')  # 'TA_mode'
+
     deepTA.predict(predict_generator, output_shape, predict_output_folder=predict_output_folder,
                    batch_size=1)

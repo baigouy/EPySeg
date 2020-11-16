@@ -61,9 +61,14 @@ class MetaGenerator:
 
     def multisplit(self, old_batch):
         out = [[], []]
+        # print(len(old_batch))
+        # print(type(old_batch)) # tuple
+        # print(len(old_batch), len(old_batch[0][0]))
+
         for idcs, input_output in enumerate(old_batch):
             for j, data in enumerate(input_output):
                 cur = data[:self.batch_size]
+                # print(old_batch[idcs][j].shape, data[self.batch_size:].shape) # devrait etre le meme en fait ???
                 old_batch[idcs][j] = data[self.batch_size:]
                 out[idcs].append(cur)
         return old_batch, out
@@ -77,6 +82,9 @@ class MetaGenerator:
         return old_batch
 
     def is_batch_ready(self, current_batch, last_image):
+
+        # print('cb', current_batch, last_image)
+
         if current_batch is not None and self.remains_of_previous_batch is not None:
             # this stuff should have the size and structure of cur batch
             self.remains_of_previous_batch = self.multiconcat(self.remains_of_previous_batch, current_batch)
@@ -85,6 +93,7 @@ class MetaGenerator:
 
         # NB duplicated code but ok could put it as a separate function though !!!!
         if self.remains_of_previous_batch is not None:
+            # print('bs', self.batch_size, self.remains_of_previous_batch[0][0].shape[0])
             if self.remains_of_previous_batch[0][0].shape[0] == self.batch_size:
                 out = self.remains_of_previous_batch
                 self.remains_of_previous_batch = None

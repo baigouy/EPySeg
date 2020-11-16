@@ -8,6 +8,9 @@ from epyseg.tools.logger import TA_logger
 
 logger = TA_logger()
 
+MINIMAL_AUGMENTATIONS = [{'type': None}, {'type': None}, {'type': 'zoom'}, {'type': 'blur'}, {'type': 'translate'}, {'type': 'rotate'}]
+
+
 ALL_AUGMENTATIONS_BUT_INVERT_AND_HIGH_NOISE = [{'type': None}, {'type': None}, {'type': 'zoom'}, {'type': 'blur'},
                                                {'type': 'translate'},
                                                {'type': 'shear'}, {'type': 'flip'}, {'type': 'rotate'},
@@ -83,7 +86,7 @@ class MetaAugmenter:
                  validation_split=0, test_split=0,
                  shuffle=True, clip_by_frequency=None, is_predict_generator=False, overlap_x=0, overlap_y=0,
                  batch_size=None, batch_size_auto_adjust=False, invert_image=False, input_bg_subtraction=None, create_epyseg_style_output=None, remove_n_border_mask_pixels=None,
-                 is_output_1px_wide=False, rebinarize_augmented_output=False, **kwargs):
+                 is_output_1px_wide=False, rebinarize_augmented_output=False, rotate_n_flip_independently_of_augmentation=False, **kwargs):
 
         self.augmenters = []
 
@@ -110,6 +113,7 @@ class MetaAugmenter:
         self.remove_n_border_mask_pixels = remove_n_border_mask_pixels
         self.is_output_1px_wide = is_output_1px_wide
         self.rebinarize_augmented_output = rebinarize_augmented_output
+        self.rotate_n_flip_independently_of_augmentation = rotate_n_flip_independently_of_augmentation
         self.mask_dilations = mask_dilations
         self.infinite = infinite
         self.default_input_tile_width = default_input_tile_width
@@ -156,7 +160,9 @@ class MetaAugmenter:
                                   is_predict_generator=is_predict_generator, overlap_x=overlap_x, overlap_y=overlap_y,
                                   invert_image=invert_image, input_bg_subtraction=input_bg_subtraction, create_epyseg_style_output=create_epyseg_style_output, remove_n_border_mask_pixels=remove_n_border_mask_pixels,
                                   is_output_1px_wide=is_output_1px_wide,
-                                  rebinarize_augmented_output=rebinarize_augmented_output))
+                                  rebinarize_augmented_output=rebinarize_augmented_output,
+                                  rotate_n_flip_independently_of_augmentation=rotate_n_flip_independently_of_augmentation,
+                                  ))
 
     def _get_significant_parameter(self, local_param, global_param):
         if local_param is not None:
@@ -190,7 +196,7 @@ class MetaAugmenter:
                output_normalization=None, validation_split=None, test_split=None,
                shuffle=None, clip_by_frequency=None,
                is_predict_generator=None, overlap_x=None, overlap_y=None, invert_image=None, input_bg_subtraction=None,create_epyseg_style_output=None,
-               remove_n_border_mask_pixels=None, is_output_1px_wide=None, rebinarize_augmented_output=None, **kwargs):
+               remove_n_border_mask_pixels=None, is_output_1px_wide=None, rebinarize_augmented_output=None, rotate_n_flip_independently_of_augmentation=None, **kwargs):
 
         # print('debug 123', inputs, outputs, self.inputs, self.outputs)
         # inputs and outputs are ok --> why is there a bug then????
@@ -247,7 +253,9 @@ class MetaAugmenter:
                           is_output_1px_wide=self._get_significant_parameter(is_output_1px_wide,
                                                                              self.is_output_1px_wide),
                           rebinarize_augmented_output=self._get_significant_parameter(rebinarize_augmented_output,
-                                                                                      self.rebinarize_augmented_output)
+                                                                                      self.rebinarize_augmented_output),
+                          rotate_n_flip_independently_of_augmentation=self._get_significant_parameter(rotate_n_flip_independently_of_augmentation,
+                                                                                      self.rotate_n_flip_independently_of_augmentation)
                           ))
 
     def validation_generator(self, infinite=False):
@@ -307,10 +315,61 @@ class MetaAugmenter:
                     label = label[0]
                 yield orig, label
 
+
+    def angular_yielder(self, orig, mask, count):
+        # mask = self.extra_watershed_mask(mask) # shrink mask to 1 px wide irrespective of transfo
+        # NB could do here the generations of the nine stacks --> TODO --> would increase size by 9 but it is a good idea I think
+        # can also copy the code of the other stuff
+
+        if count == 0:
+            # rot 180
+            return np.rot90(orig, 2, axes=(-3, -2)), np.rot90(mask, 2, axes=(-3, -2))
+
+        if count == 1:
+            # flip hor
+            return np.flip(orig, -2), np.flip(mask, -2)
+
+        if count == 2:
+            # flip ver
+            return np.flip(orig, -3), np.flip(mask, -3)
+
+        # make it yield the original and the nine versions of it
+        # --> TODO
+        # ça marche ça me genere les 9 versions du truc dans tous les sens --> probablement ce que je veux --> tt mettre ici
+        if count == 3:
+            # yield np.rot90(orig, axes=(-3, -2)), np.rot90(mask, axes=(-3, -2))
+
+            # rot 90
+            return np.rot90(orig, axes=(-3, -2)), np.rot90(mask, axes=(-3, -2))
+
+        if count == 4:
+            # rot 90_flipped_hor or ver
+            return np.flip(np.rot90(orig, axes=(-3, -2)), -2), np.flip(np.rot90(mask, axes=(-3, -2)), -2)
+
+        if count == 5:
+            # rot 90_flipped_hor or ver
+            return np.flip(np.rot90(orig, axes=(-3, -2)), -3), np.flip(np.rot90(mask, axes=(-3, -2)), -3)
+
+        if count == 6:
+            # rot 270
+            return np.rot90(orig, 3, axes=(-3, -2)), np.rot90(mask, 3, axes=(-3, -2))
+
+
     def _train_generator(self, skip_augment, first_run=False):
         train = MetaGenerator(self.augmenters, shuffle=self.shuffle, batch_size=self.batch_size, gen_type='train')
         for out in train.generator(skip_augment, first_run):
             try:
+                # # print(len(out))
+                # #  that works check that all are there and all are possible otherwise skip
+                # # --> need ensure that width = height
+                # # need set a parameter to be sure to use it or not and need remove rotation and flip from augmentation list (or not in fact)
+                # orig, mask = out
+                # augmentations = 7
+                # if orig[0].shape[-2] != orig[0].shape[-3]:
+                #     augmentations = 3
+                # for aug in range(augmentations):
+                #     yield self.angular_yielder(orig, mask, aug)
+                # yield orig, mask
                 yield out
             except:
                 # failed to generate output --> continue
@@ -319,11 +378,35 @@ class MetaAugmenter:
     def _test_generator(self, skip_augment, first_run=False):
         test = MetaGenerator(self.augmenters, shuffle=False, batch_size=self.batch_size, gen_type='test')
         for out in test.generator(skip_augment, first_run):
+            # # yield out
+            # # print(len(out))
+            # #  that works check that all are there and all are possible otherwise skip
+            # # --> need ensure that width = height
+            # # need set a parameter to be sure to use it or not and need remove rotation and flip from augmentation list (or not in fact)
+            # orig, mask = out
+            # augmentations = 7
+            # if orig[0].shape[-2] != orig[0].shape[-3]:
+            #     augmentations = 3
+            # for aug in range(augmentations):
+            #     yield self.angular_yielder(orig, mask, aug)
+            # yield orig, mask
             yield out
 
     def _validation_generator(self, skip_augment, first_run=False):
         valid = MetaGenerator(self.augmenters, shuffle=self.shuffle, batch_size=self.batch_size, gen_type='valid')
         for out in valid.generator(skip_augment, first_run):
+            # # yield out
+            # # print(len(out))
+            # #  that works check that all are there and all are possible otherwise skip
+            # # --> need ensure that width = height
+            # # need set a parameter to be sure to use it or not and need remove rotation and flip from augmentation list (or not in fact)
+            # orig, mask = out
+            # augmentations = 7
+            # if orig[0].shape[-2] != orig[0].shape[-3]:
+            #     augmentations = 3
+            # for aug in range(augmentations):
+            #     yield self.angular_yielder(orig, mask, aug)
+            # yield orig, mask
             yield out
 
     def predict_generator(self):  # TODO can use datagen for now

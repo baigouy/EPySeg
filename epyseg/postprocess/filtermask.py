@@ -1,7 +1,8 @@
 import traceback
 from scipy import ndimage
 from skimage.filters import threshold_otsu
-from skimage.morphology import watershed
+# from skimage.morphology import watershed
+from skimage.segmentation import watershed
 from epyseg.img import Img
 from matplotlib import pyplot as plt
 from skimage.measure import label, regionprops

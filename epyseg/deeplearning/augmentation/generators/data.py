@@ -1,3 +1,5 @@
+# TODO rewrite code and make use of random seeding in order to have the same things done for augmentation of raw_input and GT --> but check code beforehand --> that works and it does not require any other code change --> much better
+
 from builtins import enumerate
 from natsort import natsorted
 import traceback
@@ -15,6 +17,7 @@ import os
 from pathlib import Path
 from skimage.util import invert
 from skimage import exposure
+from datetime import datetime
 import matplotlib.pyplot as plt
 
 # logging
@@ -71,9 +74,11 @@ class DataGenerator:
                  shuffle=True, clip_by_frequency=None, is_predict_generator=False, overlap_x=0, overlap_y=0,
                  invert_image=False, input_bg_subtraction=None, create_epyseg_style_output=None,
                  remove_n_border_mask_pixels=None, is_output_1px_wide=False,
-                 rebinarize_augmented_output=False, **kwargs):
+                 rebinarize_augmented_output=False, rotate_n_flip_independently_of_augmentation=False, **kwargs):
 
         logger.debug('clip by freq' + str(clip_by_frequency))
+
+        self.random_seed = datetime.now()
 
         self.augmentation_types_and_methods = {'None': None, 'shear': self.shear, 'zoom': self.zoom,
                                                'rotate': self.rotate,
@@ -170,6 +175,7 @@ class DataGenerator:
         self.remove_n_border_mask_pixels = remove_n_border_mask_pixels
         self.is_output_1px_wide = is_output_1px_wide
         self.rebinarize_augmented_output = rebinarize_augmented_output
+        self.rotate_n_flip_independently_of_augmentation = rotate_n_flip_independently_of_augmentation
 
         # TODO need create an incrementer per input and output
         self.input_incr = 0
@@ -246,6 +252,11 @@ class DataGenerator:
 
             if validation_split is not None and validation_split != 0:
                 size = int(validation_split * fullset_size)
+
+                if validation_split>=1:
+                    # assume percentage
+                    validation_split/=100
+                # print('test dsqdqsd', size, validation_split, fullset_size, validation_split*fullset_size, int(len(lst)/size), len(lst)/size)
 
                 if size == 0:
                     logger.error('not enough data in list to generate a validation dataset for input ' + str(inputs))
@@ -327,12 +338,23 @@ class DataGenerator:
         else:
             indices = list(range(len(self.train_inputs[0])))
 
+            # print('indices',indices)
+            # print('vs', random.sample(range(len(self.train_inputs[0])), len(self.train_inputs[0])))
+
         for idx in indices:
             try:
                 # can put whsed in there too
                 orig, mask = self.generate(self.train_inputs, self.train_outputs, idx,
                                            skip_augment, first_run)  # need augment in there
-                # mask = self.extra_watershed_mask(mask) # shrink mask to 1 px wide irrespective of transfo
+
+                #  that works check that all are there and all are possible otherwise skip
+                # --> need ensure that width = height
+                # need set a parameter to be sure to use it or not and need remove rotation and flip from augmentation list (or not in fact)
+                # augmentations = 7
+                # if orig[0].shape[-2] != orig[0].shape[-3]:
+                #     augmentations = 3
+                # for aug in range(augmentations):
+                #     yield self.angular_yielder(orig, mask, aug)
                 yield orig, mask
             except GeneratorExit:
                 # except GeneratorExit
@@ -344,20 +366,122 @@ class DataGenerator:
                 traceback.print_exc()
                 continue
 
-    def extra_watershed_mask(self, mask):
-        # TODO probably need flood the borders to remove cells at the edges --> peut il y a voir une astuce pr garder 1px wide ???? sans perte sinon pas faire de nearest mais une bicubic interpolation # peut etre avec threshold --> deuxieme piste peut etre meme mieux
-        for idx in range(len(mask)):
-            # print(mask[idx].shape)
-            for idx2 in range(len(mask[idx])):
-                # np.squeeze
-                handcorr = Wshed.run((mask[idx][idx2]), seeds='mask', min_size=30)
-                mask[idx][idx2] = np.reshape(handcorr, (*handcorr.shape, 1))  # regenerate after stuff
-            # print('2', mask[idx].shape)
-        return mask
+    def angular_yielder(self, orig, count=None):
+        # mask = self.extra_watershed_mask(mask) # shrink mask to 1 px wide irrespective of transfo
+        # NB could do here the generations of the nine stacks --> TODO --> would increase size by 9 but it is a good idea I think
+        # can also copy the code of the other stuff
+
+        # print('in angular yielder', orig.shape)
+
+        # can create bugs if not size contant --> force constant size --> same is true for the interpolationless rotation I added recently --> fix that
+
+
+        random.seed(self.random_seed)
+
+        if count is None:
+            augmentations = 7
+            # quick n dirty bug fix to keep batch size fixed!!!
+            if orig[0].shape[-2] != orig[0].shape[-3]:
+                augmentations = 3
+            count=random.choice(range(augmentations))
+
+        if count == 0:
+            # rot 180
+            return np.rot90(orig, 2, axes=(-3, -2))
+
+        if count == 1:
+            # flip hor
+            return np.flip(orig, -2)
+
+        if count == 2:
+            # flip ver
+            return np.flip(orig, -3)
+
+        # make it yield the original and the nine versions of it
+        # --> TODO
+        # ça marche ça me genere les 9 versions du truc dans tous les sens --> probablement ce que je veux --> tt mettre ici
+        if count == 3:
+            # yield np.rot90(orig, axes=(-3, -2)), np.rot90(mask, axes=(-3, -2))
+
+            # rot 90
+            return np.rot90(orig, axes=(-3, -2))
+
+        if count == 4:
+            # rot 90_flipped_hor or ver
+            return np.flip(np.rot90(orig, axes=(-3, -2)), -2)
+
+        if count == 5:
+            # rot 90_flipped_hor or ver
+            return np.flip(np.rot90(orig, axes=(-3, -2)), -3)
+
+        if count == 6:
+            # rot 270
+            return np.rot90(orig, 3, axes=(-3, -2))
+
+    # def angular_yielder(self, orig, mask, count):
+    #     # mask = self.extra_watershed_mask(mask) # shrink mask to 1 px wide irrespective of transfo
+    #     # NB could do here the generations of the nine stacks --> TODO --> would increase size by 9 but it is a good idea I think
+    #     # can also copy the code of the other stuff
+    #
+    #     if count == 0:
+    #         # rot 180
+    #         return np.rot90(orig, 2, axes=(-3, -2)), np.rot90(mask, 2, axes=(-3, -2))
+    #
+    #     if count == 1:
+    #         # flip hor
+    #         return np.flip(orig, -2), np.flip(mask, -2)
+    #
+    #     if count == 2:
+    #         # flip ver
+    #         return np.flip(orig, -3), np.flip(mask, -3)
+    #
+    #     # make it yield the original and the nine versions of it
+    #     # --> TODO
+    #     # ça marche ça me genere les 9 versions du truc dans tous les sens --> probablement ce que je veux --> tt mettre ici
+    #     if count == 3:
+    #         # yield np.rot90(orig, axes=(-3, -2)), np.rot90(mask, axes=(-3, -2))
+    #
+    #         # rot 90
+    #         return np.rot90(orig, axes=(-3, -2)), np.rot90(mask, axes=(-3, -2))
+    #
+    #     if count == 4:
+    #         # rot 90_flipped_hor or ver
+    #         return np.flip(np.rot90(orig, axes=(-3, -2)), -2), np.flip(np.rot90(mask, axes=(-3, -2)), -2)
+    #
+    #     if count == 5:
+    #         # rot 90_flipped_hor or ver
+    #         return np.flip(np.rot90(orig, axes=(-3, -2)), -3), np.flip(np.rot90(mask, axes=(-3, -2)), -3)
+    #
+    #     if count == 6:
+    #         # rot 270
+    #         return np.rot90(orig, 3, axes=(-3, -2)), np.rot90(mask, 3, axes=(-3, -2))
+
+
+
+
+    # def extra_watershed_mask(self, mask):
+    #     # TODO probably need flood the borders to remove cells at the edges --> peut il y a voir une astuce pr garder 1px wide ???? sans perte sinon pas faire de nearest mais une bicubic interpolation # peut etre avec threshold --> deuxieme piste peut etre meme mieux
+    #     for idx in range(len(mask)):
+    #         # print(mask[idx].shape)
+    #         for idx2 in range(len(mask[idx])):
+    #             # np.squeeze
+    #             handcorr = Wshed.run((mask[idx][idx2]), seeds='mask', min_size=30)
+    #             mask[idx][idx2] = np.reshape(handcorr, (*handcorr.shape, 1))  # regenerate after stuff
+    #         # print('2', mask[idx].shape)
+    #     return mask
 
     def test_generator(self, skip_augment, first_run):
         for idx in range(len(self.test_inputs[0])):
             try:
+                #  that works check that all are there and all are possible otherwise skip
+                # --> need ensure that width = height
+                # need set a parameter to be sure to use it or not and need remove rotation and flip from augmentation list (or not in fact)
+                # DO I Need that for test gen too ??? probably not in fact --> think a bit about it
+                # augmentations = 7
+                # if orig[0].shape[-2] != orig[0].shape[-3]:
+                #     augmentations = 3
+                # for aug in range(augmentations):
+                #     yield self.angular_yielder(orig, mask, aug)
                 yield self.generate(self.test_inputs, self.test_outputs, idx, skip_augment, first_run)
             except:
                 # erroneous/corrupt image detected --> continuing
@@ -366,6 +490,14 @@ class DataGenerator:
     def validation_generator(self, skip_augment, first_run):
         for idx in range(len(self.validation_inputs[0])):
             try:
+                #  that works check that all are there and all are possible otherwise skip
+                # --> need ensure that width = height
+                # need set a parameter to be sure to use it or not and need remove rotation and flip from augmentation list (or not in fact)
+                # augmentations = 7
+                # if orig[0].shape[-2] != orig[0].shape[-3]:
+                #     augmentations = 3
+                # for aug in range(augmentations):
+                #     yield self.angular_yielder(orig, mask, aug)
                 yield self.generate(self.validation_inputs, self.validation_outputs, idx, skip_augment, first_run)
             except:
                 # erroneous/corrupt image detected --> continuing
@@ -642,7 +774,7 @@ class DataGenerator:
         elif os.path.isdir(folderpath):
             list_of_files = glob.glob(folderpath + "*.png") + glob.glob(folderpath + "*.jpg") + glob.glob(
                 folderpath + "*.jpeg") + glob.glob(
-                folderpath + "*.tif") + glob.glob(folderpath + "*.tiff")
+                folderpath + "*.tif") + glob.glob(folderpath + "*.tiff") + glob.glob(folderpath + "*.lsm")+ glob.glob(folderpath + "*.czi") + glob.glob(folderpath + "*.lif")
             list_of_files = natsorted(list_of_files)
         elif os.path.isfile(folderpath):
             # single image --> convert it to a list
@@ -702,6 +834,9 @@ class DataGenerator:
 
     def augment_input(self, input, input_shape, last_method, parameters, skip_augment, first_run):
 
+        self.random_seed = datetime.now()
+        random.seed(self.random_seed)
+
         logger.debug('method input ' + str(last_method) + ' ' + str(parameters) + ' ' + str(input))
 
         if isinstance(input, str):
@@ -757,17 +892,69 @@ class DataGenerator:
             # TODO fix bug here and allow infinite nb of dimensions
             input = np.reshape(input, (1, *input.shape))
             logger.debug('data augmenter output before tiling ' + str(input.shape) + ' ' + str(input.dtype))
+            if self.rotate_n_flip_independently_of_augmentation:
+                # print('rotate n flip output')
+                input = self.angular_yielder(input)
             return method, None, input
         else:
             parameters, orig = method(input, parameters, False)
             orig = np.reshape(orig, (1, *orig.shape))  # need add batch and need add one dim if not enough
             logger.debug('data augmenter output before tiling ' + str(orig.shape) + ' ' + str(orig.dtype))
+            if self.rotate_n_flip_independently_of_augmentation:
+                orig = self.angular_yielder(orig)
+                # print('rotate n flip output')
             return method, parameters, orig
+
+    # def angular_yielder(self, orig, count=None):
+    #     # mask = self.extra_watershed_mask(mask) # shrink mask to 1 px wide irrespective of transfo
+    #     # NB could do here the generations of the nine stacks --> TODO --> would increase size by 9 but it is a good idea I think
+    #     # can also copy the code of the other stuff
+    #
+    #     random.seed(self.random_seed)
+    #
+    #     if count is None:
+    #         count=random.choice([0,1,2,3,4,5,6])
+    #
+    #     if count == 0:
+    #         # rot 180
+    #         return np.rot90(orig, 2, axes=(-3, -2))
+    #
+    #     if count == 1:
+    #         # flip hor
+    #         return np.flip(orig, -2)
+    #
+    #     if count == 2:
+    #         # flip ver
+    #         return np.flip(orig, -3)
+    #
+    #     # make it yield the original and the nine versions of it
+    #     # --> TODO
+    #     # ça marche ça me genere les 9 versions du truc dans tous les sens --> probablement ce que je veux --> tt mettre ici
+    #     if count == 3:
+    #         # yield np.rot90(orig, axes=(-3, -2)), np.rot90(mask, axes=(-3, -2))
+    #
+    #         # rot 90
+    #         return np.rot90(orig, axes=(-3, -2))
+    #
+    #     if count == 4:
+    #         # rot 90_flipped_hor or ver
+    #         return np.flip(np.rot90(orig, axes=(-3, -2)), -2)
+    #
+    #     if count == 5:
+    #         # rot 90_flipped_hor or ver
+    #         return np.flip(np.rot90(orig, axes=(-3, -2)), -3)
+    #
+    #     if count == 6:
+    #         # rot 270
+    #         return np.rot90(orig, 3, axes=(-3, -2))
+
 
     # TODO store and reload accessory files --> store as npi
     # TODO could locally store data that takes long to generate as .npy files
     def augment_output(self, msk, output_shape, last_method,
                        parameters, first_run):  # add as a parameter whether should do dilation or not and whether should change things --> then need add alos a parameter at the beginning of the class to handle that as well
+
+        random.seed(self.random_seed) # random seed is set for input and the same random is used for output
 
         logger.debug('method output ' + str(last_method) + str(parameters))
 
@@ -825,12 +1012,20 @@ class DataGenerator:
         if method is None:
             msk = np.reshape(msk, (1, *msk.shape))
             logger.debug('data augmenter output before tiling ' + ' ' + str(msk.shape) + ' ' + str(msk.dtype))
+            if self.rotate_n_flip_independently_of_augmentation:
+                msk = self.angular_yielder(msk)
             return method, None, msk
         else:
-            parameters, mask = method(msk, parameters, True)
-            mask = np.reshape(mask, (1, *mask.shape))
-            logger.debug('data augmenter output before tiling ' + ' ' + str(mask.shape) + ' ' + str(mask.dtype))
-            return method, parameters, mask
+            parameters, msk = method(msk, parameters, True)
+            #
+            # print('tada', type(msk)) # sometimes maks
+            # print(msk)
+            # print(msk.shape)
+            msk = np.reshape(msk, (1, *msk.shape))
+            logger.debug('data augmenter output before tiling ' + ' ' + str(msk.shape) + ' ' + str(msk.dtype))
+            if self.rotate_n_flip_independently_of_augmentation:
+                msk = self.angular_yielder(msk)
+            return method, parameters, msk
 
     def blur(self, orig, parameters, is_mask):
         # we just blur input and keep masks unchanged
@@ -862,20 +1057,20 @@ class DataGenerator:
         filepath = filename # os.path.splitext(filename)[0]
         try:
             if not first_pass:
-                print('loading stored _epyseg.npy file to speed up training')
+                # print('loading stored _epyseg.npy file to speed up training')
                 # print(os.path.join(filepath, 'epyseg.npy'))
                 msk = Img(filepath+ '_epyseg.npy')
                 if msk.shape[-1] != output_shape[-1]:  # check that it is correct too
                     msk = Img(filename)
                     print('dimension mismatch, assuming model architecture changed --> recreating mask')
                 else:
-                    print('successfully loaded! --> speeding up')
+                    # print('successfully loaded! --> speeding up')
                     return True, msk
             else:
                 raise Exception("Image not found --> continuing")
         except:
             # traceback.print_exc()
-            print('npy file does not exist or first pass --> skipping')
+            print('npy file does not exist or first pass')
             msk = Img(filename)
 
         # print(msk.shape)
@@ -886,17 +1081,16 @@ class DataGenerator:
             channel_to_get = 0
 
         if msk.has_c():
-            if msk.shape[-1] != 1:
-
-                # print(channel_to_get)
-                # reduce number of channels --> take COI
-                msk = msk[..., channel_to_get]
-                # print('here', msk.shape)
-                # tmp = np.zeros((*msk.shape[:-1], 7), dtype=msk.dtype)
-                # tmp[..., 0] = msk
-        # else:
-        #     tmp = np.zeros((*msk.shape, 7), dtype=msk.dtype)
-        #     tmp[..., 0] = msk
+            # if msk.shape[-1] != 1:
+            # print(channel_to_get)
+            # reduce number of channels --> take COI
+            tmp = np.zeros((*msk.shape[:-1], 7), dtype=msk.dtype)
+            msk = msk[..., channel_to_get]
+            # print('here', msk.shape)
+            tmp[..., 0] = msk
+        else:
+            # tmp = np.zeros((*msk.shape, 7), dtype=msk.dtype)
+            # tmp[..., 0] = msk
             tmp = np.zeros((*msk.shape, 7), dtype=msk.dtype)
             tmp[..., 0] = msk
         msk = tmp
@@ -960,7 +1154,7 @@ class DataGenerator:
             traceback.print_exc()
             print('could not save npy file --> skipping')
 
-        return True,msk
+        return True, msk
 
     def check_integrity(self):
         if self.train_inputs is None:
@@ -1028,10 +1222,17 @@ class DataGenerator:
         # rot_mask = ndimage.rotate(mask, angle, reshape=False, order=0) # order 0 means nearest neighbor --> really required to avoid bugs here
         return [angle, order], rot_orig
 
+    # nb will that create a bug when images don't have same width and height --> most likely yes but test it --> TODO
+    # in fact I should not allow that except if image has same width and height or I should use a crop of it --> can I do that ???
     def rotate_interpolation_free(self, orig, parameters, is_mask):
         # rotate by random angle between [90 ,180, 270]
+
+        # print(orig.shape)
         if parameters is None:
-            angle = random.choice([90, 180, 270])
+            if orig.shape[-2]!=orig.shape[-3]:
+                angle = 180
+            else:
+                angle = random.choice([90, 180, 270])
         else:
             angle = parameters[0]
 
@@ -1323,6 +1524,10 @@ class DataGenerator:
 
 if __name__ == '__main__':
 
+    # print(range(7))
+    # for i in range(100):
+    #     print(random.choice(range(7)))
+
     ALL_AUGMENTATIONS = [{'type': None}, {'type': None}, {'type': 'zoom'}, {'type': 'blur'}, {'type': 'translate'},
                          {'type': 'shear'}, {'type': 'flip'}, {'type': 'rotate'}, {'type': 'invert'}]
 
@@ -1330,8 +1535,8 @@ if __name__ == '__main__':
     # supported {'type': 'salt_n_pepper_noise'} {'type':'gaussian_noise'}{'type': 'zoom'}{'type': 'blur'}
     # {'type': 'translate'}{'type': 'flip'}, {'type': 'rotate'} {'type': 'invert'} {'type': 'shear'}
     # not finalize all noises {'type': 'poisson_noise'}
-    SELECTED_AUG = [{
-                        'type': 'random_intensity_gamma_contrast'}]  # [{'type': 'None'}]#[{'type': 'stretch'}] #[{'type': 'rotate'}] #[{'type': 'zoom'}]#[{'type': 'shear'}] #"[{'type': 'rotate'}] #[{'type': 'low noise'}] # en effet c'est destructeur... voir comment le restaurer avec un fesh wshed sur l'image originelle ou un wshed sur
+    # SELECTED_AUG = [{'type': 'random_intensity_gamma_contrast'}]  # [{'type': 'None'}]#[{'type': 'stretch'}] #[{'type': 'rotate'}] #[{'type': 'zoom'}]#[{'type': 'shear'}] #"[{'type': 'rotate'}] #[{'type': 'low noise'}] # en effet c'est destructeur... voir comment le restaurer avec un fesh wshed sur l'image originelle ou un wshed sur
+    SELECTED_AUG = [{'type':'rotate (interpolation free)'}]
 
     augmenter = DataGenerator(
         # 'D:/dataset1/tests_focus_projection', 'D:/dataset1/tests_focus_projection',
@@ -1350,18 +1555,23 @@ if __name__ == '__main__':
         augmentations=SELECTED_AUG,
         input_channel_of_interest=0,
         output_channel_of_interest=0,
-        mask_dilations=7,
+        # mask_dilations=7,
         # default_input_tile_width=2048, default_input_tile_height=1128,
         # default_output_tile_width=2048, default_output_tile_height=1128,
-        default_input_tile_width=512, default_input_tile_height=512,
-        default_output_tile_width=512, default_output_tile_height=512,
+        # default_input_tile_width=512, default_input_tile_height=512,
+        # default_output_tile_width=512, default_output_tile_height=512,
+        default_input_tile_width=512, default_input_tile_height=256,
+        default_output_tile_width=512, default_output_tile_height=256,
         # default_input_tile_width=256, default_input_tile_height=256,
         # default_output_tile_width=256, default_output_tile_height=256,
         # is_output_1px_wide=True,
         # rebinarize_augmented_output=True
+        create_epyseg_style_output=True,
+        rotate_n_flip_independently_of_augmentation=True # force rotation and flip of images independently of everything
+
     )
 
-    if True:
+    if False:
         # seems fine but I really need the first pass or not now
         # set a variable to false if not first pass --> TODO
 
@@ -1393,13 +1603,16 @@ if __name__ == '__main__':
     # plt.margins(2, 2)
     # call data augmenter from the other
 
-    from deprecated_demos.ta.wshed import Wshed
+    # from deprecated_demos.ta.wshed import Wshed
 
-    # mask = Wshed.run_fast(self.img, first_blur=values[0], second_blur=values[1])
+    # mask = Wshed.run_fast(self.img, first_blur=values[0], second_blur=values[1]) # or check same width and height
 
+    full_count = 0
     counter = 0
-    for orig, mask in augmenter.train_generator(False):
+    for orig, mask in augmenter.train_generator(False, True):
         # print('out', len(orig), len(mask))
+        # print(orig[0].shape, mask[0].shape)
+        full_count+=1
         for i in range(len(orig)):
             # print('in here', orig[i].shape)
             if counter < 5:
@@ -1471,3 +1684,4 @@ if __name__ == '__main__':
         # do stuff with that
     print('end')
     print(counter)
+    print(full_count)

@@ -917,12 +917,18 @@ class Img(np.ndarray):  # subclass ndarray
                 dims.append(0)
         img = img[tuple(dims)]
         img = np.ndarray.copy(img)  # need copy the array
+
         if img.dtype != np.uint8:
             # just to remove the warning raised by img_as_ubyte
             with warnings.catch_warnings():
                 warnings.simplefilter('ignore')
-                img = img_as_ubyte(
-                    img / img.max())  # if I don't do that then it's too dark very often --> need normalization ??? --> can i do this better ???
+                try:
+                    # need manual conversion of the image so that it can be read as 8 bit or alike
+                    # force image between 0 and 1 then do convert
+                    img = img_as_ubyte((img-img.min())/(img.max()-img.min()))
+                except:
+                    print('error converting image to 8 bits')
+                    return None
 
         bytesPerLine = img.strides[0]
 

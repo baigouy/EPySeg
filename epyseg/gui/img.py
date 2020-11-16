@@ -909,6 +909,7 @@ class image_input_settings(QDialog):
             self.input_norm_range.setEnabled(False)
 
     def _output_channel_changed(self):
+        # bug is here in loading the image
         if self.first_mask is not None and self.first_mask.has_c():
             if self.output_channel_of_interest.currentIndex() != -1:
                 channel_img = self.first_mask.imCopy(c=self.output_channel_of_interest.currentIndex())
