@@ -8,7 +8,10 @@ from epyseg.tools.logger import TA_logger
 
 logger = TA_logger()
 
-MINIMAL_AUGMENTATIONS = [{'type': None}, {'type': None}, {'type': 'zoom'}, {'type': 'blur'}, {'type': 'translate'}, {'type': 'rotate'}]
+
+# MINIMAL_AUGMENTATIONS = [{'type': None}, {'type': None},{'type': None}, {'type': None}, {'type': 'zoom'}, {'type': 'blur'}, {'type': 'translate'}, {'type': 'rotate'}]
+# added intensity shifts to the minimal augmentation --> should make it more robust for masking
+MINIMAL_AUGMENTATIONS = [{'type': None}, {'type': None},{'type': None}, {'type': None}, {'type': 'zoom'}, {'type': 'blur'}, {'type': 'translate'}, {'type': 'rotate'},{'type': 'random_intensity_gamma_contrast'}, {'type': 'intensity'}, {'type': 'random_intensity_gamma_contrast'}, {'type': 'intensity'}]
 
 
 ALL_AUGMENTATIONS_BUT_INVERT_AND_HIGH_NOISE = [{'type': None}, {'type': None}, {'type': 'zoom'}, {'type': 'blur'},
@@ -353,7 +356,6 @@ class MetaAugmenter:
         if count == 6:
             # rot 270
             return np.rot90(orig, 3, axes=(-3, -2)), np.rot90(mask, 3, axes=(-3, -2))
-
 
     def _train_generator(self, skip_augment, first_run=False):
         train = MetaGenerator(self.augmenters, shuffle=self.shuffle, batch_size=self.batch_size, gen_type='train')

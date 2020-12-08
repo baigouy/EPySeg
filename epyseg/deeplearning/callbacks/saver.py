@@ -8,6 +8,7 @@ import traceback
 import tensorflow as tf
 import os
 
+
 class My_saver_callback(tf.keras.callbacks.Callback):
     '''a custom saver callback
 
@@ -118,7 +119,15 @@ class My_saver_callback(tf.keras.callbacks.Callback):
             end_time = timer()
             epoch_time = end_time - self.start_time
             total_time_in_hours = (epoch_time * (self.epochs - epoch)) / 3600
-            logger.info('estimated total run time: ' + str(total_time_in_hours) + ' hour(s)')
+            if total_time_in_hours >= 1.:
+                logger.info('Estimated remaining run time: ' + str(total_time_in_hours) + ' hour(s)')
+            else:
+                total_time_in_hours *= 60
+                if total_time_in_hours >= 1.:
+                    logger.info('Estimated remaining run time: ' + str(total_time_in_hours) + ' minute(s)')
+                else:
+                    total_time_in_hours *= 60
+                    logger.info('Estimated remaining run time: ' + str(total_time_in_hours) + ' second(s)')
         except:
             pass
 

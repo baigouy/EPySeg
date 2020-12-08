@@ -1,10 +1,11 @@
-from PyQt5.QtCore import QRect, Qt
+from PyQt5.QtCore import QRect, Qt, QRectF
 from PyQt5.QtWidgets import QWidget, QApplication, QGridLayout, QScrollArea
-
+from epyseg.draw.shapes.square2d import Square2D
 from epyseg.draw.widgets.paint import Createpaintwidget
 from epyseg.img import Img
 from epyseg.draw.shapes.rect2d import Rect2D
 import sys
+
 
 class crop_or_preview(QWidget):
 
@@ -51,7 +52,7 @@ class crop_or_preview(QWidget):
 
     def set_image(self, img):
         self.paint.vdp.shapes.clear()
-        self.paint.setImage(img) # bug is here
+        self.paint.setImage(img)  # bug is here
         if img is None:
             self.paint.scale = self.scale = self.paint.vdp.scale = 1.
         else:
@@ -83,6 +84,47 @@ class crop_or_preview(QWidget):
                 self.update_ROI()
             except:
                 pass
+
+    def set_square_ROI(self, bool):
+        if bool:
+            self.paint.vdp.shape_to_draw = Square2D
+        else:
+            self.paint.vdp.shape_to_draw = Rect2D
+
+    def setRoi(self, x1, y1, x2, y2):
+        # if x1 is None and y1 is None and x2 is None and y2 is None:
+        #     self.paint.vdp.shapes.clear()
+        #     self.paint.update()
+        #     self.update()  # required to update drawing
+        #     self.update_ROI()
+        #     return
+        if x1 != x2 and y1 != y2:
+            # TODO add controls for size of ROI --> TODO but ok for now
+
+            self.paint.vdp.shapes.clear()
+            if x1 is not None and y1 is not None:
+                rect2d = Rect2D(x1, y1, x2 - x1, y2 - y1)
+                rect2d.stroke = 3 / self.scale
+                self.paint.vdp.shapes.append(rect2d)
+                self.paint.vdp.currently_drawn_shape = None
+                self.paint.update()
+                self.update()  # required to update drawing
+                self.update_ROI()
+            else:
+                self.x1 = x1
+                self.x2 = x2
+                self.y1 = y1
+                self.y2 = y2
+                self.paint.update()
+                self.update()
+
+            # self.paint.vdp.update()
+            # self.paint.vdp.currently_drawn_shape.stroke = 3 / self.scale
+            # self.x1 = x1
+            # self.x2 = x2
+            # self.y1 = y1
+            # self.y2 = y2
+
 
     def update_ROI(self):
         try:
@@ -130,9 +172,13 @@ class crop_or_preview(QWidget):
             self.x1 = self.x2 = self.y1 = self.y2 = None
 
     def get_crop_parameters(self):
-        self.update_ROI()
+        if self.paint.vdp.shapes:
+            self.update_ROI()
         if self.x1 is None:
-            return None
+            if self.x2 is not None:
+                return {'x1': self.x1, 'y1': self.y1, 'w': int(self.x2), 'h': int(self.y2)}
+            else:
+                return None
         return {'x1': int(self.x1), 'y1': int(self.y1), 'x2': int(self.x2), 'y2': int(self.y2)}
 
 if __name__ == '__main__':
@@ -146,8 +192,15 @@ if __name__ == '__main__':
     # img = Img('/home/aigouy/mon_prog/Python/data/Image11.lsm')
     # img = Img('/home/aigouy/mon_prog/Python/data/lion.jpeg')
     # img = Img('/home/aigouy/mon_prog/Python/data/epi_test.png')
-    img = Img('/home/aigouy/Bureau/201106_armGFP_49hAPF/tests_CARE_stack_foc/predict_raw_CARE_their_training_my_soft/200709_armGFP_suz_46hAPF_ON.lif - Series008.tif')
+    img = Img(
+        '/home/aigouy/Bureau/201106_armGFP_49hAPF/tests_CARE_stack_foc/predict_raw_CARE_their_training_my_soft/200709_armGFP_suz_46hAPF_ON.lif - Series008.tif')
     ex.set_image(img)
+
+    # test = QRectF(None, None, 128, 128)
+
+    ex.setRoi(None, None, 128, 256)
     # ex.set_image(None)
     ex.show()
     app.exec_()
+
+    print(ex.get_crop_parameters())

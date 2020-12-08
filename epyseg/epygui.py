@@ -36,7 +36,7 @@ QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)  # 
 DEBUG = False  # set to True if GUI crashes
 __MAJOR__ = 0
 __MINOR__ = 1
-__MICRO__ = 16
+__MICRO__ = 17
 __RELEASE__ = ''  # a #b  # https://www.python.org/dev/peps/pep-0440/#public-version-identifiers --> alpha beta, ...
 __VERSION__ = ''.join([str(__MAJOR__), '.', str(__MINOR__), '.',
                        str(__MICRO__)])  # if __MICRO__ != 0 else '', __RELEASE__]) # bug here fix some day
@@ -452,6 +452,9 @@ class EPySeg(QWidget):
         self.steps_per_epoch.setRange(-1, 1_000_000)  # 1_000_000 makes no sense but anyway
         self.steps_per_epoch.setValue(-1)
 
+        self.shuffle_datasets = QCheckBox('Shuffle training sets')
+        self.shuffle_datasets.setChecked(True)
+
         # batch size
         bs_label = QLabel('Batch size (bs)')
         self.bs = QSpinBox()
@@ -483,7 +486,7 @@ class EPySeg(QWidget):
         self.load_best_model_upon_completion.setChecked(True)
 
         # offer reduce LR on plateau
-        self.reduce_lr_on_plateau_checkbox = QCheckBox('Reduce lr on plateau')
+        self.reduce_lr_on_plateau_checkbox = QCheckBox('Reduce learning rate (lr) on plateau')
         self.reduce_lr_on_plateau_checkbox.setChecked(False)
         self.reduce_lr_on_plateau_checkbox.stateChanged.connect(self._reduce_lr_on_plateau_changed)
 
@@ -699,7 +702,8 @@ class EPySeg(QWidget):
         groupBox_training_layout.addWidget(nb_epochs_label, 5, 0)
         groupBox_training_layout.addWidget(self.nb_epochs, 5, 1)
         groupBox_training_layout.addWidget(steps_per_epoch_label, 5, 2)
-        groupBox_training_layout.addWidget(self.steps_per_epoch, 5, 3, 1, 4)
+        groupBox_training_layout.addWidget(self.steps_per_epoch, 5, 3, 1, 2)
+        groupBox_training_layout.addWidget(self.shuffle_datasets, 5, 5, 1, 2)
 
         groupBox_training_layout.addWidget(bs_label, 7, 0)
         groupBox_training_layout.addWidget(self.bs, 7, 1, 1, 2)
@@ -760,7 +764,7 @@ class EPySeg(QWidget):
                                                                   allow_bg_subtraction=True,
                                                                   show_preprocessing=True)
         # by default we set bg sub to dark
-        self.set_custom_predict_parameters.bg_removal.setCurrentIndex(2)
+        # self.set_custom_predict_parameters.bg_removal.setCurrentIndex(2)
 
         line_sep_predict = QFrame()
         line_sep_predict.setFrameShape(QFrame.HLine)
@@ -894,14 +898,18 @@ class EPySeg(QWidget):
         self.help_html_tab.layout.addWidget(help)
         self.help_html_tab.setLayout(self.help_html_tab.layout)
 
-        self.enable_threading_check = QCheckBox(
-            'Threading enable/disable')
+        self.enable_threading_check = QCheckBox('Threading enable/disable')
         self.enable_threading_check.setChecked(True)
         self.enable_threading_check.stateChanged.connect(self._set_threading)
+        self.enable_debug = QCheckBox('Debug mode')
+        self.enable_debug.setChecked(False)
+        self.enable_debug.stateChanged.connect(self._enable_debug)
+
 
         self.settings_GUI.layout = QVBoxLayout()
         self.settings_GUI.layout.setAlignment(Qt.AlignTop)
         self.settings_GUI.layout.addWidget(self.enable_threading_check)
+        self.settings_GUI.layout.addWidget(self.enable_debug)
         self.settings_GUI.setLayout(self.settings_GUI.layout)
 
         log_and_main_layout.addLayout(table_widget_layout)
@@ -966,6 +974,17 @@ class EPySeg(QWidget):
 
     def print_output(self, s):
         print(s)
+
+    def _enable_debug(self):
+        if self.enable_debug.isChecked():
+            # enable debug extensive log
+            logger.setLevel(TA_logger.DEBUG)
+            logger.debug('Debug enabled...')
+        else:
+            # disable debug log
+            logger.setLevel(TA_logger.DEFAULT)
+            logger.debug('Debug disabled...')
+
 
     def _set_threading(self):
         self.threading_enabled = self.enable_threading_check.isChecked()
@@ -1108,8 +1127,7 @@ class EPySeg(QWidget):
         self.train_parameters['output_folder_for_models'] = self.output_models_to.text()
         # self.train_parameters['freeze_encoder'] = self.encoder_freeze.isChecked() #TODO
         self.train_parameters['keep_n_best'] = self.keep_n_best_models.value()
-        self.train_parameters[
-            'shuffle'] = False  # self.shuffle.isChecked() TODO maybe reactivate, but optimize code first
+        self.train_parameters['shuffle'] = self.shuffle_datasets.isChecked()
         self.train_parameters['batch_size'] = self.bs.value()
         self.train_parameters['batch_size_auto_adjust'] = self.bs_checkbox.isChecked()
         self.train_parameters['clip_by_frequency'] = self.input_output_normalization_method.get_clip_by_freq()
@@ -1117,8 +1135,7 @@ class EPySeg(QWidget):
         # TODO add a parameter for 'upon_train_completion_load' 'best' or 'last' model
         self.train_parameters[
             'upon_train_completion_load'] = 'best' if self.load_best_model_upon_completion.isChecked() else 'last'
-        self.train_parameters[
-            'lr'] = None if not self.learning_rate_spin.isEnabled() else self.learning_rate_spin.value()
+        self.train_parameters['lr'] = None if not self.learning_rate_spin.isEnabled() else self.learning_rate_spin.value()
         self.train_parameters['reduce_lr_on_plateau'] = None if not self.reduce_lr_on_plateau_checkbox.isChecked() else self.reduce_lr_on_plateau_spinbox.value()
         self.train_parameters['patience'] = self.patience_spinbox.value()
         return self.train_parameters
@@ -1246,7 +1263,8 @@ class EPySeg(QWidget):
         if self.model_pretrain_on_epithelia.isChecked():
             # A set of settings to apply only when using pre-trained models
             # idx = self.set_custom_predict_parameters.bg_removal.findData(Img.background_removal[2])
-            self.set_custom_predict_parameters.bg_removal.setCurrentIndex(2)
+            # self.set_custom_predict_parameters.bg_removal.setCurrentIndex(2)
+            self.set_custom_predict_parameters.bg_removal.setCurrentIndex(0)
             self.set_custom_predict_parameters.enable_post_process.setChecked(True)
             self.set_custom_predict_parameters.enable_post_process.post_process_method_selection.setCurrentIndex(0)
             # choose optimal parameters by default

@@ -106,7 +106,7 @@ class RefineMaskUsingSeeds:
         if threshold is None:
             threshold = self.autothreshold(avg)
 
-        logger.info('threshold used for producing the final mask=' + str(threshold))
+        logger.debug('threshold used for producing the final mask=' + str(threshold))
 
         final_mask = avg.copy()
         final_mask = self.binarise(final_mask, threshold=threshold)
@@ -140,7 +140,11 @@ class RefineMaskUsingSeeds:
             return FilterMask(bckup_img_wshed, final_mask, filter=filter, correction_factor=correction_factor)
 
     def autothreshold(self, single_2D_img):
-        return threshold_otsu(single_2D_img)
+        try:
+            return threshold_otsu(single_2D_img)
+        except ValueError:
+            logger.error('Image is just one color, thresholding cannot be done')
+            return single_2D_img
 
     def binarise(self, single_2D_img, threshold=0.5, bg_value=0, fg_value=255):
         # TODO may change this to >= and < try it

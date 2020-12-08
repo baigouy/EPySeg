@@ -1,6 +1,9 @@
 from PyQt5.QtCore import QRect, QTimer
 from PyQt5.QtGui import QPixmap
 from PyQt5.QtWidgets import QWidget
+
+from epyseg.draw.shapes.rect2d import Rect2D
+from epyseg.draw.shapes.square2d import Square2D
 from epyseg.draw.widgets.vectorial import VectorialDrawPane
 from PyQt5.QtWidgets import qApp, QMenu, QApplication
 from PyQt5 import QtCore, QtGui

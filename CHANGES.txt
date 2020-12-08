@@ -1,3 +1,35 @@
+03/12/2020
+-Improved the shuffle option in the datagenerator to mix between generators if multiple sets are available. 'Shuffle' is now enabled by default. 'Shuffle' was added to the training parameters of the GUI.
+-Implemented random crop in datagenerator/GUI (Would need some more controls to be sure the crop is really feasible for the image, if not then return an error or increase size of the array ???, ok for now)
+-Changed padding mode for datagenerator from 0 to 'reflect'
+
+01/12/2020
+-Added percentile normalisation
+-Moved the normalization to happen earlier in the code (importantly, patches are now normalized using global intensity instead of local one) @myself could be a parameter in fact
+-Moved image intensity 'Clip' to happen much earlier in the code
+-Added 'Debug mode' in GUI settings
+-Set 'remove bg noise' to 'None' by default in 'Predict' as it helps only in rare cases (has a negative impact in most cases except when images have a low membrane to cytoplasm ratio)
+
+30/11/2020
+-Fixed top hat filter for 3D images (in fact top hat does not work well for noisy images)
+-Disabled bg subtraction by default in EPySeg
+-Decreased minimum for image clipping/removing of outliers to 10-3% instead of 0.01%
+-Changed version to 0.1.17
+
+27/11/2020
+-Fixed clip error (affecting only some dtype if the range [0,1])
+
+26/11/2020
+-Fixed a bug affecting 3D datagenerators when images had different Z dimension size
+
+23/11/2020
+-Added support for square ROI (image crop prior to training) as it allows more data augmentation
+-Added manual edit of ROIs (to precisely define ROIs rather than doing it manually, i.e. more robust ROI)
+
+19/11/2020
+-Fixed a bug in retraining EPySeg model when input masks were 32 bits
+-Added None to the interpolation free data augmentation to avoid under representation of the untransformed image
+
 12-16/11/2020
 -Fixed a bug when 'rotate (interpolation free)' was used as an augmentation and image had different width and height
 -Fixed float32 image preview when they had negative values...

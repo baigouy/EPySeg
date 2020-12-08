@@ -39,75 +39,74 @@ from skimage.morphology import square, ball, diamond, octahedron, rectangle
 #     np = __import__('numpy')
 
 
+# somehow tophat does not work for 3D but why ???
+def get_nb_of_series_in_lif(lif_file_name):
+    if not lif_file_name or not lif_file_name.lower().endswith('.lif'):
+        logger.error('Error only lif file supported')
+        return None
+    reader = read_lif.Reader(lif_file_name)
+    series = reader.getSeries()
+    return len(series)
 
-
-def black_top_hat(image, structuring_element=square(50), preserve_range = True):
-    logger.debug('bg subtraction black_top_hat')
+# nb there seems to be a bug in white top hat --> infinite loop or bug ???
+def __top_hat(image, type='black', structuring_element=square(50), preserve_range=True):
+    logger.debug('bg subtraction ' + str(type) + '_top_hat')
     try:
-        if len(image.shape) == 3:
-            out = np.zeros_like(image)
+        # TODO crappy bug fix for 3D images in tensorflow --> need some more love
+        # TODO NB will only work for tensorflow like images or maybe always load and treat images as in tensorflow by adding 1 for channel dimension even if has only one channel?? --> MAY MAKE SENSE
+        # for some reason top hat does not work with 3D images --> why --> in fact that does work but if image is very noisy and filter is big then it does nothing
+        if len(image.shape) == 4:
+            out = np.zeros_like(image)# , dtype=image.dtype
+            for zpos, zimg in enumerate(image):
+                for ch in range(zimg.shape[-1]):
+                    out[zpos, ..., ch] = __top_hat_single_channel__(zimg[..., ch],type=type,
+                                                                    structuring_element=structuring_element,
+                                                                    preserve_range=preserve_range)
+            return out
+        elif len(image.shape) == 3:
+            out = np.zeros_like(image) #, dtype=image.dtype
             for ch in range(image.shape[-1]):
-                out[..., ch] = _black_top_hat_single_channel(image[..., ch], structuring_element=structuring_element, preserve_range=preserve_range)
+                out[..., ch] = __top_hat_single_channel__(image[..., ch], type=type,structuring_element=structuring_element,
+                                                          preserve_range=preserve_range)
             return out
         elif len(image.shape) == 2:
-            out = _black_top_hat_single_channel(image, structuring_element=structuring_element, preserve_range=preserve_range)
+            out = __top_hat_single_channel__(image, type=type, structuring_element=structuring_element,
+                                             preserve_range=preserve_range)
             return out
         else:
-            print('invalid shape --> white top hat failed, sorry...')
+            print('invalid shape --> ' + type + ' top hat failed, sorry...')
     except:
-        print('white top hat failed, sorry...')
+        print(str(type) + ' top hat failed, sorry...')
         traceback.print_exc()
         return image
 
-def _black_top_hat_single_channel(single_channel_image, structuring_element=square(50), preserve_range = True):
+def black_top_hat(image, structuring_element=square(50), preserve_range=True):
+    return __top_hat(image, type='black', structuring_element=structuring_element, preserve_range=preserve_range)
+
+def white_top_hat(image, structuring_element=square(50), preserve_range=True):
+    return __top_hat(image, type='white', structuring_element=structuring_element, preserve_range=preserve_range)
+
+def __top_hat_single_channel__(single_channel_image, type, structuring_element=square(50), preserve_range=True):
     dtype = single_channel_image.dtype
     min = single_channel_image.min()
     max = single_channel_image.max()
-    out = black_tophat(single_channel_image, structuring_element)
-    if preserve_range and (out.min()!=min or out.max()!=max):
-        out = out/out.max()
+    if type == 'white':
+        out = white_tophat(single_channel_image, structuring_element)
+    else:
+        out = black_tophat(single_channel_image, structuring_element)
+    # TODO NB check if correct also
+    if preserve_range and (out.min() != min or out.max() != max):
+        out = out / out.max()
         out = (out * (max - min)) + min
         out = out.astype(dtype)
     return out
-
-def white_top_hat(image, structuring_element=square(50), preserve_range = True):
-    logger.debug('bg subtraction white_top_hat')
-    try:
-        if len(image.shape) == 3:
-            out = np.zeros_like(image)
-            for ch in range(image.shape[-1]):
-                out[..., ch] = _white_top_hat_single_channel(image[..., ch], structuring_element=structuring_element, preserve_range=preserve_range)
-            return out
-        elif len(image.shape) == 2:
-            out = _white_top_hat_single_channel(image, structuring_element=structuring_element, preserve_range=preserve_range)
-            return out
-        else:
-            print('invalid shape --> white top hat failed, sorry...')
-    except:
-        print('white top hat failed, sorry...')
-        traceback.print_exc()
-        return image
-
-def _white_top_hat_single_channel(single_channel_image, structuring_element=square(50), preserve_range = True):
-    dtype = single_channel_image.dtype
-    min = single_channel_image.min()
-    max = single_channel_image.max()
-    out = white_tophat(single_channel_image, structuring_element)
-    if preserve_range and (out.min()!=min or out.max()!=max):
-        out = out/out.max()
-        out = (out * (max - min)) + min
-        out = out.astype(dtype)
-    return out
-
 
 class Img(np.ndarray):  # subclass ndarray
-
-
     background_removal = ['No', 'White bg', 'Dark bg']
     # see https://en.wikipedia.org/wiki/Feature_scaling
     normalization_methods = ['Rescaling (min-max normalization)', 'Standardization (Z-score Normalization)',
                              'Mean normalization', 'Max normalization (auto)', 'Max normalization (x/255)',
-                             'Max normalization (x/4095)', 'Max normalization (x/65535)',
+                             'Max normalization (x/4095)', 'Max normalization (x/65535)', 'Rescaling based on defined lower and upper percentiles',
                              'None']  # should I add vgg, etc for pretrained encoders ??? maybe put synonyms
     normalization_ranges = [[0, 1], [-1, 1]]
 
@@ -115,7 +114,8 @@ class Img(np.ndarray):  # subclass ndarray
 
     # TODO allow load list of images all specified as strings one by one
     # TODO allow virtual stack --> open only one image at a time from a series, can probably do that with text files
-    def __new__(cls, *args, t=0, d=0, z=0, h=0, y=0, w=0, x=0, c=0, bits=8, dimensions=None, metadata=None, **kwargs):
+    def __new__(cls, *args, t=0, d=0, z=0, h=0, y=0, w=0, x=0, c=0, bits=8, serie_to_open=None, dimensions=None,
+                metadata=None, **kwargs):
         '''Creates a new instance of the Img class
         
         The image class is a numpy ndarray. It is nothing but a matrix of pixel values.
@@ -165,10 +165,12 @@ class Img(np.ndarray):  # subclass ndarray
                 if dimensions is not None:
                     img.metadata['dimensions'] = dimensions
             elif isinstance(args[0], str):
+                logger.debug('loading '+str(args[0]))
+                # print('loading '+str(args[0]))
                 # input is a string, i.e. a link to one or several files
                 if '*' not in args[0]:
                     # single image
-                    meta, img = ImageReader.read(args[0])
+                    meta, img = ImageReader.read(args[0], serie_to_open=serie_to_open)
                     meta_data.update(meta)
                     meta_data['path'] = args[0]  # add path to metadata
                     img = np.asarray(img).view(cls)
@@ -217,12 +219,12 @@ class Img(np.ndarray):  # subclass ndarray
 
         if img is None:
             # TODO do that better
-            logger.critical("Error, can't open image invalid arguments or file not supported or does not exist...")
+            logger.critical("Error, can't open image invalid arguments, file not supported or file does not exist...") # TODO be more precise
             return None
 
         return img
 
-    # TODO do implement it more wisely
+    # TODO do implement it more wisely or drop it because it's simpler to access the numpy array directly...
     def get_pixel(self, *args):
         '''get pixel value
 
@@ -233,7 +235,7 @@ class Img(np.ndarray):  # subclass ndarray
         logger.critical('wrong nb of dimensions')
         return None
 
-    # TODO do implement it more wisely
+    # TODO do implement it more wisely or drop it because it's simpler to access the numpy array directly...
     def set_pixel(self, x, y, value):
         '''sets pixel value
 
@@ -925,7 +927,7 @@ class Img(np.ndarray):  # subclass ndarray
                 try:
                     # need manual conversion of the image so that it can be read as 8 bit or alike
                     # force image between 0 and 1 then do convert
-                    img = img_as_ubyte((img-img.min())/(img.max()-img.min()))
+                    img = img_as_ubyte((img - img.min()) / (img.max() - img.min()))
                 except:
                     print('error converting image to 8 bits')
                     return None
@@ -1032,12 +1034,14 @@ class Img(np.ndarray):  # subclass ndarray
         if overlap_y is None:
             overlap_y = overlap
 
-        if dimension_h<0:
-            dimension_h = len(inp.shape)+dimension_h
-        if dimension_w<0:
+        # for debug
+        # overlap_x = 32
+        # overlap_y = 32
+
+        if dimension_h < 0:
+            dimension_h = len(inp.shape) + dimension_h
+        if dimension_w < 0:
             dimension_w = len(inp.shape) + dimension_w
-
-
 
         # print('inpshape', inp.shape, width, height, dimension_h, dimension_w)
 
@@ -1045,12 +1049,20 @@ class Img(np.ndarray):  # subclass ndarray
         final_width = inp.shape[dimension_w]
 
         if overlap_x % 2 != 0 or overlap_y % 2 != 0:
-            print(
+            logger.error(
                 'Warning overlap in x or y dimension is not even, this will cause numerous errors please do change this!')
 
         last_idx = 0
         cuts_y = []
         end = 0
+
+        # print(overlap_x, overlap_y, 'overlap')
+        if height >= inp.shape[dimension_h]:
+            overlap_y = 0
+        if width >= inp.shape[dimension_w]:
+            overlap_x = 0
+
+        # print(overlap_x, overlap_y, 'overlap', height, width, inp.shape[dimension_w], inp.shape[dimension_h])
 
         if height + overlap_y < inp.shape[dimension_h]:
             for idx in range(height, inp.shape[dimension_h], height):
@@ -1068,19 +1080,29 @@ class Img(np.ndarray):  # subclass ndarray
                 if begin < 0:
                     begin = 0
                 cuts_y.append((begin, end))
-        else:
+        elif height + overlap_y > inp.shape[dimension_h]:
             height += overlap_y
             overlap_y = 0
-            bigger = np.zeros(
-                (*inp.shape[:dimension_h], height + overlap_y, inp.shape[dimension_w], *inp.shape[dimension_w + 1:]),
-                dtype=inp.dtype)
-            if dimension_h == 2:
-                bigger[:, :, :inp.shape[dimension_h], :inp.shape[dimension_w]] = inp
-            elif dimension_h == 1:
-                bigger[:, :inp.shape[dimension_h], :inp.shape[dimension_w]] = inp
-            elif dimension_h == 0:
-                bigger[:inp.shape[dimension_h], :inp.shape[dimension_w]] = inp
+            padding = []
+            for dim in range(len(inp.shape)):
+                padding.append((0, 0))
+            # padding_required = False
+            padding[dimension_h] = (0, height - inp.shape[dimension_h])
+                # padding_required = True
+            # bigger = np.zeros(
+            #     (*inp.shape[:dimension_h], height + overlap_y, inp.shape[dimension_w], *inp.shape[dimension_w + 1:]),
+            #     dtype=inp.dtype)
+            # if dimension_h == 2:
+            #     bigger[:, :, :inp.shape[dimension_h], :inp.shape[dimension_w]] = inp
+            # elif dimension_h == 1:
+            #     bigger[:, :inp.shape[dimension_h], :inp.shape[dimension_w]] = inp
+            # elif dimension_h == 0:
+            #     bigger[:inp.shape[dimension_h], :inp.shape[dimension_w]] = inp
+            bigger = np.pad(inp, pad_width=tuple(padding), mode='symmetric')
             inp = bigger
+            del bigger
+            cuts_y.append((0, inp.shape[dimension_h]))
+        else:
             cuts_y.append((0, inp.shape[dimension_h]))
 
         # now split image along x direction
@@ -1102,19 +1124,27 @@ class Img(np.ndarray):  # subclass ndarray
                 if begin < 0:
                     begin = 0
                 cuts_x.append((begin, end))
-        else:
+        elif width + overlap_x > inp.shape[dimension_w]:
             width += overlap_x
             overlap_x = 0
-            bigger = np.zeros((*inp.shape[:dimension_w], width + overlap_x, *inp.shape[dimension_w + 1:]),
-                              dtype=inp.dtype)
-            if dimension_w == 3:
-                bigger[:, :, :inp.shape[dimension_h], :inp.shape[dimension_w]] = inp
-            elif dimension_w == 2:
-                bigger[:, :inp.shape[dimension_h], :inp.shape[dimension_w]] = inp
-            elif dimension_w == 1:
-                bigger[:inp.shape[dimension_h], :inp.shape[dimension_w]] = inp
-
+            # bigger = np.zeros((*inp.shape[:dimension_w], width + overlap_x, *inp.shape[dimension_w + 1:]),
+            #                   dtype=inp.dtype)
+            # if dimension_w == 3:
+            #     bigger[:, :, :inp.shape[dimension_h], :inp.shape[dimension_w]] = inp
+            # elif dimension_w == 2:
+            #     bigger[:, :inp.shape[dimension_h], :inp.shape[dimension_w]] = inp
+            # elif dimension_w == 1:
+            #     bigger[:inp.shape[dimension_h], :inp.shape[dimension_w]] = inp
+            padding = []
+            for dim in range(len(inp.shape)):
+                padding.append((0, 0))
+            # padding_required = False
+            padding[dimension_w] = (0, width - inp.shape[dimension_w])
+            bigger = np.pad(inp, pad_width=tuple(padding), mode='symmetric')
             inp = bigger
+            del bigger
+            cuts_x.append((0, inp.shape[dimension_w]))
+        else:
             cuts_x.append((0, inp.shape[dimension_w]))
 
         nb_tiles = 0
@@ -1144,29 +1174,43 @@ class Img(np.ndarray):  # subclass ndarray
                     cols.append(cur_slice)
                 else:
                     # if size is still smaller than desired resize
+                    padding = []
+                    for dim in range(len(cur_slice.shape)):
+                        padding.append((0, 0))
+                    padding_required = False
                     if cur_slice.shape[dimension_h] < height + overlap_y:
-                        bigger = np.zeros(
-                            (*cur_slice.shape[:dimension_h], height + overlap_y, cur_slice.shape[dimension_w],
-                             *cur_slice.shape[dimension_w + 1:]), dtype=cur_slice.dtype)
-                        if dimension_h == 2:
-                            bigger[:, :, :cur_slice.shape[dimension_h], :cur_slice.shape[dimension_w]] = cur_slice
-                        elif dimension_h == 1:
-                            bigger[:, :cur_slice.shape[dimension_h], :cur_slice.shape[dimension_w]] = cur_slice
-                        elif dimension_h == 0:
-                            bigger[:cur_slice.shape[dimension_h], :cur_slice.shape[dimension_w]] = cur_slice
-                        cur_slice = bigger
-
+                        padding[dimension_h] = (0, (height + overlap_y) - cur_slice.shape[dimension_h])
+                        padding_required = True
+                        # bigger = np.zeros(
+                        #     (*cur_slice.shape[:dimension_h], height + overlap_y, cur_slice.shape[dimension_w],
+                        #      *cur_slice.shape[dimension_w + 1:]), dtype=cur_slice.dtype)
+                        # if dimension_h == 2:
+                        #     bigger[:, :, :cur_slice.shape[dimension_h], :cur_slice.shape[dimension_w]] = cur_slice
+                        # elif dimension_h == 1:
+                        #     bigger[:, :cur_slice.shape[dimension_h], :cur_slice.shape[dimension_w]] = cur_slice
+                        # elif dimension_h == 0:
+                        #     bigger[:cur_slice.shape[dimension_h], :cur_slice.shape[dimension_w]] = cur_slice
                     if cur_slice.shape[dimension_w] < width + overlap_x:
-                        bigger = np.zeros(
-                            (*cur_slice.shape[:dimension_w], width + overlap_x, *cur_slice.shape[dimension_w + 1:]),
-                            dtype=cur_slice.dtype)
-                        if dimension_w == 3:
-                            bigger[:, :, :cur_slice.shape[dimension_h], :cur_slice.shape[dimension_w]] = cur_slice
-                        elif dimension_w == 2:
-                            bigger[:, :cur_slice.shape[dimension_h], :cur_slice.shape[dimension_w]] = cur_slice
-                        elif dimension_w == 1:
-                            bigger[:cur_slice.shape[dimension_h], :cur_slice.shape[dimension_w]] = cur_slice
+                        padding[dimension_w] = (0, (width + overlap_x) - cur_slice.shape[dimension_w])
+                        padding_required = True
+                    # print('padding_required', padding_required, cur_slice.shape[dimension_h],cur_slice.shape[dimension_w], width + overlap_x, height+overlap_x)
+                    if padding_required:
+                        # print('dding here', padding)
+                        bigger = np.pad(cur_slice, pad_width=tuple(padding), mode='symmetric')
                         cur_slice = bigger
+                        del bigger
+
+                    # if cur_slice.shape[dimension_w] < width + overlap_x:
+                    #     bigger = np.zeros(
+                    #         (*cur_slice.shape[:dimension_w], width + overlap_x, *cur_slice.shape[dimension_w + 1:]),
+                    #         dtype=cur_slice.dtype)
+                    #     if dimension_w == 3:
+                    #         bigger[:, :, :cur_slice.shape[dimension_h], :cur_slice.shape[dimension_w]] = cur_slice
+                    #     elif dimension_w == 2:
+                    #         bigger[:, :cur_slice.shape[dimension_h], :cur_slice.shape[dimension_w]] = cur_slice
+                    #     elif dimension_w == 1:
+                    #         bigger[:cur_slice.shape[dimension_h], :cur_slice.shape[dimension_w]] = cur_slice
+                    #     cur_slice = bigger
                     cols.append(cur_slice)
             final_splits.append(cols)
 
@@ -1215,7 +1259,7 @@ class Img(np.ndarray):  # subclass ndarray
         return out
 
     @staticmethod
-    def normalization(img, method=None, range=None, individual_channels=False):
+    def normalization(img, method=None, range=None, individual_channels=False, clip=False, normalization_minima_and_maxima=None):
         '''normalize an image
 
         Parameters
@@ -1238,7 +1282,7 @@ class Img(np.ndarray):  # subclass ndarray
             a normalized image
         '''
         if img is None:
-            logger.error('\'None\' image cannot be normalized')
+            logger.error("'None' image cannot be normalized")
             return
 
         logger.debug('max before normalization=' + str(img.max()) + ' min before normalization=' + str(img.min()))
@@ -1246,43 +1290,87 @@ class Img(np.ndarray):  # subclass ndarray
             logger.debug('Image is not normalized')
             return img
 
-        if 'ormalization' in method and not 'tandardization' in method:
-            logger.debug('Image is normalized')
+        if 'ercentile' in method:
+            logger.debug('Image will be normalized using percentiles')
             img = img.astype(np.float32)
-            return Img._nomalize(img, individual_channels=individual_channels, method=method,
+            img = Img._nomalize(img, individual_channels=individual_channels, method=method,
+                                 norm_range=range, clip=clip, normalization_minima_and_maxima=normalization_minima_and_maxima) # TODO if range is list of list --> assume per channel data and do norm that way --> TODO --> think about the best way to do that
+            logger.debug('max after normalization=' + str(img.max()) + ' min after normalization=' + str(img.min()))
+            return img
+        elif 'ormalization' in method and not 'tandardization' in method:
+            logger.debug('Image will be normalized')
+            img = img.astype(np.float32)
+            img = Img._nomalize(img, individual_channels=individual_channels, method=method,
                                  norm_range=range)
+            logger.debug('max after normalization=' + str(img.max()) + ' min after normalization=' + str(img.min()))
+            return img
         elif 'tandardization' in method:
-            logger.debug('Image is standardized')
+            logger.debug('Image will be standardized')
             img = img.astype(np.float32)
-            return Img._standardize(img, individual_channels=individual_channels, method=method,
+            img = Img._standardize(img, individual_channels=individual_channels, method=method,
                                     norm_range=range)
+            logger.debug('max after standardization=' + str(img.max()) + ' min after standardization=' + str(img.min()))
+            return img
         else:
             logger.error('unknown normalization method ' + str(method))
         return img
 
     # https://en.wikipedia.org/wiki/Feature_scaling
     @staticmethod
-    def _nomalize(img, individual_channels=False, method='Rescaling (min-max normalization)', norm_range=None):
+    def _nomalize(img, individual_channels=False, method='Rescaling (min-max normalization)', norm_range=None, clip=False, normalization_minima_and_maxima=None):
+        eps = 1e-20  # for numerical stability avoid division by 0
         if individual_channels:
             for c in range(img.shape[-1]):
+                norm_min_max = None
+                if normalization_minima_and_maxima is not None:
+                    # if list of list then use that --> in fact could also check if individual channel or not...
+                    if isinstance(normalization_minima_and_maxima[0], list):
+                        norm_min_max = normalization_minima_and_maxima[c]
+                    else:
+                        norm_min_max = normalization_minima_and_maxima
                 img[..., c] = Img._nomalize(img[..., c], individual_channels=False, method=method,
-                                            norm_range=norm_range)
+                                            norm_range=norm_range, clip=clip, normalization_minima_and_maxima=norm_min_max)
         else:
-            if method == 'Rescaling (min-max normalization)':
+            # that should work
+            if 'percentile' in method:
+                # direct_range ??? --> think how to do that ???
+                # TODO here in some cases need assume passed directly the percentiles and in that case need not do that again... --> think how to do that --> shall I pass a second parameter directly --> maybe direct_range that bypasses the percentiles if set --> TODO --> check that
+                if normalization_minima_and_maxima is None:
+                    lowest_percentile = np.percentile(img, norm_range[0])
+                    highest_percentile = np.percentile(img, norm_range[1])
+                else:
+                    lowest_percentile = normalization_minima_and_maxima[0]
+                    highest_percentile = normalization_minima_and_maxima[1]
+                try:
+                    import numexpr
+                    img = numexpr.evaluate("(img - lowest_percentile) / ( highest_percentile - lowest_percentile + eps )")
+                except:
+                    img = (img - lowest_percentile) / (highest_percentile - lowest_percentile + eps)
+                if clip:
+                    img = np.clip(img, 0, 1)
+            elif method == 'Rescaling (min-max normalization)':
                 max = img.max()
                 min = img.min()
-                if max != 0 and max != min:
-                    if norm_range is None or norm_range == [0, 1] or norm_range == '[0, 1]' or norm_range == 'default' \
-                            or isinstance(norm_range, int):
-                        img = (img - min) / (max - min)  # TODO will it take less memory if I split it into two lines
-                    elif norm_range == [-1, 1] or norm_range == '[-1, 1]':
-                        img = -1 + ((img - min) * (1 - -1)) / (max - min)
+                # if max != 0 and max != min:
+                if norm_range is None or norm_range == [0, 1] or norm_range == '[0, 1]' or norm_range == 'default' \
+                        or isinstance(norm_range, int):
+                    try:
+                        import numexpr
+                        img = numexpr.evaluate("(img - min) / (max - min + eps)")
+                    except:
+                        img = (img - min) / (max - min + eps)  # TODO will it take less memory if I split it into two lines
+                elif norm_range == [-1, 1] or norm_range == '[-1, 1]':
+                    try:
+                        import numexpr
+                        img = numexpr.evaluate("-1 + ((img - min) * (1 - -1)) / (max - min + eps)")
+                    except:
+                        img = -1 + ((img - min) * (1 - -1)) / (max - min + eps)
             elif method == 'Mean normalization':
                 # TODO should I implement range too here ??? or deactivate it
                 max = img.max()
                 min = img.min()
                 if max != 0 and max != min:
-                    img = (img - np.average(img)) / (img.max() - img.min())
+                    img = (img - np.average(img)) / (max - min)
             elif method.startswith('Max normalization'):  # here too assume 0-1 no need for range
                 if 'auto' in method:
                     max = img.max()
@@ -1294,10 +1382,13 @@ class Img(np.ndarray):  # subclass ndarray
                     max = 65535
 
                 if max != 0:
-                    img = img / max
+                    try:
+                        import numexpr
+                        img = numexpr.evaluate("img / max")
+                    except:
+                        img = img / max
             else:
                 logger.error('Unknown normalization method "' + str(method) + '" --> ignoring ')
-        logger.debug('max after normlization=' + str(img.max()) + ' min after normalization=' + str(img.min()))
         return img
 
     @staticmethod
@@ -1595,40 +1686,52 @@ class Img(np.ndarray):  # subclass ndarray
                                                      channel_mode=False)
             return img
 
+        # print('min', img.min(), 'max', img.max())
+
         if img.max() == img.min():
             return img
 
         logger.debug('Removing image outliers/hot pixels')
 
-        hist, bins = np.histogram(img, bins=np.arange(img.min(), img.max()),
-                                  density=True)
+        # hist, bins = np.histogram(img, bins=np.arange(img.min(), img.max()+1),
+        #                           density=True)
+
+        # print(np.percentile(img, 100*(lower_cutoff)))
+        # print(np.percentile(img, 100*(1-upper_cutoff)))
+
+        # print('hist', hist)
+        # print(hist.sum()) # sums to 1
+        # print('bins', bins)
 
         if upper_cutoff is not None:  # added this to avoid black images
-            cum_freq = 0
-            max = bins[-1]
-            for idcs, val in enumerate(hist[::-1]):
-                cum_freq += val
-                if cum_freq >= upper_cutoff:
-                    max = bins[len(bins) - 1 - idcs]
-                    break
+            # cum_freq = 0.
+            # max = bins[-1]
+            # for idcs, val in enumerate(hist[::-1]):
+            #     cum_freq += val
+            #     if cum_freq >= upper_cutoff:
+            #         max = bins[len(bins) - 1 - idcs]
+            #         break
+            # print(np.percentile(img, lower_cutoff))
+            max = np.percentile(img, 100. * (1. - upper_cutoff))
             img[img > max] = max
 
         if lower_cutoff is not None:
-            cum_freq = 0
-            min = bins[0]
-            for idcs, val in enumerate(hist):
-                cum_freq += val
-                if cum_freq >= lower_cutoff:
-                    min = bins[idcs]
-                    break
+            # cum_freq = 0.
+            # min = bins[0]
+            # for idcs, val in enumerate(hist):
+            #     cum_freq += val
+            #     if cum_freq >= lower_cutoff:
+            #         min = bins[idcs]
+            #         break
+            min = np.percentile(img, 100. * lower_cutoff)
             img[img < min] = min
-
+        # print('--> min', img.min(), 'max', img.max())
         return img
 
 
 class ImageReader:
 
-    def read(f):
+    def read(f, serie_to_open=None):
 
         width = None
         height = None
@@ -1747,9 +1850,50 @@ class ImageReader:
                 depth = meta_data['ImageDocument']['Metadata']['Information']['Image']['SizeZ']
                 image = np.squeeze(image)  # removes all the empty dimensions
         elif f.lower().endswith('.lif'):
+            # reader = read_lif.Reader(f)
+            # series = reader.getSeries()
+            # # print('series', len(series))
+            # chosen = series[0]
+            #
+            # meta_data = chosen.getMetadata()
+            # voxel_x = meta_data['voxel_size_x']
+            # voxel_y = meta_data['voxel_size_y']
+            # voxel_z = meta_data['voxel_size_z']
+            # width = meta_data['voxel_number_x']
+            # height = meta_data['voxel_number_y']
+            # depth = meta_data['voxel_number_z']
+            # channels = meta_data['channel_number']
+            # times = chosen.getTimeStamps()
+            # t_frames = chosen.getNbFrames()
+            #
+            # image = None
+            # for i in range(channels):
+            #     cur_image = chosen.getFrame(channel=i)
+            #     dimName = {1: 'X',
+            #                2: 'Y',
+            #                3: 'Z',
+            #                4: 'T',
+            #                5: 'Lambda',
+            #                6: 'Rotation',
+            #                7: 'XT Slices',
+            #                8: 'TSlices',
+            #                10: 'unknown'}
+            #     cur_image = np.moveaxis(cur_image, -1, 0)
+            #     if image is None:
+            #         image = cur_image
+            #     else:
+            #         image = np.stack((image, cur_image), axis=-1)
+            image = None
             reader = read_lif.Reader(f)
             series = reader.getSeries()
-            chosen = series[0]
+            # print('series', len(series))
+            if serie_to_open is None:
+                chosen = series[0]
+            else:
+                if serie_to_open >= len(series) or serie_to_open < 0:
+                    logger.error('Out of range serie nb for current lif file, returning None')
+                    return None
+                chosen = series[serie_to_open]
 
             meta_data = chosen.getMetadata()
             voxel_x = meta_data['voxel_size_x']
@@ -1760,25 +1904,45 @@ class ImageReader:
             depth = meta_data['voxel_number_z']
             channels = meta_data['channel_number']
             times = chosen.getTimeStamps()
+            t_frames = chosen.getNbFrames()
 
-            image = None
-            for i in range(channels):
-                cur_image = chosen.getFrame(channel=i)
-                dimName = {1: 'X',
-                           2: 'Y',
-                           3: 'Z',
-                           4: 'T',
-                           5: 'Lambda',
-                           6: 'Rotation',
-                           7: 'XT Slices',
-                           8: 'TSlices',
-                           10: 'unknown'}
+            # print('t_frames', t_frames)
+            # TODO check time points cause I think they are not ok for the t frames
 
-                cur_image = np.moveaxis(cur_image, -1, 0)
+            # stack = None
+            for T in range(t_frames):
+                zstack = None
+                for i in range(channels):
+                    cur_image = chosen.getFrame(T=T, channel=i)
+                    # dimName = {1: 'X',
+                    #            2: 'Y',
+                    #            3: 'Z',
+                    #            4: 'T',
+                    #            5: 'Lambda',
+                    #            6: 'Rotation',
+                    #            7: 'XT Slices',
+                    #            8: 'TSlices',
+                    #            10: 'unknown'}
+                    cur_image = np.moveaxis(cur_image, -1, 0)
+                    if zstack is None:
+                        zstack = cur_image
+                    else:
+                        zstack = np.stack((zstack, cur_image), axis=-1)
                 if image is None:
-                    image = cur_image
+                    image = zstack[np.newaxis, ...]
+                    # stack = image
                 else:
-                    image = np.stack((image, cur_image), axis=-1)
+                    # print(image.shape, zstack.shape)
+                    image = np.vstack((image, zstack[np.newaxis, ...]))
+                    # stack = np.vstack((stack, image), axis = np.newaxis)
+
+            # if only one T --> reduce dimensionality
+            if t_frames == 1:
+                t_frames = None
+
+            # print('before squeeze', image.shape)
+            image = np.squeeze(image)
+            # image = stack
         else:
             if not f.lower().endswith('.npy') and not f.lower().endswith('.npz'):
                 # for some reason this stuff reads 8 bits images as RGB and that causes some trouble
@@ -1791,7 +1955,7 @@ class ImageReader:
                         with open(f + '.meta') as json_file:
                             metadata = json.load(json_file)
                     except:
-                        logger.debug('could not load metadata '+str(f + '.meta'))
+                        logger.debug('could not load metadata ' + str(f + '.meta'))
                     # replace metadata from this file
                     return metadata, image
                 else:
@@ -1808,8 +1972,7 @@ class ImageReader:
         if voxel_x is not None and voxel_z is not None:
             ar = voxel_z / voxel_x
 
-        logger.debug(
-            'original dimensions:' + str(image.shape))
+        logger.debug('original dimensions:' + str(image.shape))
 
         if image.shape[1] != height and image.ndim == 4 and t_frames is None:
             image = np.moveaxis(image, [1], -1)

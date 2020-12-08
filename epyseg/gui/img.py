@@ -1,6 +1,7 @@
 import traceback
 import logging
 from epyseg.deeplearning.docs.doc2html import markdown_file_to_html, browse_tip
+from epyseg.gui.defineROI import DefineROI
 from epyseg.postprocess.gui import PostProcessGUI
 from epyseg.uitools.blinker import Blinker
 from PyQt5.QtWidgets import QDialog, QDialogButtonBox, QPushButton, QToolTip, QHBoxLayout
@@ -222,9 +223,10 @@ class image_input_settings(QDialog):
         self.clip_by_freq_combo.currentTextChanged.connect(self.clip_method_changed)
 
         self.clip_by_freq_range = QDoubleSpinBox()
-        self.clip_by_freq_range.setRange(0., 0.25)
-        self.clip_by_freq_range.setSingleStep(0.01)
-        self.clip_by_freq_range.setValue(0.05)
+        self.clip_by_freq_range.setRange(0., 0.30)
+        self.clip_by_freq_range.setDecimals(4)
+        self.clip_by_freq_range.setSingleStep(0.0001)
+        self.clip_by_freq_range.setValue(0.001)
         self.clip_by_freq_range.setEnabled(False)
 
         input_normalization_type_label = QLabel('Method')
@@ -240,6 +242,21 @@ class image_input_settings(QDialog):
         self.input_norm_range = QComboBox()
         for rng in Img.normalization_ranges:
             self.input_norm_range.addItem(str(rng))
+        self.lower_range_percentile_input_normalization = QDoubleSpinBox()
+        self.lower_range_percentile_input_normalization.setRange(0., 30.)
+        self.lower_range_percentile_input_normalization.setDecimals(2)
+        self.lower_range_percentile_input_normalization.setSingleStep(0.01)
+        self.lower_range_percentile_input_normalization.setValue(2.)
+        self.lower_range_percentile_input_normalization.setEnabled(False)
+        self.upper_range_percentile_input_normalization = QDoubleSpinBox()
+        self.upper_range_percentile_input_normalization.setRange(70., 100.)
+        self.upper_range_percentile_input_normalization.setDecimals(2)
+        self.upper_range_percentile_input_normalization.setSingleStep(0.01)
+        self.upper_range_percentile_input_normalization.setValue(99.8)
+        self.upper_range_percentile_input_normalization.setEnabled(False)
+        self.clip_in_range_input = QCheckBox('Clip')
+        self.clip_in_range_input.setEnabled(False)
+        # in fact could offer clip as an option and remove the other stuff --> TODO... --> this way the code would also be the same for input and output --> much simpler
 
         # help for image normalization
         self.help_button_image_normalization = QPushButton('?', None)
@@ -248,15 +265,18 @@ class image_input_settings(QDialog):
 
         # arrange normalization groupbox
         self.input_normalization_layout.addWidget(self.clip_by_freq_label, 0, 0)
-        self.input_normalization_layout.addWidget(self.clip_by_freq_combo, 0, 1, 1, 3)
-        self.input_normalization_layout.addWidget(self.clip_by_freq_range, 0, 5)
+        self.input_normalization_layout.addWidget(self.clip_by_freq_combo, 0, 1, 1, 7)
+        self.input_normalization_layout.addWidget(self.clip_by_freq_range, 0, 8)
         self.input_normalization_layout.addWidget(input_normalization_type_label, 1, 0)
         self.input_normalization_layout.addWidget(self.input_normalization, 1, 1)
-        self.input_normalization_layout.addWidget(input_b2label, 1, 2)
-        self.input_normalization_layout.addWidget(self.input_b2, 1, 3)
-        self.input_normalization_layout.addWidget(input_normalization_range_label, 1, 4)
-        self.input_normalization_layout.addWidget(self.input_norm_range, 1, 5)
-        self.input_normalization_layout.addWidget(self.help_button_image_normalization, 0, 6, 2, 1)
+        self.input_normalization_layout.addWidget(self.lower_range_percentile_input_normalization, 1, 2)
+        self.input_normalization_layout.addWidget(self.upper_range_percentile_input_normalization, 1, 3)
+        self.input_normalization_layout.addWidget(self.clip_in_range_input, 1, 4)
+        self.input_normalization_layout.addWidget(input_b2label, 1, 5)
+        self.input_normalization_layout.addWidget(self.input_b2, 1, 6)
+        self.input_normalization_layout.addWidget(input_normalization_range_label, 1, 7)
+        self.input_normalization_layout.addWidget(self.input_norm_range, 1, 8)
+        self.input_normalization_layout.addWidget(self.help_button_image_normalization, 0, 9, 2, 1)
         self.input_normalization_group.setLayout(self.input_normalization_layout)
 
         self.channel_increase_or_reduction_rule = QGroupBox('Channel number adjustment')
@@ -265,7 +285,6 @@ class image_input_settings(QDialog):
         channel_increase_or_reduction_rule_group_layout = QHBoxLayout()
         channel_increase_or_reduction_rule_group_layout.setAlignment(Qt.AlignTop)
 
-
         small_hlayout_preview = QVBoxLayout()
         small_hlayout_preview.setAlignment(Qt.AlignTop)
         # small_hlayout_preview.setColumnStretch(0, 98)
@@ -273,8 +292,14 @@ class image_input_settings(QDialog):
 
         # input_v_layout.addLayout(small_hlayout)
         # set on the left of it
-        crop_info_label = QLabel('ROI needed')
+        crop_info_label = QLabel('ROI needed ?')
         crop_info_label.setStyleSheet("QLabel { color : red; }")
+        self.square_ROI_checkbox= QCheckBox('Square ROI')
+        self.square_ROI_checkbox.clicked.connect(self.change_ROI)
+        # TODO shall I edit that to allow for random crops???
+
+        self.editROI = QPushButton('Edit')
+        self.editROI.clicked.connect(self.edit_ROI)
         self.help_button_crop_ROI = QPushButton('?', None)
         self.help_button_crop_ROI.setMaximumWidth(bt_width * 2)
         self.help_button_crop_ROI.clicked.connect(self.show_tip)
@@ -285,10 +310,13 @@ class image_input_settings(QDialog):
             if self.show_input and self.show_output:
                 small_hlayout_crop_and_help = QGridLayout()
                 small_hlayout_crop_and_help.setAlignment(Qt.AlignTop)
-                small_hlayout_crop_and_help.setColumnStretch(0, 98)
-                small_hlayout_crop_and_help.setColumnStretch(1, 2)
+                # small_hlayout_crop_and_help.setColumnStretch(0, 49)
+                # small_hlayout_crop_and_help.setColumnStretch(0, 49)
+                # small_hlayout_crop_and_help.setColumnStretch(1, 2)
                 small_hlayout_crop_and_help.addWidget(crop_info_label, 0, 0)
-                small_hlayout_crop_and_help.addWidget(self.help_button_crop_ROI, 0, 1)
+                small_hlayout_crop_and_help.addWidget(self.square_ROI_checkbox, 0, 1)
+                small_hlayout_crop_and_help.addWidget(self.editROI, 0, 2)
+                small_hlayout_crop_and_help.addWidget(self.help_button_crop_ROI, 0, 3)
                 # input_v_layout.addLayout(small_hlayout)
                 small_hlayout_preview.addLayout(small_hlayout_crop_and_help)
 
@@ -572,6 +600,21 @@ class image_input_settings(QDialog):
         for method in Img.normalization_methods:
             self.output_normalization.addItem(method)
         self.output_normalization.currentTextChanged.connect(self.output_norm_changed)
+        self.lower_range_percentile_output_normalization = QDoubleSpinBox()
+        self.lower_range_percentile_output_normalization.setRange(0., 30.)
+        self.lower_range_percentile_output_normalization.setDecimals(2)
+        self.lower_range_percentile_output_normalization.setSingleStep(0.01)
+        self.lower_range_percentile_output_normalization.setValue(2.)
+        self.lower_range_percentile_output_normalization.setEnabled(False)
+        self.upper_range_percentile_output_normalization = QDoubleSpinBox()
+        self.upper_range_percentile_output_normalization.setRange(70., 100.)
+        self.upper_range_percentile_output_normalization.setDecimals(2)
+        self.upper_range_percentile_output_normalization.setSingleStep(0.01)
+        self.upper_range_percentile_output_normalization.setValue(99.8)
+        self.upper_range_percentile_output_normalization.setEnabled(False)
+        self.clip_in_range_output = QCheckBox('Clip')
+        self.clip_in_range_output.setEnabled(False)
+
         output_b2label = QLabel('Per channel ?')
         self.output_b2 = QCheckBox('yes')
         self.output_b2.setChecked(True)
@@ -588,11 +631,14 @@ class image_input_settings(QDialog):
         # arrange normalization groupbox
         self.output_normalization_layout.addWidget(output_normalization_type_label, 0, 0)
         self.output_normalization_layout.addWidget(self.output_normalization, 0, 1)
-        self.output_normalization_layout.addWidget(output_b2label, 0, 2)
-        self.output_normalization_layout.addWidget(self.output_b2, 0, 3)
-        self.output_normalization_layout.addWidget(output_normalization_range_label, 0, 4)
-        self.output_normalization_layout.addWidget(self.output_norm_range, 0, 5)
-        self.output_normalization_layout.addWidget(self.help_button_normalization_output, 0, 6)
+        self.output_normalization_layout.addWidget(self.lower_range_percentile_output_normalization, 0, 2)
+        self.output_normalization_layout.addWidget(self.upper_range_percentile_output_normalization, 0, 3)
+        self.output_normalization_layout.addWidget(self.clip_in_range_output, 0, 4)
+        self.output_normalization_layout.addWidget(output_b2label, 0, 5)
+        self.output_normalization_layout.addWidget(self.output_b2, 0, 6)
+        self.output_normalization_layout.addWidget(output_normalization_range_label, 0, 7)
+        self.output_normalization_layout.addWidget(self.output_norm_range, 0, 8)
+        self.output_normalization_layout.addWidget(self.help_button_normalization_output, 0, 9)
         self.output_normalization_group.setLayout(self.output_normalization_layout)
 
         self.output_channel_increase_or_reduction_rule = QGroupBox('Channel number adjustment')
@@ -752,6 +798,30 @@ class image_input_settings(QDialog):
         self.remove_output_border_pixels.setEnabled(not self.generate_default_epyseg_output_from_mask.isChecked())
         self.nb_mask_dilations.setEnabled(not self.generate_default_epyseg_output_from_mask.isChecked())
 
+    def edit_ROI(self):
+        # if an ROI already exists --> try load it first
+        crop_parameters = self.image_cropper_UI.get_crop_parameters()
+        if crop_parameters is not None:
+            try:
+                ROI, ok = DefineROI.getDataAndParameters(parent_window=self,x1=crop_parameters['x1'],y1=crop_parameters['y1'],x2=crop_parameters['x2'], y2=crop_parameters['y2'])
+            except:
+                # in case ROI is random ROI --> ignore parameters
+                ROI, ok = DefineROI.getDataAndParameters(parent_window=self)
+        else:
+            ROI, ok = DefineROI.getDataAndParameters(parent_window=self)
+        # TODO add the posibility to remove ROI some day but ok for now
+        if ok:
+            if ROI is not None: #and ROI[0] is not None
+                self.image_cropper_UI.setRoi(*ROI)
+                logger.debug('Newly defined ROI: '+str(self.image_cropper_UI.get_crop_parameters()))
+            # else:
+            #     self.image_cropper_UI.setRoi(None, None, None, None)
+            # else:
+            #     self.image_cropper_UI.setRoi(None) # random # can I do that ???
+
+    def change_ROI(self):
+        self.image_cropper_UI.set_square_ROI(self.square_ROI_checkbox.isChecked())
+
     def show_tip(self):
         if self.sender() == self.help_button_image_normalization or self.sender()==self.help_button_normalization_output:
             browse_tip('https://en.wikipedia.org/wiki/Feature_scaling')
@@ -898,15 +968,37 @@ class image_input_settings(QDialog):
         if self.output_normalization.currentText() == Img.normalization_methods[0] \
                 or self.output_normalization.currentText() == Img.normalization_methods[1]:
             self.output_norm_range.setEnabled(True)
+            self.lower_range_percentile_output_normalization.setEnabled(False)
+            self.upper_range_percentile_output_normalization.setEnabled(False)
+            self.clip_in_range_output.setEnabled(False)
+        elif self.output_normalization.currentText() == Img.normalization_methods[7]:
+            self.output_norm_range.setEnabled(False)
+            self.lower_range_percentile_output_normalization.setEnabled(True)
+            self.upper_range_percentile_output_normalization.setEnabled(True)
+            self.clip_in_range_output.setEnabled(True)
         else:
             self.output_norm_range.setEnabled(False)
+            self.lower_range_percentile_output_normalization.setEnabled(False)
+            self.upper_range_percentile_output_normalization.setEnabled(False)
+            self.clip_in_range_output.setEnabled(False)
 
     def input_norm_changed(self):
         if self.input_normalization.currentText() == Img.normalization_methods[0] \
                 or self.input_normalization.currentText() == Img.normalization_methods[1]:
             self.input_norm_range.setEnabled(True)
+            self.lower_range_percentile_input_normalization.setEnabled(False)
+            self.upper_range_percentile_input_normalization.setEnabled(False)
+            self.clip_in_range_input.setEnabled(False)
+        elif self.input_normalization.currentText() == Img.normalization_methods[7]:
+            self.input_norm_range.setEnabled(False)
+            self.lower_range_percentile_input_normalization.setEnabled(True)
+            self.upper_range_percentile_input_normalization.setEnabled(True)
+            self.clip_in_range_input.setEnabled(True)
         else:
             self.input_norm_range.setEnabled(False)
+            self.lower_range_percentile_input_normalization.setEnabled(False)
+            self.upper_range_percentile_input_normalization.setEnabled(False)
+            self.clip_in_range_input.setEnabled(False)
 
     def _output_channel_changed(self):
         # bug is here in loading the image
@@ -1197,10 +1289,15 @@ class image_input_settings(QDialog):
             data['input_channel_augmentation_rule'] = self.channel_input_augmentation_rule.currentText()
             data['input_channel_of_interest'] = input_channel_of_interest
         if self.show_normalization:
+            range = self.input_norm_range.currentText()
+            if self.lower_range_percentile_input_normalization.isEnabled():
+                # TODO need a check that values are ok --> but must be ok because I bounded them and bounds are non overlapping
+                range=[self.lower_range_percentile_input_normalization.value(), self.upper_range_percentile_input_normalization.value()]
             data['input_normalization'] = {'method': self.input_normalization.currentText(),
                                            'individual_channels': self.input_b2.isChecked(),
-                                           'range': self.input_norm_range.currentText()}
-            data['clip_by_frequency'] = self.get_clip_by_freq()
+                                           'range': range,
+                                           'clip': True if self.clip_in_range_input.isChecked() and self.clip_in_range_input.isEnabled() else False} # can have different values for the range
+            data['clip_by_frequency'] = self.get_clip_by_freq() # maybe remove that some day ??? think about it...
         if self.allow_ROI:
             data['crop_parameters'] = self.image_cropper_UI.get_crop_parameters()
         if self.show_predict_output:
@@ -1263,9 +1360,15 @@ class image_input_settings(QDialog):
                 data['output_channel_augmentation_rule'] = self.channel_output_augmentation_rule.currentText()
                 data['output_channel_of_interest'] = output_channel_of_interest
             if self.show_normalization:
+                range = self.output_norm_range.currentText()
+                if self.lower_range_percentile_output_normalization.isEnabled():
+                    # TODO need a check that values are ok --> but must be ok because I bounded them and bounds are non overlapping
+                    range = [self.lower_range_percentile_output_normalization.value(),
+                             self.upper_range_percentile_output_normalization.value()]
                 data['output_normalization'] = {'method': self.output_normalization.currentText(),
                                                 'individual_channels': self.output_b2.isChecked(),
-                                                'range': self.output_norm_range.currentText()}
+                                                'range': range,
+                                                'clip': True if self.clip_in_range_output.isChecked() and self.clip_in_range_output.isEnabled() else False}
 
         # print('current test', self.show_run_post_process, self.enable_post_process.isChecked())
         # allow post process

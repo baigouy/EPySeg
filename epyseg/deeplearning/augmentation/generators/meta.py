@@ -5,6 +5,7 @@ from epyseg.tools.logger import TA_logger
 
 logger = TA_logger()
 
+
 # do a real generator for this to avoid code dupes btw --> and add more flexibility --> less global variables
 class MetaGenerator:
 
@@ -18,29 +19,53 @@ class MetaGenerator:
     def generator(self, skip_augment, first_run):
         self.remains_of_previous_batch = None
         generators = []
+        generators_length = []
         for gen in self.augmenters:
             if self.gen_type == 'train':
                 if gen.has_train_set():
                     generators.append(gen.train_generator(skip_augment=skip_augment, first_run=first_run))
+                    generators_length.append(gen.get_train_set_length())
             elif self.gen_type == 'test':
                 if gen.has_test_set():
                     generators.append(gen.test_generator(skip_augment=skip_augment, first_run=first_run))
+                    generators_length.append(gen.get_test_set_length())
             elif self.gen_type == 'valid':
                 if gen.has_validation_set():
                     generators.append(gen.validation_generator(skip_augment=skip_augment, first_run=first_run))
+                    generators_length.append(gen.get_validation_set_length())
             else:
                 logger.error('unsupported generator ' + self.gen_type)
 
         if self.shuffle:
-            # create a random no repick list
-            indices = random.sample(range(len(generators)), len(generators))
-            for idcs in indices:
+            # call random based on some data
+            logger.debug('The datagenerator is using shuffle mode')
+            random_generator_indices = []
+            for iii, gener_ in enumerate(generators):
+                random_generator_indices += [iii] * generators_length[iii]
+
+            # print(len(random_generator_indices))
+            # print(random_generator_indices)
+            random_generator_indices = random.sample(random_generator_indices, len(random_generator_indices))
+            # print("-->", len(random_generator_indices))
+            # print(random_generator_indices)
+            for idcs in random_generator_indices:
                 choice = generators[idcs]
-                for c in choice:
+                for c in choice:  # TODO remove that line so that I always switch between generators
                     out = self.is_batch_ready(c, False)
                     while out is not None:
                         yield out
                         out = self.is_batch_ready(None, False)
+                    break  # does that work ??
+
+            # old random code --> not great because trains too much on one sample before moving to the next --> now changing
+            # indices = random.sample(range(len(generators)), len(generators))
+            # for idcs in indices:
+            #     choice = generators[idcs]
+            #     for c in choice: # TODO remove that line so that I always switch between generators
+            #         out = self.is_batch_ready(c, False)
+            #         while out is not None:
+            #             yield out
+            #             out = self.is_batch_ready(None, False)
         else:
             for gen in generators:
                 for c in gen:
@@ -56,7 +81,39 @@ class MetaGenerator:
     def multiconcat(self, old_batch, new_batch):
         for idcs, input_output in enumerate(new_batch):
             for j, data in enumerate(input_output):
-                old_batch[idcs][j] = np.concatenate((old_batch[idcs][j], data), axis=0)
+                try:
+                    old_batch[idcs][j] = np.concatenate((old_batch[idcs][j], data), axis=0)
+                except:
+                    # if images don't have the same nb of Z add empty frames to the smallest one so that both fit --> bug fix for 3D generators with images having different depth
+                    # TODO should I use padding in the Z axis with reflect here too --> in most cases that should work especially for
+
+                    if len(old_batch[idcs][j].shape) == len(data.shape) == 5:
+                        if old_batch[idcs][j].shape[1] != data.shape[1]:
+                            # need add frames to the smallest..., try add black frames...
+                            if old_batch[idcs][j].shape[1] < data.shape[1]:
+                                smallest_z = old_batch[idcs][j]
+                                biggest_z = data
+                            else:
+                                smallest_z = data
+                                biggest_z = old_batch[idcs][j]
+
+                            smallest_shape = list(smallest_z.shape)
+                            z_dim_difference = biggest_z.shape[1] - smallest_z.shape[1]
+                            smallest_shape[1] = z_dim_difference
+
+                            missing_frames = np.zeros((smallest_shape), dtype=smallest_z.dtype)
+                            # use min per channel --> it is a much better idea
+                            # should test that changes are still ok but should be
+                            for c in missing_frames.shape[-1]:
+                                missing_frames[...,c].fill(smallest_z[...,c].min()) # probably makes sense, the other possibility is to put 0 but weird for non 0-1 normalized --> pb should do that per channel as global min does not make sense often
+
+                            smallest_z = np.append(smallest_z, missing_frames, axis=1) # nb should do that per channel in fact... -->
+
+                            old_batch[idcs][j] = np.concatenate((smallest_z, biggest_z), axis=0)
+
+                            del smallest_z
+                            del biggest_z
+
         return old_batch
 
     def multisplit(self, old_batch):
@@ -84,6 +141,7 @@ class MetaGenerator:
     def is_batch_ready(self, current_batch, last_image):
 
         # print('cb', current_batch, last_image)
+        # pb c'est que en 3D je ne dois pas faire pareil du tout car j'ai pas le droit de fusionner des stacks --> en fait si mais faut avoir le meme nombre de trucs pr les deux --> je dois ajouter ou enlever des images dans l'un ou l'autre
 
         if current_batch is not None and self.remains_of_previous_batch is not None:
             # this stuff should have the size and structure of cur batch
@@ -111,6 +169,7 @@ class MetaGenerator:
     def close(self):
         # hack to avoid errors when tf stops the generator
         pass
+
 
 if __name__ == '__main__':
     test_input_img_1 = np.zeros((10, 1, 1, 1))

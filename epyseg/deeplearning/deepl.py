@@ -28,7 +28,6 @@ from epyseg.tools.logger import TA_logger
 
 logger = TA_logger()
 
-
 class EZDeepLearning:
     '''A class to handle deep learning models
 
@@ -515,17 +514,17 @@ class EZDeepLearning:
 
         # bunch of custom objects to allow easy reload especially for the sm models
         # TODO force it to be in sync with metrics and losses
-        custom_objects = {"softmax": tf.nn.softmax, "iou_score": sm.metrics.iou_score, 'f1_score': f1_score,
-                          'f2_score': f2_score, 'precision': precision,
+        # TODO should I add more ???
+        custom_objects = {"softmax": tf.nn.softmax, "iou_score": sm.metrics.iou_score,
+                          'f1_score': f1_score, 'f2_score': f2_score, 'precision': precision,
                           'recall': recall, 'jaccard_loss': jaccard_loss, 'dice_loss': dice_loss,
                           'binary_focal_loss': binary_focal_loss, 'categorical_focal_loss': categorical_focal_loss,
-                          'binary_crossentropy': binary_crossentropy,
-                          'categorical_crossentropy': categorical_crossentropy,
+                          'binary_crossentropy': binary_crossentropy, 'categorical_crossentropy': categorical_crossentropy,
                           'bce_dice_loss': bce_dice_loss, 'bce_jaccard_loss': bce_jaccard_loss,
-                          'cce_dice_loss': cce_dice_loss,
-                          'cce_jaccard_loss': cce_jaccard_loss, 'binary_focal_dice_loss': binary_focal_dice_loss,
+                          'cce_dice_loss': cce_dice_loss, 'cce_jaccard_loss': cce_jaccard_loss,
+                          'binary_focal_dice_loss': binary_focal_dice_loss,
                           'binary_focal_loss_plus_dice_loss': binary_focal_dice_loss,
-                          'binary_focal_jaccard_loss': binary_focal_jaccard_loss,  # do I need to add more ???
+                          'binary_focal_jaccard_loss': binary_focal_jaccard_loss,
                           'binary_crossentropy_plus_dice_loss': bce_dice_loss,
                           'binary_focal_plus_jaccard_loss': binary_focal_jaccard_loss,
                           'categorical_focal_dice_loss': categorical_focal_dice_loss,
@@ -1161,6 +1160,12 @@ class EZDeepLearning:
                     filename0_without_path) + '\', please check it manually. Prediction continues with the next image.')
                 continue
 
+            if results is None:
+                logger.warning('Prediction interrupted or failed. Stopping...')
+                if progress_callback is not None:
+                    progress_callback.emit(100)
+                return
+
             if isinstance(results, np.ndarray):
                 results = [results]
 
@@ -1584,7 +1589,7 @@ class EZDeepLearning:
                     counter += 1
                 del results2
             else:
-                logger.error(
+                logger.warning(
                     'Suboptimal HQ predictions. You see this warning because your input image contains negative values, therefore some of the data augmentation cannot be performed.')
 
         except:
