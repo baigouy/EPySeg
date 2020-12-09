@@ -104,7 +104,10 @@ class MetaGenerator:
                             missing_frames = np.zeros((smallest_shape), dtype=smallest_z.dtype)
                             # use min per channel --> it is a much better idea
                             # should test that changes are still ok but should be
-                            for c in missing_frames.shape[-1]:
+
+                            # print("shp", missing_frames.shape)
+
+                            for c in range(missing_frames.shape[-1]):
                                 missing_frames[...,c].fill(smallest_z[...,c].min()) # probably makes sense, the other possibility is to put 0 but weird for non 0-1 normalized --> pb should do that per channel as global min does not make sense often
 
                             smallest_z = np.append(smallest_z, missing_frames, axis=1) # nb should do that per channel in fact... -->

@@ -2,6 +2,7 @@
 -Added a tip text to the lineedit to explain that they handle DND for users not aware about it...
 -Fixed minot bugs
 -Added versions for models, allowing me to easily add new model without breaking anything for early birds
+-Fixed a bug in 3D data generator
 
 03/12/2020
 -Improved the shuffle option in the datagenerator to mix between generators if multiple sets are available. 'Shuffle' is now enabled by default. 'Shuffle' was added to the training parameters of the GUI.

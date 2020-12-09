@@ -36,7 +36,7 @@ class EZDeepLearning:
 
     optimizers = ['adam', 'sgd', 'rmsprop', 'adagrad', 'adadelta', 'adamax', 'nadam']
 
-    available_sm_backbones = sorted(sm.get_available_backbone_names(), reverse=True)  # Dirty hack to get vgg19 first
+    available_sm_backbones = sm.get_available_backbone_names()
 
     # TODO below are the pretrained models for 2D epithelia segmentation if None --> no pretrained model exist # maybe sort them by efficiency ???
     # for each model do provide all the necessary parameters: 'model' 'model_weights' 'architecture' 'backbone' 'activation' 'classes' 'input_width' 'input_height' 'input_channels'
@@ -139,9 +139,6 @@ class EZDeepLearning:
         'FPN-densenet169-sigmoid': None,
         'FPN-densenet121-sigmoid': None,
         'Linknet-vgg19-sigmoid': None,
-        # 'https://github.com/baigouy/models/raw/master/model_linknet-vgg16_shells.h5'
-        # ça marche donc faut voir si bug dans tensorflow  wget 'https://gitlab.com/baigouy/models/raw/master/model_linknet-vgg16_shells.h5'
-        # qsdqsdqs
         'Linknet-vgg16-sigmoid': {'url': 'https://gitlab.com/baigouy/models/raw/master/model_linknet-vgg16_shells.h5',
                                   # TODO change this
                                   'md5': '266ca9acd9d7a4fe74a473e17952fb6c',
