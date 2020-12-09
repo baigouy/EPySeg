@@ -36,7 +36,7 @@ QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)  # 
 DEBUG = False  # set to True if GUI crashes
 __MAJOR__ = 0
 __MINOR__ = 1
-__MICRO__ = 17
+__MICRO__ = 18
 __RELEASE__ = ''  # a #b  # https://www.python.org/dev/peps/pep-0440/#public-version-identifiers --> alpha beta, ...
 __VERSION__ = ''.join([str(__MAJOR__), '.', str(__MINOR__), '.',
                        str(__MICRO__)])  # if __MICRO__ != 0 else '', __RELEASE__]) # bug here fix some day
@@ -128,6 +128,19 @@ class EPySeg(QWidget):
         self.build_model_radio = QRadioButton('Build a new model')
         self.load_model_radio = QRadioButton('Load an existing model')
         self.model_pretrain_on_epithelia = QRadioButton('Use a pre-trained model (2D epithelial segmentation)')
+
+        # we add an help button
+        self.help_button_models = QPushButton('?', None)
+        bt_width = self.help_button_models.fontMetrics().boundingRect(self.help_button_models.text()).width() + 7
+        self.help_button_models.setMaximumWidth(bt_width * 2)
+        self.help_button_models.clicked.connect(self.show_tip)
+
+        self.version_pretrained = QComboBox()
+        self.version_pretrained.addItem('v2')
+        self.version_pretrained.addItem('v1')
+        self.version_pretrained.setMaximumWidth(bt_width * 6)
+
+        # TODO limit size of this
         model_build_load_radio_group = QButtonGroup()
         model_build_load_radio_group.addButton(self.load_model_radio)
         model_build_load_radio_group.addButton(self.build_model_radio)
@@ -137,15 +150,10 @@ class EPySeg(QWidget):
 
         # help_ico = QIcon.fromTheme('help-contents')
 
-        # we add an help button
-        self.help_button_models = QPushButton('?', None)
-        bt_width = self.help_button_models.fontMetrics().boundingRect(self.help_button_models.text()).width() + 7
-        self.help_button_models.setMaximumWidth(bt_width * 2)
-        self.help_button_models.clicked.connect(self.show_tip)
-
         # if 'open an existing model' is selected then provide path to the model
         self.input_model = OpenFileOrFolderWidget(parent_window=self, is_file=True,
-                                                  extensions="Supported Files (*.h5 *.H5 *.hdf5 *.HDF5 *.json *.JSON *.model);;All Files (*)")  # TODO check and add .pb (*.pb *.PB)
+                                                  extensions="Supported Files (*.h5 *.H5 *.hdf5 *.HDF5 *.json *.JSON *.model);;All Files (*)",
+                                                  tip_text='Drag and drop a single file here')  # TODO check and add .pb (*.pb *.PB)
 
         # parameters for the pretrained models
         self.groupBox_pretrain = QGroupBox('Model')
@@ -174,7 +182,11 @@ class EPySeg(QWidget):
         # self.groupBox_pretrain_layout.addWidget(self.pretrained_models, 0, 1)
         self.groupBox_pretrain_layout.addWidget(self.build_model_radio, 0, 0)
         self.groupBox_pretrain_layout.addWidget(self.load_model_radio, 0, 1)
-        self.groupBox_pretrain_layout.addWidget(self.model_pretrain_on_epithelia, 0, 2)
+        model_and_version = QHBoxLayout()
+        model_and_version.addWidget(self.model_pretrain_on_epithelia)
+        model_and_version.addWidget(self.version_pretrained)
+        model_and_version.addStretch()
+        self.groupBox_pretrain_layout.addLayout(model_and_version, 0, 2)
         # self.groupBox_pretrain_layout.addWidget(pretrained_label_infos, 1, 0, 1, 3)
         self.groupBox_pretrain_layout.addWidget(self.help_button_models, 0, 3, 2, 1)
         self.groupBox_pretrain_layout.addWidget(self.input_model, 1, 0, 1, 3)
@@ -204,6 +216,14 @@ class EPySeg(QWidget):
         self.model_architecture = QComboBox()
         for method in EZDeepLearning.available_model_architectures:
             self.model_architecture.addItem(method)
+        # set linknet by default
+        try:
+            index = self.model_architecture.findText('Linknet', QtCore.Qt.MatchFixedString)
+            if index >= 0:
+                self.model_architecture.setCurrentIndex(index)
+        except:
+            # no big deal if it fails or crashes
+            pass
         # add a listener to model Architecture
         self.model_architecture.currentTextChanged.connect(self._architecture_change)
 
@@ -212,6 +232,14 @@ class EPySeg(QWidget):
         self.model_backbones = QComboBox()
         for backbone in EZDeepLearning.available_sm_backbones:
             self.model_backbones.addItem(backbone)
+        # set vgg16 by default as it is more memory friendly than vgg19
+        try:
+            index = self.model_backbones.findText('vgg16', QtCore.Qt.MatchFixedString)
+            if index >= 0:
+                self.model_backbones.setCurrentIndex(index)
+        except:
+            # no big deal if it fails or crashes
+            pass
 
         # last layer activation
         model_activation_label = QLabel('Activation (last layer)')
@@ -268,7 +296,8 @@ class EPySeg(QWidget):
 
         self.input_weights = OpenFileOrFolderWidget(parent_window=self, label_text='Load weights',
                                                     is_file=True,
-                                                    extensions="Supported Files (*.h5 *.H5 *.hdf5 *.HDF5);;All Files (*)")  # TODO shall i add *.model ???
+                                                    extensions="Supported Files (*.h5 *.H5 *.hdf5 *.HDF5);;All Files (*)",
+                                                    tip_text='Drag and drop a single file here')  # TODO shall i add *.model ???
 
         self.help_button_input_weights = QPushButton('?', None)
         self.help_button_input_weights.setMaximumWidth(bt_width * 2)
@@ -416,7 +445,8 @@ class EPySeg(QWidget):
         # self.help_button_compilation.clicked.connect(self.show_tip)
 
         # ask user where models should be saved
-        self.output_models_to = OpenFileOrFolderWidget(parent_window=self, label_text='Output models to')
+        self.output_models_to = OpenFileOrFolderWidget(parent_window=self, label_text='Output models to',
+                                                       tip_text='Drag and drop a single folder here')
         from os.path import expanduser
         home = expanduser('~')
         home = os.path.join(home, 'trained_models/')
@@ -707,7 +737,7 @@ class EPySeg(QWidget):
 
         groupBox_training_layout.addWidget(bs_label, 7, 0)
         groupBox_training_layout.addWidget(self.bs, 7, 1, 1, 2)
-        groupBox_training_layout.addWidget(self.bs_checkbox, 7, 3,1,3)
+        groupBox_training_layout.addWidget(self.bs_checkbox, 7, 3, 1, 3)
 
         groupBox_training_layout.addWidget(keep_n_best_models_label, 8, 0)
         groupBox_training_layout.addWidget(self.keep_n_best_models, 8, 1)
@@ -719,19 +749,16 @@ class EPySeg(QWidget):
         groupBox_training_layout.addWidget(self.load_best_model_upon_completion, 8, 4)
         groupBox_training_layout.addWidget(self.load_last_model_upon_completion, 8, 6)
 
-        groupBox_training_layout.addWidget(self.reduce_lr_on_plateau_checkbox, 9, 0,1,2)
-        groupBox_training_layout.addWidget(self.reduce_lr_on_plateau_label, 9, 2,1,2)
+        groupBox_training_layout.addWidget(self.reduce_lr_on_plateau_checkbox, 9, 0, 1, 2)
+        groupBox_training_layout.addWidget(self.reduce_lr_on_plateau_label, 9, 2, 1, 2)
         groupBox_training_layout.addWidget(self.reduce_lr_on_plateau_spinbox, 9, 4)
         groupBox_training_layout.addWidget(self.patience_label, 9, 5)
         groupBox_training_layout.addWidget(self.patience_spinbox, 9, 6)
-
 
         groupBox_training_layout.addWidget(train_validation_split_label, 10, 0, 1, 2)
         groupBox_training_layout.addWidget(self.validation_split, 10, 2, 1, 5)
 
         groupBox_training_layout.addWidget(self.help_button_train_parameters, 3, 7, 7, 1)
-
-
 
         self.groupBox_training.setLayout(groupBox_training_layout)
         self.train_tab.layout.addWidget(self.groupBox_training, 21, 0, 1, 3)
@@ -905,7 +932,6 @@ class EPySeg(QWidget):
         self.enable_debug.setChecked(False)
         self.enable_debug.stateChanged.connect(self._enable_debug)
 
-
         self.settings_GUI.layout = QVBoxLayout()
         self.settings_GUI.layout.setAlignment(Qt.AlignTop)
         self.settings_GUI.layout.addWidget(self.enable_threading_check)
@@ -985,7 +1011,6 @@ class EPySeg(QWidget):
             logger.setLevel(TA_logger.DEFAULT)
             logger.debug('Debug disabled...')
 
-
     def _set_threading(self):
         self.threading_enabled = self.enable_threading_check.isChecked()
         # disable early stop if threading not enabled otherwise do allow it
@@ -1053,7 +1078,8 @@ class EPySeg(QWidget):
         else:
             # load pretrained model
             pretrained_model_parameters = self.deepTA.pretrained_models_2D_epithelia[
-                'Linknet-vgg16-sigmoid']
+                'Linknet-vgg16-sigmoid'] if self.version_pretrained.currentText()=='v1' else  self.deepTA.pretrained_models_2D_epithelia[
+                'Linknet-vgg16-sigmoid'+'-'+self.version_pretrained.currentText()]
             self.model_parameters['model'] = pretrained_model_parameters['model']
             self.model_parameters['model_weights'] = pretrained_model_parameters['model_weights']
             self.model_parameters['architecture'] = pretrained_model_parameters['architecture']
@@ -1063,7 +1089,7 @@ class EPySeg(QWidget):
             self.model_parameters['input_width'] = pretrained_model_parameters['input_width']
             self.model_parameters['input_height'] = pretrained_model_parameters['input_height']
             self.model_parameters['input_channels'] = pretrained_model_parameters['input_channels']
-            self.model_parameters['pretraining'] = 'Linknet-vgg16-sigmoid'
+            self.model_parameters['pretraining'] = 'Linknet-vgg16-sigmoid' if self.version_pretrained.currentText()=='v1' else 'Linknet-vgg16-sigmoid'+'-'+self.version_pretrained.currentText()
             # except:
             #     traceback.print_exc()
             #     logger.error('could not load url of pretrained model, please check pretraining parameters')
@@ -1131,12 +1157,14 @@ class EPySeg(QWidget):
         self.train_parameters['batch_size'] = self.bs.value()
         self.train_parameters['batch_size_auto_adjust'] = self.bs_checkbox.isChecked()
         self.train_parameters['clip_by_frequency'] = self.input_output_normalization_method.get_clip_by_freq()
-        self.train_parameters['validation_split'] = self.validation_split.value()/100
+        self.train_parameters['validation_split'] = self.validation_split.value() / 100
         # TODO add a parameter for 'upon_train_completion_load' 'best' or 'last' model
         self.train_parameters[
             'upon_train_completion_load'] = 'best' if self.load_best_model_upon_completion.isChecked() else 'last'
-        self.train_parameters['lr'] = None if not self.learning_rate_spin.isEnabled() else self.learning_rate_spin.value()
-        self.train_parameters['reduce_lr_on_plateau'] = None if not self.reduce_lr_on_plateau_checkbox.isChecked() else self.reduce_lr_on_plateau_spinbox.value()
+        self.train_parameters[
+            'lr'] = None if not self.learning_rate_spin.isEnabled() else self.learning_rate_spin.value()
+        self.train_parameters[
+            'reduce_lr_on_plateau'] = None if not self.reduce_lr_on_plateau_checkbox.isChecked() else self.reduce_lr_on_plateau_spinbox.value()
         self.train_parameters['patience'] = self.patience_spinbox.value()
         return self.train_parameters
 

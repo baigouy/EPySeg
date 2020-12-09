@@ -81,9 +81,11 @@ class image_input_settings(QDialog):
         group_input_dataset_layout.setHorizontalSpacing(3)
         group_input_dataset_layout.setVerticalSpacing(3)
         OpenFileOrFolderWidget.finalize_text_change = self.check_input
+        # changed to isfile to allow single file or folder loading
+        # marche pas car pas folder
         self.open_input_button = OpenFileOrFolderWidget(parent_window=self, add_timer_to_changetext=True,
                                                         show_ok_or_not_icon=True, #label_text=label_input,
-                                                        show_size=True)
+                                                        show_size=True, tip_text='Drag and drop a single file or folder here')
 
         # help_ico = QIcon.fromTheme('help-contents')
         self.help_button_input_dataset = QPushButton('?', None)
@@ -395,7 +397,8 @@ class image_input_settings(QDialog):
         # ask user where models should be saved
         OpenFileOrFolderWidget.finalize_text_change = self.check_custom_dir
         self.output_predictions_to = OpenFileOrFolderWidget(parent_window=self, label_text='Output predictions to',
-                                                            add_timer_to_changetext=True, show_ok_or_not_icon=True)
+                                                            add_timer_to_changetext=True, show_ok_or_not_icon=True,
+                                                            tip_text='Drag and drop a folder here')
         self.output_predictions_to.setEnabled(False)
         # help for output predictions
         self.help_button_output_predictions = QPushButton('?', None)
@@ -473,7 +476,8 @@ class image_input_settings(QDialog):
         self.open_labels_button = OpenFileOrFolderWidget(parent_window=self, add_timer_to_changetext=True,
                                                          show_ok_or_not_icon=True,
                                                          #label_text='Ground truth/Segmented dataset',
-                                                         show_size=True)
+                                                         show_size=True,
+                                                         tip_text='Drag and drop a single file or folder here')
 
         self.help_button_output_dataset = QPushButton('?', None)
         self.help_button_output_dataset.setMaximumWidth(bt_width * 2)

@@ -9,8 +9,10 @@ import os
 
 class QLineEditDND(QLineEdit):
 
-    def __init__(self, title, parent):
+    def __init__(self, title, parent, tip_text=None):
         super().__init__(title, parent)
+        if tip_text is not None:
+            self.setPlaceholderText(tip_text)
         self.setAcceptDrops(True)
 
     def dragEnterEvent(self, e):
@@ -28,7 +30,7 @@ class QLineEditDND(QLineEdit):
 class OpenFileOrFolderWidget(QWidget):
 
     def __init__(self, parent_window=None, add_timer_to_changetext=False, show_ok_or_not_icon=False, label_text=None,
-                 is_file=False, extensions="All Files (*);;", show_size=False):
+                 is_file=False, extensions="All Files (*);;", show_size=False, tip_text=None):
         super().__init__(parent=parent_window)
         self.ok_ico = self.style().standardIcon(QStyle.SP_DialogYesButton).pixmap(QSize(12, 12))
         self.not_ok_ico = self.style().standardIcon(QStyle.SP_DialogNoButton).pixmap(QSize(12, 12))
@@ -37,6 +39,8 @@ class OpenFileOrFolderWidget(QWidget):
         self.add_timer_to_changetext = add_timer_to_changetext
         self.label_text = label_text
         self.is_file = is_file
+        self.tip_text = tip_text
+        # self.is_file_or_folder = is_file_or_folder
         self.extensions = extensions
         self.show_size = show_size
         self.initUI()
@@ -70,7 +74,7 @@ class OpenFileOrFolderWidget(QWidget):
         layout.setVerticalSpacing(0)
         layout.setContentsMargins(0, 0, 0, 0)
 
-        self.path = QLineEditDND('', self)
+        self.path = QLineEditDND('', self, tip_text=self.tip_text)
 
         if self.add_timer_to_changetext:
             from PyQt5.QtCore import QSize, QTimer
@@ -84,6 +88,9 @@ class OpenFileOrFolderWidget(QWidget):
         open_button = QPushButton(open_ico, "Open", self)
         # bt_width = open_button.fontMetrics().boundingRect(open_button.text()).width() + 30
         # open_button.setMaximumWidth(bt_width)
+        # if self.is_file_or_folder:
+        #     open_button.clicked.connect(self.open_file_or_folder)
+        # el
         if self.is_file:
             open_button.clicked.connect(self.open_file)
         else:

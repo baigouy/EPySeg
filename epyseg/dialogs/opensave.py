@@ -11,7 +11,7 @@ class Open_Save_dialogs():
         options |= QFileDialog.DontUseNativeDialog
         if not os.path.exists(path):
             path = expanduser('~')
-        fileName, _ = QFileDialog.getOpenFileName(parent_window, "QFileDialog.getOpenFileName()", path,
+        fileName, _ = QFileDialog.getOpenFileName(parent_window, "Select a File", path,
                                                   extensions, options=options)
         return fileName
 
@@ -21,16 +21,27 @@ class Open_Save_dialogs():
         options |= QFileDialog.DontUseNativeDialog
         if not os.path.exists(path):
             path = expanduser('~')
-        files, _ = QFileDialog.getOpenFileNames(parent_window, "QFileDialog.getOpenFileNames()", path,
+        files, _ = QFileDialog.getOpenFileNames(parent_window, "Select Files", path,
                                                 extensions, options=options)
         return files
+
+    # not so easy to do in fact
+    # def openSingleFileOrDirectoryDialog(self, parent_window=None, extensions="Supported Files (*.jpg *.tif *.png);;All Files (*)",
+    #                        path=expanduser('~')):
+    #     setFileMode(QFileDialog::Directory | QFileDialog::ExistingFiles)
+    #     options = QFileDialog.Options()
+    #     options |= QFileDialog.DontUseNativeDialog
+    #     if not os.path.exists(path):
+    #         path = expanduser('~')
+    #     fileName, _ = QFileDialog.getOpenFileName(parent_window, "QFileDialog.getOpenFileName()", path,
+    #                                               extensions, options=options)
 
     def saveFileDialog(self, parent_window=None, path=expanduser('~')):
         options = QFileDialog.Options()
         options |= QFileDialog.DontUseNativeDialog
         if not os.path.exists(path):
             path = expanduser('~')
-        fileName, _ = QFileDialog.getSaveFileName(parent_window, "QFileDialog.getSaveFileName()", path,
+        fileName, _ = QFileDialog.getSaveFileName(parent_window, "Save a File", path,
                                                   "All Files (*);;Text Files (*.txt)", options=options)
         return fileName
 

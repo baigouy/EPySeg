@@ -1,3 +1,8 @@
+09/12/2020
+-Added a tip text to the lineedit to explain that they handle DND for users not aware about it...
+-Fixed minot bugs
+-Added versions for models, allowing me to easily add new model without breaking anything for early birds
+
 03/12/2020
 -Improved the shuffle option in the datagenerator to mix between generators if multiple sets are available. 'Shuffle' is now enabled by default. 'Shuffle' was added to the training parameters of the GUI.
 -Implemented random crop in datagenerator/GUI (Would need some more controls to be sure the crop is really feasible for the image, if not then return an error or increase size of the array ???, ok for now)

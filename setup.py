@@ -25,8 +25,14 @@ setuptools.setup(
     # TODO put this in requirements.txt file and read the file from here --> can have both methods work
     # below are the required files (they will be installed together with epyseg unless the '--no-deps' tag is used)
     install_requires=[
+        # "tensorflow>=2.0.0",  # to allow for mac OS X conda support #shall I put 2.3 now
+        # "tensorflow-gpu>=2.0.0;platform_system!='Darwin'",
+        "tensorflow>=2.3.1",  # to allow for mac OS X conda support #shall I put 2.3 now
+        "tensorflow-gpu>=2.3.1;platform_system!='Darwin'",
+        "segmentation-models==1.0.1",
+        # "tensorflow-gpu>=2.0.0", # not required ? # make sure it does not install on OS X to prevent crash if does not exist
         "czifile",
-        "h5py",
+        "h5py", # should be installed with tensorflow gpu so do I need it ???
         "Markdown",
         "matplotlib",
         "numpy",
@@ -37,9 +43,6 @@ setuptools.setup(
         "read-lif",
         "scikit-image",
         "scipy",
-        "segmentation-models==1.0.1",
-        "tensorflow>=2.0.0", # to allow for mac OS X conda support
-        "tensorflow-gpu>=2.0.0;platform_system!='Darwin'",# "tensorflow-gpu>=2.0.0", # not required ? # make sure it does not install on OS X to prevent crash if does not exist
         "tifffile",
         "tqdm",
         "natsort",

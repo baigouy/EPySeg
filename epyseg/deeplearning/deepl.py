@@ -144,7 +144,7 @@ class EZDeepLearning:
         # qsdqsdqs
         'Linknet-vgg16-sigmoid': {'url': 'https://gitlab.com/baigouy/models/raw/master/model_linknet-vgg16_shells.h5',
                                   # TODO change this
-                                  'md5': '266ca9acd9d7a4fe74a473e17952fb6c',  # 'toto'
+                                  'md5': '266ca9acd9d7a4fe74a473e17952fb6c',
                                   'model': None,
                                   'model_weights': None,
                                   'architecture': 'Linknet',
@@ -153,7 +153,20 @@ class EZDeepLearning:
                                   'classes': 7,
                                   'input_width': None,
                                   'input_height': None,
-                                  'input_channels': 1},
+                                  'input_channels': 1,
+                                  'version':1},
+        'Linknet-vgg16-sigmoid-v2': {'url': 'https://gitlab.com/baigouy/models/raw/master/model_linknet-vgg16_shells_v2.h5',
+                                  'md5': '98c8a51f3365e77c07a4f9e95669c259',
+                                  'model': None,
+                                  'model_weights': None,
+                                  'architecture': 'Linknet',
+                                  'backbone': 'vgg16',
+                                  'activation': 'sigmoid',
+                                  'classes': 7,
+                                  'input_width': None,
+                                  'input_height': None,
+                                  'input_channels': 1,
+                                  'version': 1},
         'Linknet-seresnext50-sigmoid': None,
         # 'https://github.com/baigouy/models/raw/master/model_Linknet-seresnext101.h5'
         'Linknet-seresnext101-sigmoid': {
@@ -375,9 +388,11 @@ class EZDeepLearning:
                     model_name += '-' + activation
                 if pretraining is not None:
                     model_name += '-pretrained'
+                    # print('pretraining', pretraining)
                     if not pretraining.startswith('http') and not pretraining.startswith(
                             'file:'):  # if not an url --> try load it or use file directly
                         # model
+
                         if pretraining in self.pretrained_models_2D_epithelia:
                             model_parameters = self.pretrained_models_2D_epithelia[pretraining]
                             if 'md5' in model_parameters:
