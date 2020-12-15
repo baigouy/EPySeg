@@ -1,3 +1,7 @@
+15/12/2020
+-Fixed a big bug in the flip data augmentation
+-Added 'Shuffle along the Z axis' and 'Roll along the Z axis' data augmentation for 3D images, useful to train best focus deep learning
+
 09/12/2020
 -Added a tip text to the lineedit to explain that they handle DND for users not aware about it...
 -Fixed minot bugs

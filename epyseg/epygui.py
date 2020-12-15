@@ -36,7 +36,7 @@ QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)  # 
 DEBUG = False  # set to True if GUI crashes
 __MAJOR__ = 0
 __MINOR__ = 1
-__MICRO__ = 19
+__MICRO__ = 20
 __RELEASE__ = ''  # a #b  # https://www.python.org/dev/peps/pep-0440/#public-version-identifiers --> alpha beta, ...
 __VERSION__ = ''.join([str(__MAJOR__), '.', str(__MINOR__), '.',
                        str(__MICRO__)])  # if __MICRO__ != 0 else '', __RELEASE__]) # bug here fix some day
@@ -153,7 +153,7 @@ class EPySeg(QWidget):
         # if 'open an existing model' is selected then provide path to the model
         self.input_model = OpenFileOrFolderWidget(parent_window=self, is_file=True,
                                                   extensions="Supported Files (*.h5 *.H5 *.hdf5 *.HDF5 *.json *.JSON *.model);;All Files (*)",
-                                                  tip_text='Drag and drop a single file here')  # TODO check and add .pb (*.pb *.PB)
+                                                  tip_text='Drag and drop a single model file here')
 
         # parameters for the pretrained models
         self.groupBox_pretrain = QGroupBox('Model')
@@ -297,7 +297,7 @@ class EPySeg(QWidget):
         self.input_weights = OpenFileOrFolderWidget(parent_window=self, label_text='Load weights',
                                                     is_file=True,
                                                     extensions="Supported Files (*.h5 *.H5 *.hdf5 *.HDF5);;All Files (*)",
-                                                    tip_text='Drag and drop a single file here')  # TODO shall i add *.model ???
+                                                    tip_text='Drag and drop a single weight file here')  # TODO shall i add *.model ???
 
         self.help_button_input_weights = QPushButton('?', None)
         self.help_button_input_weights.setMaximumWidth(bt_width * 2)

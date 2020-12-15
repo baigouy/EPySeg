@@ -15,7 +15,6 @@ import numpy as np
 import glob
 import os
 from pathlib import Path
-from skimage.util import invert
 from skimage import exposure
 from datetime import datetime
 import matplotlib.pyplot as plt
@@ -39,11 +38,16 @@ class DataGenerator:
     blur_range = [0.1, 1., 2.]
     width_height_shift_range = [0.01, 0.30, 0.075]
     rotation_range = [0., 1., 1.]
-    intensity_range=[0.1,1.,0.1] # default is intensity * 0.1 --> divided by up to 10 --> since it's a range its intensity divided by something between 10 and 1 --> cool
+    intensity_range = [0.1, 1.,
+                       0.1]  # default is intensity * 0.1 --> divided by up to 10 --> since it's a range its intensity divided by something between 10 and 1 --> cool
     augmentation_types_and_ranges = {'None': None, 'shear': shear_range, 'zoom': zoom_range, 'rotate': rotation_range,
                                      'rotate (interpolation free)': None,
-                                     'flip': None, 'blur': blur_range, 'intensity':intensity_range, 'translate': width_height_shift_range,
-                                     'invert': None, 'low noise': None, 'random_intensity_gamma_contrast': None,
+                                     'flip': None, 'blur': blur_range, 'intensity': intensity_range,
+                                     'translate': width_height_shift_range,
+                                     'invert': None, 'low noise': None,
+                                     'roll along Z (2D + GT ignored)': None,
+                                     'shuffle images along Z (2D + GT ignored)': None,
+                                     'random_intensity_gamma_contrast': None,
                                      'high noise': None, 'stretch': stretch_range}
 
     augmentation_types_and_values = {'None': None, 'shear': shear_range[2], 'zoom': zoom_range[2],
@@ -53,6 +57,8 @@ class DataGenerator:
                                      'intensity': intensity_range[2],
                                      'translate': width_height_shift_range[2],
                                      'invert': None,
+                                     'roll along Z (2D + GT ignored)': None,
+                                     'shuffle images along Z (2D + GT ignored)': None,
                                      'low noise': None,
                                      'high noise': None,
                                      'random_intensity_gamma_contrast': None,
@@ -87,8 +93,10 @@ class DataGenerator:
                                                'rotate': self.rotate,
                                                'rotate (interpolation free)': self.rotate_interpolation_free,
                                                'flip': self.flip, 'blur': self.blur,
-                                               'intensity':self.change_image_intensity_and_shift_range,
+                                               'intensity': self.change_image_intensity_and_shift_range,
                                                'translate': self.translate, 'invert': self.invert,
+                                               'roll along Z (2D + GT ignored)':self.rollZ,
+                                               'shuffle images along Z (2D + GT ignored)':self.shuffleZ,
                                                'low noise': self.low_noise, 'high noise': self.high_noise,
                                                'stretch': self.stretch,
                                                'random_intensity_gamma_contrast': self.random_intensity_gamma_contrast_changer}
@@ -1124,7 +1132,7 @@ class DataGenerator:
                 except:
                     cur = cur * scaling_factor
                 new_min = cur.min()
-                shift_min = min_before-new_min
+                shift_min = min_before - new_min
                 try:
                     import numexpr
                     cur = numexpr.evaluate("cur + shift_min")
@@ -1159,6 +1167,7 @@ class DataGenerator:
             gaussian_blur = parameters[0]
 
         if not is_mask:
+            # aletrantively could do a 3D blur
             if len(orig.shape) == 4:
                 for n, slc in enumerate(orig):
                     orig[n] = filters.gaussian(slc, gaussian_blur, preserve_range=True, mode='wrap')
@@ -1566,8 +1575,44 @@ class DataGenerator:
 
         return [shear, order], sheared_orig
 
-    def flip(self, orig, parameters, is_mask):
+    # rolls along the Z axis of a 3D image ignores for 2D images and ignores for masks
+    def rollZ(self, orig, parameters, is_mask):
+        # print('in rollz', orig.shape)
+        if parameters is None:
+            if len(orig.shape) == 4:
+                random_roll = np.random.randint(0, orig.shape[0])
+                # do random signed roll
+                if random_roll != 0:
+                    random_roll = random_roll if random.random() < 0.5 else -random_roll
+            else:
+                random_roll = 0
+        else:
+            random_roll = parameters[0]
 
+        if not is_mask and random_roll != 0 and len(orig.shape) == 4 and \
+                random_roll != orig.shape[0] and random_roll != -orig.shape[0]:
+            # print('really rolling', orig.shape)
+            # if image is a 3D stack roll it, except if rolling generates identity images
+            rolled_orig = np.roll(orig, random_roll, axis=0)
+        else:
+            # print('not rolling')
+            # if image is 2D then do not roll it...
+            rolled_orig = orig
+        return [random_roll], rolled_orig
+
+    # shuffle images along the Z axis, may be useful for best focus algorithms
+    def shuffleZ(self, orig, parameters, is_mask):
+        # print('in shuffle', orig.shape)
+        if not is_mask and len(orig.shape) == 4:
+            # print('really shuffling', orig.shape)
+            # if image is a 3D stack shuffle it otherwise ignore
+            np.random.shuffle(orig)
+        # else:
+        #     print('not shuffling')
+        #     pass
+        return [], orig
+
+    def flip(self, orig, parameters, is_mask):
         if parameters is None:
             if len(orig.shape) == 4:
                 axis = random.choice([-2, -3, -4])
@@ -1576,8 +1621,9 @@ class DataGenerator:
         else:
             axis = parameters[0]
 
+        # THAT WAS CREATING A BIG BUG FOR MASKS --> REALLY BAD BUG converting image to int
         if axis == -4 and len(orig.shape) == 3:
-            flipped_orig = axis
+            flipped_orig = orig  # there was a bug here
         else:
             flipped_orig = np.flip(orig, axis)
         return [axis], flipped_orig
@@ -1699,16 +1745,19 @@ if __name__ == '__main__':
     # not finalize all noises {'type': 'poisson_noise'}
     # SELECTED_AUG = [{'type': 'random_intensity_gamma_contrast'}]  # [{'type': 'None'}]#[{'type': 'stretch'}] #[{'type': 'rotate'}] #[{'type': 'zoom'}]#[{'type': 'shear'}] #"[{'type': 'rotate'}] #[{'type': 'low noise'}] # en effet c'est destructeur... voir comment le restaurer avec un fesh wshed sur l'image originelle ou un wshed sur
     # SELECTED_AUG = [{'type': 'rotate (interpolation free)'}]
-    SELECTED_AUG = [{'type': 'intensity'}, {'type': 'random_intensity_gamma_contrast'}]
+    # SELECTED_AUG = [{'type': 'intensity'}, {'type': 'random_intensity_gamma_contrast'}]
+    SELECTED_AUG = [{'type': 'roll along Z (2D + GT ignored)'}, {'type': 'shuffle images along Z (2D + GT ignored)'}]
+    # SELECTED_AUG = None
 
     normalization = {'method': Img.normalization_methods[7], 'range': [2, 99.8],
-                           'individual_channels': True, 'clip':False}
+                     'individual_channels': True, 'clip': False}
 
+    # 3D
     augmenter = DataGenerator(
         # 'D:/dataset1/tests_focus_projection', 'D:/dataset1/tests_focus_projection',
         # 'D:/dataset1/tests_focus_projection/proj', 'D:/dataset1/tests_focus_projection/proj/*/hand*.tif',
-        inputs='/media/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/tests_focus_projection/proj',
-        outputs='/media/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/tests_focus_projection/proj/*/hand*.tif',
+        inputs='/media/D/Sample_images/sample_images_denoise_manue/210219/raw',
+        outputs='/media/D/Sample_images/sample_images_denoise_manue/210219/raw/predict',
         # '/media/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/tests_focus_projection/proj', '/media/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/tests_focus_projection/proj/',
         # '/media/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/tests_focus_projection', '/media/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/tests_focus_projection',
         # '/home/aigouy/Bureau/last_model_not_sure_that_works/tmp', '/home/aigouy/Bureau/last_model_not_sure_that_works/tmp',
@@ -1717,7 +1766,7 @@ if __name__ == '__main__':
         # crop_parameters={'x1':512, 'y1':512, 'x2':796, 'y2':796},
         input_normalization=normalization,
         # shuffle=False, input_shape=[(None, None, None, None, 1)], output_shape=[(None, None, None, None, 1)],
-        shuffle=False, input_shape=[(None, None, None, 1)], output_shape=[(None, None, None, 1)],
+        shuffle=False, input_shape=[(None, None, None, None, 1)], output_shape=[(None, None, None, 1)],
         augmentations=SELECTED_AUG,
         input_channel_of_interest=0,
         output_channel_of_interest=0,
@@ -1737,6 +1786,40 @@ if __name__ == '__main__':
         # force rotation and flip of images independently of everything
 
     )
+
+    # augmenter = DataGenerator(
+    #     # 'D:/dataset1/tests_focus_projection', 'D:/dataset1/tests_focus_projection',
+    #     # 'D:/dataset1/tests_focus_projection/proj', 'D:/dataset1/tests_focus_projection/proj/*/hand*.tif',
+    #     inputs='/media/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/tests_focus_projection/proj',
+    #     outputs='/media/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/tests_focus_projection/proj/*/hand*.tif',
+    #     # '/media/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/tests_focus_projection/proj', '/media/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/tests_focus_projection/proj/',
+    #     # '/media/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/tests_focus_projection', '/media/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/tests_focus_projection',
+    #     # '/home/aigouy/Bureau/last_model_not_sure_that_works/tmp', '/home/aigouy/Bureau/last_model_not_sure_that_works/tmp',
+    #     # is_predict_generator=True,
+    #     # crop_parameters={'x1':256, 'y1':256, 'x2':512, 'y2':512},
+    #     # crop_parameters={'x1':512, 'y1':512, 'x2':796, 'y2':796},
+    #     input_normalization=normalization,
+    #     # shuffle=False, input_shape=[(None, None, None, None, 1)], output_shape=[(None, None, None, None, 1)],
+    #     shuffle=False, input_shape=[(None, None, None, 1)], output_shape=[(None, None, None, 1)],
+    #     augmentations=SELECTED_AUG,
+    #     input_channel_of_interest=0,
+    #     output_channel_of_interest=0,
+    #     # mask_dilations=7,
+    #     # default_input_tile_width=2048, default_input_tile_height=1128,
+    #     # default_output_tile_width=2048, default_output_tile_height=1128,
+    #     # default_input_tile_width=512, default_input_tile_height=512,
+    #     # default_output_tile_width=512, default_output_tile_height=512,
+    #     default_input_tile_width=512, default_input_tile_height=256,
+    #     default_output_tile_width=512, default_output_tile_height=256,
+    #     # default_input_tile_width=256, default_input_tile_height=256,
+    #     # default_output_tile_width=256, default_output_tile_height=256,
+    #     # is_output_1px_wide=True,
+    #     # rebinarize_augmented_output=True
+    #     create_epyseg_style_output=False,
+    #     rotate_n_flip_independently_of_augmentation=True
+    #     # force rotation and flip of images independently of everything
+    #
+    # )
 
     if False:
         # seems fine but I really need the first pass or not now
@@ -1774,11 +1857,30 @@ if __name__ == '__main__':
 
     # mask = Wshed.run_fast(self.img, first_blur=values[0], second_blur=values[1]) # or check same width and height
 
+    # why is this shit called twice
+
     full_count = 0
     counter = 0
     for orig, mask in augmenter.train_generator(False, True):
+        print('inside loop')
         # print('out', len(orig), len(mask))
         # print(orig[0].shape, mask[0].shape)
+        if False:
+             # the generator ignore exit and runs one more time
+            print('in')
+            # just save two images for a test
+
+            # why is that called another time ????
+            print(type(orig[0]))
+            Img(orig[0], dimensions='dhwc').save('/media/D/Sample_images/trash_tests/orig.tif')
+            Img(mask[0], dimensions='hwc').save('/media/D/Sample_images/trash_tests/mask.tif')
+
+            # somehow the generator gets called another time no big deal but I must have done smthg wrong somewhere
+            print('quitting')
+            import sys
+            sys.exit(0)
+            print('hello')
+
         full_count += 1
         for i in range(len(orig)):
             # print('in here', orig[i].shape)

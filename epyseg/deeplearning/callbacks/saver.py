@@ -1,4 +1,5 @@
 # TODO do plots of the logs
+from epyseg.img import Img
 from epyseg.tools.logger import TA_logger
 from timeit import default_timer as timer
 
