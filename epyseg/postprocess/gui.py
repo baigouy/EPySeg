@@ -2,10 +2,11 @@
 # if output is not 0 --> then use min max as 0 1
 # if none --> remove all parameters
 
-from PyQt5.QtWidgets import QDialog, QDoubleSpinBox, QToolTip, QPushButton
+from PyQt5.QtWidgets import QDialog, QDoubleSpinBox, QToolTip, QPushButton, QDialogButtonBox
 from PyQt5.QtWidgets import QApplication, QGridLayout
 from PyQt5.QtWidgets import QSpinBox, QComboBox, QVBoxLayout, QLabel, QCheckBox, QGroupBox
 from PyQt5.QtCore import Qt, QPoint
+from PyQt5 import QtWidgets, QtCore
 import sys
 
 # logging
@@ -17,8 +18,9 @@ logger = TA_logger()
 
 class PostProcessGUI(QDialog):
 
-    def __init__(self, parent_window=None):
+    def __init__(self, parent_window=None, _is_dialog=False):
         super().__init__(parent=parent_window)
+        self._is_dialog = _is_dialog
         self.initUI()
 
     def initUI(self):
@@ -27,7 +29,7 @@ class PostProcessGUI(QDialog):
         input_v_layout.setContentsMargins(0, 0, 0, 0)
         # TODO add a set of parameters there for the post process
         self.groupBox_post_process = QGroupBox(
-            'Refine segmentation/Create a binary mask')
+            'Refine segmentation/Create a binary mask', objectName='groupBox_post_process')
         self.groupBox_post_process.setCheckable(True)
         self.groupBox_post_process.setChecked(True)
         # self.groupBox_post_process.setEnabled(True)
@@ -43,11 +45,12 @@ class PostProcessGUI(QDialog):
         post_process_method_selection_label = QLabel('Post process method')  # (or bond score for pretrained model)
         post_process_method_selection_label.setStyleSheet("QLabel { color : red; }")
 
-        self.post_process_method_selection = QComboBox()
+        self.post_process_method_selection = QComboBox(objectName='post_process_method_selection')
         self.post_process_method_selection.addItem('Default (Slow/robust) (EPySeg pre-trained model only!)')
         self.post_process_method_selection.addItem('Fast (May contain more errors) (EPySeg pre-trained model only!)')
         self.post_process_method_selection.addItem('Old method (Sometimes better than default) (EPySeg pre-trained model only!)')
         self.post_process_method_selection.addItem('Simply binarize output using threshold')
+        self.post_process_method_selection.addItem('Keep first channel only')
         self.post_process_method_selection.addItem('None (Raw model output)')
         self.post_process_method_selection.currentTextChanged.connect(self._post_process_method_changed)
 
@@ -58,14 +61,14 @@ class PostProcessGUI(QDialog):
         threshold_label = QLabel(
             'Threshold: (in case of over/under segmentation, please increase/decrease, respectively)')  # (or bond score for pretrained model)
         threshold_label.setStyleSheet("QLabel { color : red; }")
-        self.threshold_bond_or_binarisation = QDoubleSpinBox()
+        self.threshold_bond_or_binarisation = QDoubleSpinBox(objectName='threshold_bond_or_binarisation')
         self.threshold_bond_or_binarisation.setSingleStep(0.01)
         self.threshold_bond_or_binarisation.setRange(0.01, 1)  # 100_000 makes no sense (oom) but anyway
         self.threshold_bond_or_binarisation.setValue(0.42)  # probably should be 1 to 3 depending on the tissue
         self.threshold_bond_or_binarisation.setEnabled(False)
         # threshold_hint = QLabel()  # (or bond score for pretrained model)
 
-        self.autothreshold = QCheckBox("Auto")
+        self.autothreshold = QCheckBox("Auto",objectName='autothreshold')
         self.autothreshold.setChecked(True)
         self.autothreshold.stateChanged.connect(self._threshold_changed)
 
@@ -75,7 +78,7 @@ class PostProcessGUI(QDialog):
         # groupBox_post_process_parameters_layout.addWidget(threshold_hint, 0, 3)
 
         filter_by_size_label = QLabel('Further filter segmentation by size:')
-        self.filter_by_cell_size_combo = QComboBox()
+        self.filter_by_cell_size_combo = QComboBox(objectName='filter_by_cell_size_combo')
         self.filter_by_cell_size_combo.addItem('None (quite often the best choice)')
         self.filter_by_cell_size_combo.addItem('Local median (slow/very good) divided by')
         self.filter_by_cell_size_combo.addItem('Cells below Average area (global) divided by')
@@ -88,19 +91,19 @@ class PostProcessGUI(QDialog):
         group_box_post_process_parameters_layout.addWidget(filter_by_size_label, 2, 0)
         group_box_post_process_parameters_layout.addWidget(self.filter_by_cell_size_combo, 2, 1, 1, 2)
 
-        self.avg_area_division_or_size_spinbox = QSpinBox()
+        self.avg_area_division_or_size_spinbox = QSpinBox(objectName='avg_area_division_or_size_spinbox')
         self.avg_area_division_or_size_spinbox.setSingleStep(1)
         self.avg_area_division_or_size_spinbox.setRange(1, 10000000)  # 100_000 makes no sense (oom) but anyway
         self.avg_area_division_or_size_spinbox.setValue(2)  # probably should be 1 to 3 depending on the tissue
         self.avg_area_division_or_size_spinbox.setEnabled(False)
         group_box_post_process_parameters_layout.addWidget(self.avg_area_division_or_size_spinbox, 2, 3)
 
-        self.prevent_exclusion_of_too_many_cells_together = QCheckBox('Do not exclude groups bigger than')
+        self.prevent_exclusion_of_too_many_cells_together = QCheckBox('Do not exclude groups bigger than', objectName='prevent_exclusion_of_too_many_cells_together')
         self.prevent_exclusion_of_too_many_cells_together.setChecked(False)
         self.prevent_exclusion_of_too_many_cells_together.setEnabled(False)
 
         # max_nb_of_cells_to_be_excluded_together_label = QLabel('Group size')
-        self.max_nb_of_cells_to_be_excluded_together_spinbox = QSpinBox()
+        self.max_nb_of_cells_to_be_excluded_together_spinbox = QSpinBox(objectName='max_nb_of_cells_to_be_excluded_together_spinbox')
         self.max_nb_of_cells_to_be_excluded_together_spinbox.setSingleStep(1)
         self.max_nb_of_cells_to_be_excluded_together_spinbox.setRange(1, 10000000)  # max makes no sense
         self.max_nb_of_cells_to_be_excluded_together_spinbox.setValue(
@@ -108,7 +111,7 @@ class PostProcessGUI(QDialog):
         self.max_nb_of_cells_to_be_excluded_together_spinbox.setEnabled(False)
         cells_text_labels = QLabel('cells')
 
-        self.restore_secure_cells = QCheckBox('Restore most likely cells')
+        self.restore_secure_cells = QCheckBox('Restore most likely cells',objectName='restore_secure_cells')
         self.restore_secure_cells.setChecked(False)
         self.restore_secure_cells.setEnabled(False)
 
@@ -131,6 +134,14 @@ class PostProcessGUI(QDialog):
         input_v_layout.addWidget(self.groupBox_post_process)
         self.setLayout(input_v_layout)
 
+        if self._is_dialog:
+            # OK and Cancel buttons
+            self.buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel,
+                                            QtCore.Qt.Horizontal, self)
+            self.buttons.accepted.connect(self.accept)
+            self.buttons.rejected.connect(self.reject)
+            self.layout().addWidget(self.buttons)
+
     def _threshold_changed(self):
         self.threshold_bond_or_binarisation.setEnabled(not self.autothreshold.isChecked())
 
@@ -142,7 +153,7 @@ class PostProcessGUI(QDialog):
 
     def _post_process_method_changed(self):
         text = self.post_process_method_selection.currentText().lower()
-        if 'none' in text:
+        if 'none' in text or 'first' in text:
             self.set_threshold_enabled(False)
             self.set_safety_parameters(False)
             self.set_filter_by_size_enabled(False)
@@ -262,9 +273,9 @@ class PostProcessGUI(QDialog):
         return (self.get_parameters_directly())
 
     @staticmethod
-    def getDataAndParameters(parent_window=None):
+    def getDataAndParameters(parent_window=None, _is_dialog=False):
         # get all the params for augmentation
-        dialog = PostProcessGUI(parent_window=parent_window)
+        dialog = PostProcessGUI(parent_window=parent_window, _is_dialog=_is_dialog)
         result = dialog.exec_()
         parameters = dialog.get_parameters()
         return (parameters, result == QDialog.Accepted)

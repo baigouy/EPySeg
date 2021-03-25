@@ -13,7 +13,7 @@ from epyseg.gui.preview import crop_or_preview
 from PyQt5.QtWidgets import QSpinBox, QComboBox, QVBoxLayout, QLabel, QCheckBox, QRadioButton, QButtonGroup, QGroupBox, \
     QDoubleSpinBox
 from PyQt5.QtCore import Qt, QPoint
-from epyseg.img import Img, white_top_hat, black_top_hat
+from epyseg.img import Img
 import sys
 import os
 import json
@@ -23,6 +23,7 @@ from epyseg.tools.logger import TA_logger
 
 logger = TA_logger()
 
+
 class image_input_settings(QDialog):
 
     def __init__(self, parent_window=None, show_channel_nb_change_rules=False, show_overlap=False, show_input=False,
@@ -30,7 +31,8 @@ class image_input_settings(QDialog):
                  show_predict_output=False, show_preprocessing=False, show_tiling=False, show_normalization=False,
                  input_mode_only=False, allow_wild_cards_in_path=False, show_preview=False, model_inputs=None,
                  model_outputs=None,
-                 _is_dialog=False, show_HQ_settings=False, label_input='Dataset', show_run_post_process=False, allow_bg_subtraction=False):
+                 _is_dialog=False, show_HQ_settings=False, label_input='Dataset', show_run_post_process=False,
+                 allow_bg_subtraction=False, objectName=''):
 
         super().__init__(parent=parent_window)
 
@@ -57,10 +59,10 @@ class image_input_settings(QDialog):
         self.show_HQ_settings = show_HQ_settings
         self.show_run_post_process = show_run_post_process
         self.allow_bg_subtraction = allow_bg_subtraction
-        self.initUI(label_input=label_input)
+        self.initUI(label_input=label_input, objectName=objectName)
         self.blinker = Blinker()
 
-    def initUI(self, label_input='Input dataset'):
+    def initUI(self, label_input='Input dataset', objectName=''):
 
         if not self.input_mode_only:
             self.tabs = QTabWidget(self)
@@ -71,7 +73,7 @@ class image_input_settings(QDialog):
 
         # TODO put this in the GUI
 
-        self.group_input_dataset = QGroupBox(label_input)
+        self.group_input_dataset = QGroupBox(label_input, objectName=objectName + 'group_input_dataset')
         self.group_input_dataset.setEnabled(True)
 
         group_input_dataset_layout = QGridLayout()
@@ -84,21 +86,25 @@ class image_input_settings(QDialog):
         # changed to isfile to allow single file or folder loading
         # marche pas car pas folder
         self.open_input_button = OpenFileOrFolderWidget(parent_window=self, add_timer_to_changetext=True,
-                                                        show_ok_or_not_icon=True, #label_text=label_input,
-                                                        show_size=True, tip_text='Drag and drop a single file or folder here')
+                                                        show_ok_or_not_icon=True,  # label_text=label_input,
+                                                        show_size=True,
+                                                        tip_text='Drag and drop a single file or folder here',
+                                                        objectName=objectName + 'open_input_button')
 
         # help_ico = QIcon.fromTheme('help-contents')
         self.help_button_input_dataset = QPushButton('?', None)
-        bt_width = self.help_button_input_dataset.fontMetrics().boundingRect(self.help_button_input_dataset.text()).width() + 7
+        bt_width = self.help_button_input_dataset.fontMetrics().boundingRect(
+            self.help_button_input_dataset.text()).width() + 7
         self.help_button_input_dataset.setMaximumWidth(bt_width * 2)
         self.help_button_input_dataset.clicked.connect(self.show_tip)
 
-        group_input_dataset_layout.addWidget(self.open_input_button,0,0)
-        group_input_dataset_layout.addWidget(self.help_button_input_dataset,0,1)
+        group_input_dataset_layout.addWidget(self.open_input_button, 0, 0)
+        group_input_dataset_layout.addWidget(self.help_button_input_dataset, 0, 1)
         self.group_input_dataset.setLayout(group_input_dataset_layout)
 
         self.nb_inputs = 0
-        self.input_preprocessing_group = QGroupBox('Pre processing')
+        self.input_preprocessing_group = QGroupBox('Pre processing',
+                                                   objectName=objectName + 'input_preprocessing_group')
         self.input_preprocessing_group.setEnabled(True)
 
         input_preprocessing_group_layout = QGridLayout()
@@ -114,7 +120,7 @@ class image_input_settings(QDialog):
         self.negative_label.setStyleSheet("QLabel { color : red; }")
 
         self.negative_label.setWordWrap(True)
-        self.invert_chkbox = QCheckBox('Invert (negative) image')
+        self.invert_chkbox = QCheckBox('Invert (negative) image', objectName=objectName + 'invert_chkbox')
         self.invert_chkbox.setChecked(False)
 
         if self.allow_bg_subtraction:
@@ -122,7 +128,7 @@ class image_input_settings(QDialog):
             self.bg_norm_label.setStyleSheet("QLabel { color : red; }")
             self.bg_norm_label.setWordWrap(True)
 
-            self.bg_removal = QComboBox()
+            self.bg_removal = QComboBox(objectName=objectName + 'bg_removal')
             for method in Img.background_removal:
                 self.bg_removal.addItem(method)
 
@@ -143,7 +149,7 @@ class image_input_settings(QDialog):
         input_preprocessing_group_layout.addWidget(self.help_button_pre_processing_predict, 0, 2, 2, 2)
 
         self.input_preprocessing_group.setLayout(input_preprocessing_group_layout)
-        self.tiling_group = QGroupBox('Tiling')
+        self.tiling_group = QGroupBox('Tiling', objectName=objectName + 'tiling_group')
         self.tiling_group.setEnabled(True)
 
         tiling_goup_layout = QGridLayout()
@@ -156,12 +162,12 @@ class image_input_settings(QDialog):
         tiling_goup_layout.setVerticalSpacing(3)
 
         tile_width_pred_label = QLabel('Width')
-        self.tile_width_pred = QSpinBox()
+        self.tile_width_pred = QSpinBox(objectName=objectName + 'tile_width_pred')
         self.tile_width_pred.setSingleStep(1)
         self.tile_width_pred.setRange(32, 1_000_000)  # 1_000_000 makes no sense but anyway
         self.tile_width_pred.setValue(256)
         tile_height_pred_label = QLabel('Height')
-        self.tile_height_pred = QSpinBox()
+        self.tile_height_pred = QSpinBox(objectName=objectName + 'tile_height_pred')
         self.tile_height_pred.setSingleStep(1)
         self.tile_height_pred.setRange(32, 1_000_000)  # 1_000_000 makes no sense but anyway
         self.tile_height_pred.setValue(256)
@@ -169,12 +175,12 @@ class image_input_settings(QDialog):
         if self.show_overlap:
             # tile overlap width/height. This is used to reconstruct output from model predictions
             tile_overlap_width_label = QLabel('Overlap width')
-            self.tile_overlap_width = QSpinBox()
+            self.tile_overlap_width = QSpinBox(objectName=objectName + 'tile_overlap_width')
             self.tile_overlap_width.setSingleStep(2)
             self.tile_overlap_width.setRange(0, 1_000_000)  # 1_000_000 makes no sense but anyway
             self.tile_overlap_width.setValue(32)
             tile_overlap_height_label = QLabel('Overlap height')
-            self.tile_overlap_height = QSpinBox()
+            self.tile_overlap_height = QSpinBox(objectName=objectName + 'tile_overlap_height')
             self.tile_overlap_height.setSingleStep(2)
             self.tile_overlap_height.setRange(0, 1_000_000)  # 1_000_000 makes no sense but anyway
             self.tile_overlap_height.setValue(32)
@@ -198,7 +204,7 @@ class image_input_settings(QDialog):
         self.tiling_group.setLayout(tiling_goup_layout)
 
         # normalization group
-        self.input_normalization_group = QGroupBox('Normalization')
+        self.input_normalization_group = QGroupBox('Normalization', objectName=objectName + 'input_normalization_group')
         self.input_normalization_group.setEnabled(True)
 
         # groupBox layout
@@ -214,7 +220,7 @@ class image_input_settings(QDialog):
 
         # method for normalization
         self.clip_by_freq_label = QLabel('Remove outliers (intensity frequency)')
-        self.clip_by_freq_combo = QComboBox()
+        self.clip_by_freq_combo = QComboBox(objectName=objectName + 'clip_by_freq_combo')
 
         for method in Img.clipping_methods:
             self.clip_by_freq_combo.addItem(method)
@@ -224,7 +230,7 @@ class image_input_settings(QDialog):
         # self.clip_by_freq_combo.addItem('-')
         self.clip_by_freq_combo.currentTextChanged.connect(self.clip_method_changed)
 
-        self.clip_by_freq_range = QDoubleSpinBox()
+        self.clip_by_freq_range = QDoubleSpinBox(objectName=objectName + 'clip_by_freq_range')
         self.clip_by_freq_range.setRange(0., 0.30)
         self.clip_by_freq_range.setDecimals(4)
         self.clip_by_freq_range.setSingleStep(0.0001)
@@ -232,31 +238,33 @@ class image_input_settings(QDialog):
         self.clip_by_freq_range.setEnabled(False)
 
         input_normalization_type_label = QLabel('Method')
-        self.input_normalization = QComboBox()
+        self.input_normalization = QComboBox(objectName=objectName + 'input_normalization')
         for method in Img.normalization_methods:
             self.input_normalization.addItem(method)
         self.input_normalization.currentTextChanged.connect(self.input_norm_changed)
 
         input_b2label = QLabel('Per channel ?')
-        self.input_b2 = QCheckBox('yes')
+        self.input_b2 = QCheckBox('yes', objectName=objectName + 'input_b2')
         self.input_b2.setChecked(True)
         input_normalization_range_label = QLabel('Range')
-        self.input_norm_range = QComboBox()
+        self.input_norm_range = QComboBox(objectName=objectName + 'input_norm_range')
         for rng in Img.normalization_ranges:
             self.input_norm_range.addItem(str(rng))
-        self.lower_range_percentile_input_normalization = QDoubleSpinBox()
+        self.lower_range_percentile_input_normalization = QDoubleSpinBox(
+            objectName=objectName + 'lower_range_percentile_input_normalization')
         self.lower_range_percentile_input_normalization.setRange(0., 30.)
         self.lower_range_percentile_input_normalization.setDecimals(2)
         self.lower_range_percentile_input_normalization.setSingleStep(0.01)
         self.lower_range_percentile_input_normalization.setValue(2.)
         self.lower_range_percentile_input_normalization.setEnabled(False)
-        self.upper_range_percentile_input_normalization = QDoubleSpinBox()
+        self.upper_range_percentile_input_normalization = QDoubleSpinBox(
+            objectName=objectName + 'upper_range_percentile_input_normalization')
         self.upper_range_percentile_input_normalization.setRange(70., 100.)
         self.upper_range_percentile_input_normalization.setDecimals(2)
         self.upper_range_percentile_input_normalization.setSingleStep(0.01)
         self.upper_range_percentile_input_normalization.setValue(99.8)
         self.upper_range_percentile_input_normalization.setEnabled(False)
-        self.clip_in_range_input = QCheckBox('Clip')
+        self.clip_in_range_input = QCheckBox('Clip', objectName=objectName + 'clip_in_range_input')
         self.clip_in_range_input.setEnabled(False)
         # in fact could offer clip as an option and remove the other stuff --> TODO... --> this way the code would also be the same for input and output --> much simpler
 
@@ -281,7 +289,8 @@ class image_input_settings(QDialog):
         self.input_normalization_layout.addWidget(self.help_button_image_normalization, 0, 9, 2, 1)
         self.input_normalization_group.setLayout(self.input_normalization_layout)
 
-        self.channel_increase_or_reduction_rule = QGroupBox('Channel number adjustment')
+        self.channel_increase_or_reduction_rule = QGroupBox('Channel number adjustment',
+                                                            objectName=objectName + 'channel_increase_or_reduction_rule')
         self.channel_increase_or_reduction_rule.setEnabled(True)
 
         channel_increase_or_reduction_rule_group_layout = QHBoxLayout()
@@ -296,7 +305,7 @@ class image_input_settings(QDialog):
         # set on the left of it
         crop_info_label = QLabel('ROI needed ?')
         crop_info_label.setStyleSheet("QLabel { color : red; }")
-        self.square_ROI_checkbox= QCheckBox('Square ROI')
+        self.square_ROI_checkbox = QCheckBox('Square ROI', objectName=objectName + 'square_ROI_checkbox')
         self.square_ROI_checkbox.clicked.connect(self.change_ROI)
         # TODO shall I edit that to allow for random crops???
 
@@ -322,11 +331,10 @@ class image_input_settings(QDialog):
                 # input_v_layout.addLayout(small_hlayout)
                 small_hlayout_preview.addLayout(small_hlayout_crop_and_help)
 
-        # small_hlayout_preview.addWidget(crop_info_label)
-        # small_hlayout_preview.addWidget(self.help_button_crop_ROI)
+            # small_hlayout_preview.addWidget(crop_info_label)
+            # small_hlayout_preview.addWidget(self.help_button_crop_ROI)
             small_hlayout_preview.addWidget(input_preview_label)
             small_hlayout_preview.addWidget(self.image_cropper_UI)
-
 
         channel_increase_or_reduction_layout = QGridLayout()
         channel_increase_or_reduction_layout.setAlignment(Qt.AlignTop)
@@ -337,13 +345,13 @@ class image_input_settings(QDialog):
 
         input_channel_label = QLabel('Channel of interest (COI)')
         channel_increase_or_reduction_layout.addWidget(input_channel_label, 0, 0)
-        self.input_channel_of_interest = QComboBox()
+        self.input_channel_of_interest = QComboBox(objectName=objectName + 'input_channel_of_interest')
         self.input_channel_of_interest.currentIndexChanged.connect(self._input_channel_changed)
         channel_increase_or_reduction_layout.addWidget(self.input_channel_of_interest, 0, 1)
 
         input_channel_reduction_rule_label = QLabel('Rule to reduce nb of channels (if needed)')
         channel_increase_or_reduction_layout.addWidget(input_channel_reduction_rule_label, 1, 0)
-        self.channel_input_reduction_rule = QComboBox()
+        self.channel_input_reduction_rule = QComboBox(objectName=objectName + 'channel_input_reduction_rule')
         self.channel_input_reduction_rule.addItem('copy the COI to all available channels')
         self.channel_input_reduction_rule.addItem('force copy the COI to all available '
                                                   'channels even if nb of channels is ok')
@@ -352,7 +360,7 @@ class image_input_settings(QDialog):
 
         input_channel_augmentation_rule_label = QLabel('Rule to increase nb of channels (if needed)')
         channel_increase_or_reduction_layout.addWidget(input_channel_augmentation_rule_label, 2, 0)
-        self.channel_input_augmentation_rule = QComboBox()
+        self.channel_input_augmentation_rule = QComboBox(objectName=objectName + 'channel_input_augmentation_rule')
         self.channel_input_augmentation_rule.addItem('copy the COI to all channels')
         self.channel_input_augmentation_rule.addItem(
             'force copy the COI to all available channels even if nb of channels is ok')
@@ -369,11 +377,11 @@ class image_input_settings(QDialog):
         channel_increase_or_reduction_rule_group_layout.addLayout(small_hlayout_preview)
         channel_increase_or_reduction_rule_group_layout.addLayout(channel_increase_or_reduction_layout)
 
-
         self.channel_increase_or_reduction_rule.setLayout(channel_increase_or_reduction_rule_group_layout)
 
         # group for output settings
-        self.output_predictions_group = QGroupBox('Output predictions to')
+        self.output_predictions_group = QGroupBox('Output predictions to',
+                                                  objectName=objectName + 'output_predictions_group')
         self.output_predictions_group.setEnabled(True)
 
         # groupBox layout
@@ -385,9 +393,9 @@ class image_input_settings(QDialog):
         self.output_predictions_group_layout.setVerticalSpacing(3)
 
         # ask whether images are to be used in combination with TA or not
-        self.auto_output = QRadioButton('Auto (path displayed below)')
-        self.custom_output = QRadioButton('Custom output directory')
-        self.ta_output_style = QRadioButton('Tissue Analyzer mode')
+        self.auto_output = QRadioButton('Auto (path displayed below)', objectName=objectName + 'auto_output')
+        self.custom_output = QRadioButton('Custom output directory', objectName=objectName + 'custom_output')
+        self.ta_output_style = QRadioButton('Tissue Analyzer mode', objectName=objectName + 'ta_output_style')
         predict_output_radio_group = QButtonGroup()
         # predict_output_radio_group.buttonClicked.connect(self.predict_output_mode_changed)
 
@@ -398,7 +406,8 @@ class image_input_settings(QDialog):
         OpenFileOrFolderWidget.finalize_text_change = self.check_custom_dir
         self.output_predictions_to = OpenFileOrFolderWidget(parent_window=self, label_text='Output predictions to',
                                                             add_timer_to_changetext=True, show_ok_or_not_icon=True,
-                                                            tip_text='Drag and drop a folder here')
+                                                            tip_text='Drag and drop a folder here',
+                                                            objectName=objectName + 'output_predictions_to')
         self.output_predictions_to.setEnabled(False)
         # help for output predictions
         self.help_button_output_predictions = QPushButton('?', None)
@@ -423,7 +432,8 @@ class image_input_settings(QDialog):
         self.output_predictions_group.setLayout(self.output_predictions_group_layout)
 
         # enable HQ prediction 8 times slower but much better quality of outline
-        self.hq_pred = QCheckBox('High Quality predictions (up to 12 times slower but better raw predictions)')
+        self.hq_pred = QCheckBox('High Quality predictions (up to 12 times slower but better raw predictions)',
+                                 objectName=objectName + 'hq_pred')
         self.hq_pred.setChecked(True)
         # help HQ pred
         self.help_button_hq_pred = QPushButton('?', None)
@@ -448,8 +458,10 @@ class image_input_settings(QDialog):
         # # or do not do this and let the users do the post process --> maybe simpler and nothing to recode
 
         # allow post process such as watersheding for the cells
-        self.raw_output = QRadioButton('Raw output')
-        self.post_process_filter_n_watershed = QRadioButton('Watershed and filter (only works for the pre-trained model)')
+        self.raw_output = QRadioButton('Raw output', objectName=objectName + 'raw_output')
+        self.post_process_filter_n_watershed = QRadioButton(
+            'Watershed and filter (only works for the pre-trained model)',
+            objectName=objectName + 'post_process_filter_n_watershed')
         self.both = QRadioButton('Both')
         post_process_group = QButtonGroup()
 
@@ -463,7 +475,8 @@ class image_input_settings(QDialog):
 
         # OUTPUT panel
 
-        self.group_output_dataset = QGroupBox('Ground truth/Segmented dataset')
+        self.group_output_dataset = QGroupBox('Ground truth/Segmented dataset',
+                                              objectName=objectName + 'group_output_dataset')
         self.group_output_dataset.setEnabled(True)
 
         group_output_dataset_layout = QGridLayout()
@@ -475,22 +488,24 @@ class image_input_settings(QDialog):
         OpenFileOrFolderWidget.finalize_text_change = self.check_labels
         self.open_labels_button = OpenFileOrFolderWidget(parent_window=self, add_timer_to_changetext=True,
                                                          show_ok_or_not_icon=True,
-                                                         #label_text='Ground truth/Segmented dataset',
+                                                         # label_text='Ground truth/Segmented dataset',
                                                          show_size=True,
-                                                         tip_text='Drag and drop a single file or folder here')
+                                                         tip_text='Drag and drop a single file or folder here',
+                                                         objectName=objectName + 'open_labels_button')
 
         self.help_button_output_dataset = QPushButton('?', None)
         self.help_button_output_dataset.setMaximumWidth(bt_width * 2)
         self.help_button_output_dataset.clicked.connect(self.show_tip)
 
-        group_output_dataset_layout.addWidget(self.open_labels_button,0,0)
-        group_output_dataset_layout.addWidget(self.help_button_output_dataset,0,1)
+        group_output_dataset_layout.addWidget(self.open_labels_button, 0, 0)
+        group_output_dataset_layout.addWidget(self.help_button_output_dataset, 0, 1)
         self.group_output_dataset.setLayout(group_output_dataset_layout)
 
         self.nb_outputs = 0
 
         # output normalization group
-        self.output_pre_processing_group = QGroupBox('Pre processing')
+        self.output_pre_processing_group = QGroupBox('Pre processing',
+                                                     objectName=objectName + 'output_pre_processing_group')
         self.output_pre_processing_group.setEnabled(True)
 
         # groupBox layout
@@ -501,14 +516,12 @@ class image_input_settings(QDialog):
         output_pre_processing_group_layout.setHorizontalSpacing(3)
         output_pre_processing_group_layout.setVerticalSpacing(3)
 
-
-
         # optional parameter to create the typical EPySeg output with the seven masks
         # generate_default_epyseg_output_from_mask = QCheckBox --> pb I need to have the right channel COI set --> maybe ok for now and change if users have issues using this
 
         # pre processing output
         nb_dilations_label = QLabel('Dilate')
-        self.nb_mask_dilations = QSpinBox()
+        self.nb_mask_dilations = QSpinBox(objectName=objectName + 'nb_mask_dilations')
         self.nb_mask_dilations.setSingleStep(1)
         self.nb_mask_dilations.setRange(0, 15)
         self.nb_mask_dilations.setValue(0)
@@ -516,7 +529,7 @@ class image_input_settings(QDialog):
         times_label = QLabel('times')
 
         remove_output_border_pixels_label = QLabel('Remove border pixels')
-        self.remove_output_border_pixels = QSpinBox()
+        self.remove_output_border_pixels = QSpinBox(objectName=objectName + 'nb_mask_dilations')
         self.remove_output_border_pixels.setSingleStep(1)
         self.remove_output_border_pixels.setRange(0, 100)
         self.remove_output_border_pixels.setValue(0)
@@ -526,10 +539,14 @@ class image_input_settings(QDialog):
             if self.model_outputs[0][-1] == 7:
                 self.nb_mask_dilations.setEnabled(False)
                 self.remove_output_border_pixels.setEnabled(False)
-                self.generate_default_epyseg_output_from_mask = QCheckBox('(EPySeg pre-trained model only!) Produce EPySeg-style output (from user input watershed mask)')
+                self.generate_default_epyseg_output_from_mask = QCheckBox(
+                    '(EPySeg pre-trained model only!) Produce EPySeg-style output (from user input watershed mask)',
+                    objectName=objectName + 'generate_default_epyseg_output_from_mask')
                 self.generate_default_epyseg_output_from_mask.setChecked(True)
                 self.generate_default_epyseg_output_from_mask.setStyleSheet("color: red")
-                self.store_mask_on_drive_to_gain_speed = QCheckBox('Save EPySeg-style output on disk (if ticked, much faster, but disk space required)')
+                self.store_mask_on_drive_to_gain_speed = QCheckBox(
+                    'Save EPySeg-style output on disk (if ticked, much faster, but disk space required)',
+                    objectName=objectName + 'store_mask_on_drive_to_gain_speed')
                 self.store_mask_on_drive_to_gain_speed.setChecked(True)
                 # self.store_mask_on_drive_to_gain_speed.setStyleSheet("color: red")
                 self.generate_default_epyseg_output_from_mask.stateChanged.connect(self._change_pre_processing)
@@ -552,7 +569,7 @@ class image_input_settings(QDialog):
         self.output_pre_processing_group.setLayout(output_pre_processing_group_layout)
 
         # output tiling parameters
-        self.groupBox_output_tiling = QGroupBox('Tiling')
+        self.groupBox_output_tiling = QGroupBox('Tiling', objectName=objectName + 'groupBox_output_tiling')
         self.groupBox_output_tiling.setEnabled(True)
 
         # model compilation groupBox layout
@@ -564,12 +581,12 @@ class image_input_settings(QDialog):
         groupBox_output_tiling_layout.setVerticalSpacing(3)
 
         default_tile_width_label = QLabel('Width')
-        self.tile_width = QSpinBox()
+        self.tile_width = QSpinBox(objectName=objectName + 'tile_width')
         self.tile_width.setSingleStep(1)
         self.tile_width.setRange(32, 1_000_000)  # 1_000_000 makes no sense but anyway
         self.tile_width.setValue(256)  # 128 could also  be a good value
         default_tile_height_label = QLabel('Height')
-        self.tile_height = QSpinBox()
+        self.tile_height = QSpinBox(objectName=objectName + 'tile_height')
         self.tile_height.setSingleStep(1)
         self.tile_height.setRange(32, 1_000_000)  # 1_000_000 makes no sense but anyway
         self.tile_height.setValue(256)  # 128 could also  be a good value
@@ -588,7 +605,8 @@ class image_input_settings(QDialog):
         self.groupBox_output_tiling.setLayout(groupBox_output_tiling_layout)
 
         # output normalization group
-        self.output_normalization_group = QGroupBox('Normalization')
+        self.output_normalization_group = QGroupBox('Normalization',
+                                                    objectName=objectName + 'output_normalization_group')
         self.output_normalization_group.setEnabled(True)
 
         # groupBox layout
@@ -600,30 +618,32 @@ class image_input_settings(QDialog):
         self.output_normalization_layout.setVerticalSpacing(3)
 
         output_normalization_type_label = QLabel('Method')
-        self.output_normalization = QComboBox()
+        self.output_normalization = QComboBox(objectName=objectName + 'output_normalization')
         for method in Img.normalization_methods:
             self.output_normalization.addItem(method)
         self.output_normalization.currentTextChanged.connect(self.output_norm_changed)
-        self.lower_range_percentile_output_normalization = QDoubleSpinBox()
+        self.lower_range_percentile_output_normalization = QDoubleSpinBox(
+            objectName=objectName + 'lower_range_percentile_output_normalization')
         self.lower_range_percentile_output_normalization.setRange(0., 30.)
         self.lower_range_percentile_output_normalization.setDecimals(2)
         self.lower_range_percentile_output_normalization.setSingleStep(0.01)
         self.lower_range_percentile_output_normalization.setValue(2.)
         self.lower_range_percentile_output_normalization.setEnabled(False)
-        self.upper_range_percentile_output_normalization = QDoubleSpinBox()
+        self.upper_range_percentile_output_normalization = QDoubleSpinBox(
+            objectName=objectName + 'upper_range_percentile_output_normalization')
         self.upper_range_percentile_output_normalization.setRange(70., 100.)
         self.upper_range_percentile_output_normalization.setDecimals(2)
         self.upper_range_percentile_output_normalization.setSingleStep(0.01)
         self.upper_range_percentile_output_normalization.setValue(99.8)
         self.upper_range_percentile_output_normalization.setEnabled(False)
-        self.clip_in_range_output = QCheckBox('Clip')
+        self.clip_in_range_output = QCheckBox('Clip', objectName=objectName + 'clip_in_range_output')
         self.clip_in_range_output.setEnabled(False)
 
         output_b2label = QLabel('Per channel ?')
-        self.output_b2 = QCheckBox('yes')
+        self.output_b2 = QCheckBox('yes', objectName=objectName + 'output_b2')
         self.output_b2.setChecked(True)
         output_normalization_range_label = QLabel('Range')
-        self.output_norm_range = QComboBox()
+        self.output_norm_range = QComboBox(objectName=objectName + 'output_norm_range')
         for rng in Img.normalization_ranges:
             self.output_norm_range.addItem(str(rng))
 
@@ -645,7 +665,8 @@ class image_input_settings(QDialog):
         self.output_normalization_layout.addWidget(self.help_button_normalization_output, 0, 9)
         self.output_normalization_group.setLayout(self.output_normalization_layout)
 
-        self.output_channel_increase_or_reduction_rule = QGroupBox('Channel number adjustment')
+        self.output_channel_increase_or_reduction_rule = QGroupBox('Channel number adjustment',
+                                                                   objectName=objectName + 'output_channel_increase_or_reduction_rule')
         self.output_channel_increase_or_reduction_rule.setEnabled(True)
 
         channel_increase_or_reduction_rule_group_layout_output = QHBoxLayout()
@@ -671,13 +692,13 @@ class image_input_settings(QDialog):
 
         output_channel_label = QLabel('Channel of interest (COI)')
         output_channel_increase_or_reduction_layout.addWidget(output_channel_label, 0, 0)
-        self.output_channel_of_interest = QComboBox()
+        self.output_channel_of_interest = QComboBox(objectName=objectName + 'output_channel_of_interest')
         self.output_channel_of_interest.currentIndexChanged.connect(self._output_channel_changed)
         output_channel_increase_or_reduction_layout.addWidget(self.output_channel_of_interest, 0, 1)
 
         output_channel_reduction_rule_label = QLabel('Rule to reduce channels (if needed)')
         output_channel_increase_or_reduction_layout.addWidget(output_channel_reduction_rule_label, 1, 0)
-        self.channel_output_reduction_rule = QComboBox()
+        self.channel_output_reduction_rule = QComboBox(objectName=objectName + 'channel_output_reduction_rule')
         self.channel_output_reduction_rule.addItem('copy the COI to all available channels')
         self.channel_output_reduction_rule.addItem('force copy the COI to all available '
                                                    'channels even if nb of channels is ok')
@@ -686,14 +707,13 @@ class image_input_settings(QDialog):
 
         output_channel_augmentation_rule_label = QLabel('Rule to increase channels (if needed)')
         output_channel_increase_or_reduction_layout.addWidget(output_channel_augmentation_rule_label, 2, 0)
-        self.channel_output_augmentation_rule = QComboBox()
+        self.channel_output_augmentation_rule = QComboBox(objectName=objectName + 'channel_output_augmentation_rule')
         self.channel_output_augmentation_rule.addItem('copy the COI to all channels')
         self.channel_output_augmentation_rule.addItem(
             'force copy the COI to all available channels even if nb of channels is ok')
         self.channel_output_augmentation_rule.addItem('copy the COI to missing channels only')
         self.channel_output_augmentation_rule.addItem('add empty channels (0 filled)')
         output_channel_increase_or_reduction_layout.addWidget(self.channel_output_augmentation_rule, 2, 1)
-
 
         # help channel adjustments
         self.help_button_channel_output = QPushButton('?', None)
@@ -706,7 +726,6 @@ class image_input_settings(QDialog):
         channel_increase_or_reduction_rule_group_layout_output.addLayout(output_channel_increase_or_reduction_layout)
 
         self.output_channel_increase_or_reduction_rule.setLayout(channel_increase_or_reduction_rule_group_layout_output)
-
 
         input_v_layout = QVBoxLayout()
         input_v_layout.setAlignment(Qt.AlignTop)
@@ -807,7 +826,9 @@ class image_input_settings(QDialog):
         crop_parameters = self.image_cropper_UI.get_crop_parameters()
         if crop_parameters is not None:
             try:
-                ROI, ok = DefineROI.getDataAndParameters(parent_window=self,x1=crop_parameters['x1'],y1=crop_parameters['y1'],x2=crop_parameters['x2'], y2=crop_parameters['y2'])
+                ROI, ok = DefineROI.getDataAndParameters(parent_window=self, x1=crop_parameters['x1'],
+                                                         y1=crop_parameters['y1'], x2=crop_parameters['x2'],
+                                                         y2=crop_parameters['y2'])
             except:
                 # in case ROI is random ROI --> ignore parameters
                 ROI, ok = DefineROI.getDataAndParameters(parent_window=self)
@@ -815,9 +836,9 @@ class image_input_settings(QDialog):
             ROI, ok = DefineROI.getDataAndParameters(parent_window=self)
         # TODO add the posibility to remove ROI some day but ok for now
         if ok:
-            if ROI is not None: #and ROI[0] is not None
+            if ROI is not None:  # and ROI[0] is not None
                 self.image_cropper_UI.setRoi(*ROI)
-                logger.debug('Newly defined ROI: '+str(self.image_cropper_UI.get_crop_parameters()))
+                logger.debug('Newly defined ROI: ' + str(self.image_cropper_UI.get_crop_parameters()))
             # else:
             #     self.image_cropper_UI.setRoi(None, None, None, None)
             # else:
@@ -827,17 +848,19 @@ class image_input_settings(QDialog):
         self.image_cropper_UI.set_square_ROI(self.square_ROI_checkbox.isChecked())
 
     def show_tip(self):
-        if self.sender() == self.help_button_image_normalization or self.sender()==self.help_button_normalization_output:
+        if self.sender() == self.help_button_image_normalization or self.sender() == self.help_button_normalization_output:
             browse_tip('https://en.wikipedia.org/wiki/Feature_scaling')
         elif self.sender() == self.help_button_tiling_output or self.sender() == self.help_button_tiling_predict:
             browse_tip('tiling.md')
         elif self.sender() == self.help_button_pre_processing_predict:
             QToolTip.showText(self.sender().mapToGlobal(QPoint(30, 20)), markdown_file_to_html('invert.md'))
         elif self.sender() == self.help_button_pre_process_output:
-            QToolTip.showText(self.sender().mapToGlobal(QPoint(30, 20)), markdown_file_to_html('preprocessing_output.md'))
+            QToolTip.showText(self.sender().mapToGlobal(QPoint(30, 20)),
+                              markdown_file_to_html('preprocessing_output.md'))
             # browse_tip('invert.md')
         elif self.sender() == self.help_button_channel_selection or self.sender() == self.help_button_channel_output:
-            QToolTip.showText(self.sender().mapToGlobal(QPoint(30, 20)), markdown_file_to_html('channel_number_adjustement.md'))
+            QToolTip.showText(self.sender().mapToGlobal(QPoint(30, 20)),
+                              markdown_file_to_html('channel_number_adjustement.md'))
         elif self.sender() == self.help_button_hq_pred:
             QToolTip.showText(self.sender().mapToGlobal(QPoint(30, 20)), markdown_file_to_html('HQ_preds.md'))
         elif self.sender() == self.help_button_crop_ROI:
@@ -849,7 +872,7 @@ class image_input_settings(QDialog):
         elif self.sender() == self.help_button_output_dataset:
             QToolTip.showText(self.sender().mapToGlobal(QPoint(30, 20)), markdown_file_to_html('output_data.md'))
         else:
-            QToolTip.showText(self.sender().mapToGlobal(QPoint(30, 20)),"unknown button") # show tip directly
+            QToolTip.showText(self.sender().mapToGlobal(QPoint(30, 20)), "unknown button")  # show tip directly
 
     def set_input_channel_selection_is_necessary(self, bool):
         self.is_input_channel_selection_necessary = bool
@@ -863,12 +886,14 @@ class image_input_settings(QDialog):
     def set_model_outputs(self, model_outputs):
         self.model_outputs = model_outputs
 
+    # TODO modify that so that in any case it does show the image
     def check_n_set_input_channel_selection_necessity(self):
         if not self.show_channel_nb_change_rules:
             return False
         if self.model_inputs is None:
-            logger.error('please specify model input to check if channel selection is necessary or not')
-            return
+            logger.warning(
+                'Please specify model input to check if channel selection is necessary or not.\nIn the absence of a model, the software assumes channel selection is not necessary.')
+            # return
 
         # TODO need change this to a loop to accept multiple inputs or outputs
         input_coi = self.get_input_channel_of_interest()
@@ -878,26 +903,29 @@ class image_input_settings(QDialog):
             else:
                 self.is_input_channel_selection_necessary = True
         else:
-            # check channel by channel if ok or not
-            for idx, input in enumerate(self.model_inputs):
-                channels_in_model = input[-1]
-                if self.first_image is None:
-                    logger.error('please select input data first to check if channel selection is necessary or not')
-                    return
+            if self.model_inputs is not None:
+                # check channel by channel if ok or not
+                for idx, input in enumerate(self.model_inputs):
+                    channels_in_model = input[-1]
+                    if self.first_image is None:
+                        logger.error('please select input data first to check if channel selection is necessary or not')
+                        return
 
-                if self.first_image.shape[-1] == channels_in_model:
-                    self.is_input_channel_selection_necessary = False
-                else:
-                    self.is_input_channel_selection_necessary = True
-                # REMOVE BREAK WHEN SEVERAL INPUT IMAGES ARE AVAILABLE
-                break
+                    if self.first_image.shape[-1] == channels_in_model:
+                        self.is_input_channel_selection_necessary = False
+                    else:
+                        self.is_input_channel_selection_necessary = True
+                    # REMOVE BREAK WHEN SEVERAL INPUT IMAGES ARE AVAILABLE
+                    break
+            else:
+                self.is_input_channel_selection_necessary = False # TODO maybe not smart to assume that no selection is required if model is not specified
 
     def check_n_set_output_channel_selection_necessity(self):
         # need compare model output to real output images
         # need perform this check on output change
         if self.model_outputs is None:
-            logger.error('please specify model output to check if channel selection is necessary or not')
-            return
+            logger.error('Please specify model output to check if channel selection is necessary or not.\nIn the absence of a model, the software assumes channel selection is not necessary.')
+            # return
 
         # need change this to a loop to accept multiple inputs or outputs
         output_coi = self.get_output_channel_of_interest()
@@ -907,20 +935,23 @@ class image_input_settings(QDialog):
             else:
                 self.is_output_channel_selection_necessary = True
         else:
-            # check channel by channel if ok or not
-            for idx, output in enumerate(self.model_outputs):
-                channels_in_model = output[-1]
-                if self.first_mask is None:
-                    logger.error('please select output data first to check if channel selection is necessary or not')
-                    return
+            if self.model_outputs is not None:
+                # check channel by channel if ok or not
+                for idx, output in enumerate(self.model_outputs):
+                    channels_in_model = output[-1]
+                    if self.first_mask is None:
+                        logger.error('please select output data first to check if channel selection is necessary or not')
+                        return
 
-                if self.first_mask.shape[-1] == channels_in_model:
-                    self.is_output_channel_selection_necessary = False
-                else:
-                    self.is_output_channel_selection_necessary = True
+                    if self.first_mask.shape[-1] == channels_in_model:
+                        self.is_output_channel_selection_necessary = False
+                    else:
+                        self.is_output_channel_selection_necessary = True
 
-                # REMOVE BREAK WHEN SEVERAL INPUT IMAGES ARE AVAILABLE
-                break
+                    # REMOVE BREAK WHEN SEVERAL INPUT IMAGES ARE AVAILABLE
+                    break
+            else:
+                self.is_output_channel_selection_necessary = False # TODO maybe not smart to assume that no selection is required if model is not specified
 
     def clip_method_changed(self):
         allow_changes = not 'ignore' in self.clip_by_freq_combo.currentText()
@@ -933,7 +964,7 @@ class image_input_settings(QDialog):
             if self.custom_output.isChecked():
                 if os.path.exists(txt) and os.path.isdir(txt) and os.access(txt, os.W_OK):
                     if self.open_input_button.text() is not None:
-                        # make sure the user is not trying to write to the parent folder (overwrite issue)
+                        # make sure the user is not trying to write to the parent folder (&overwrite issue)
                         if self.output_predictions_to.text() == self.open_input_button.text() or \
                                 os.path.realpath(self.output_predictions_to.text()) == os.path.realpath(
                             self.open_input_button.text()):
@@ -1011,7 +1042,14 @@ class image_input_settings(QDialog):
                 channel_img = self.first_mask.imCopy(c=self.output_channel_of_interest.currentIndex())
                 self.mask_preview.set_image(channel_img)
             else:
-                self.mask_preview.set_image(self.first_mask)
+                # print(self.first_image.shape) # if nb of channels is > to
+                # dirty bug fix for images with too many channels
+                # TODO some day do a smarter view of the image that is the max proj along the Z axis...
+                if self.first_mask.shape[-1] > 3:
+                    channel_img = self.first_mask.imCopy(c=0)
+                    self.mask_preview.set_image(channel_img)
+                else:
+                    self.mask_preview.set_image(self.first_mask)
         else:
             self.mask_preview.set_image(self.first_mask)
 
@@ -1021,7 +1059,14 @@ class image_input_settings(QDialog):
                 channel_img = self.first_image.imCopy(c=self.input_channel_of_interest.currentIndex())
                 self.image_cropper_UI.set_image(channel_img)
             else:
-                self.image_cropper_UI.set_image(self.first_image)
+                # print(self.first_image.shape) # if nb of channels is > to
+                # dirty bug fix for images with too many channels
+                if self.first_image.shape[-1] > 3:
+                    # too many channels --> qimage will crash
+                    channel_img = self.first_image.imCopy(c=0)
+                    self.image_cropper_UI.set_image(channel_img)
+                else:
+                    self.image_cropper_UI.set_image(self.first_image)
         else:
             self.image_cropper_UI.set_image(self.first_image)
 
@@ -1044,7 +1089,8 @@ class image_input_settings(QDialog):
                 if self.is_output_channel_selection_necessary:
                     logger.info('force output channel selection due to mismatch with model output')
                     self.output_channel_of_interest.setCurrentIndex(0)  # force select a channel
-                    self._output_channel_changed()
+                # always show an image whatever happens
+                self._output_channel_changed()
 
                 self.open_labels_button.set_icon_ok(can_read)
                 if can_read:
@@ -1065,7 +1111,8 @@ class image_input_settings(QDialog):
                 if self.is_output_channel_selection_necessary:
                     logger.info('force output channel selection due to mismatch with model output')
                     self.output_channel_of_interest.setCurrentIndex(0)
-                    self._output_channel_changed()
+                # always show an image whatever happens
+                self._output_channel_changed()
                 self.open_labels_button.set_icon_ok(can_read)
                 if can_read:
                     self.nb_outputs = len(file_list)
@@ -1124,10 +1171,13 @@ class image_input_settings(QDialog):
                 import os
                 self.first_image, can_read = self._can_read_file(file_list[0], self.input_channel_of_interest)
                 self.check_n_set_input_channel_selection_necessity()
+
                 if self.is_input_channel_selection_necessary:
                     logger.info('force input channel selection due to mismatch with model input')
                     self.input_channel_of_interest.setCurrentIndex(0)  # force select a channel
-                    self._input_channel_changed()
+
+                # whatever happens show an image
+                self._input_channel_changed()
 
                 self.open_input_button.set_icon_ok(can_read)
                 if can_read:
@@ -1170,7 +1220,9 @@ class image_input_settings(QDialog):
                 if self.is_input_channel_selection_necessary:
                     logger.info('force input channel selection due to mismatch with model input')
                     self.input_channel_of_interest.setCurrentIndex(0)  # force select a channel
-                    self._input_channel_changed()
+
+                # whatever happens show an image
+                self._input_channel_changed()
 
                 self.open_input_button.set_icon_ok(can_read)
                 self.nb_inputs = len(file_list)
@@ -1296,12 +1348,13 @@ class image_input_settings(QDialog):
             range = self.input_norm_range.currentText()
             if self.lower_range_percentile_input_normalization.isEnabled():
                 # TODO need a check that values are ok --> but must be ok because I bounded them and bounds are non overlapping
-                range=[self.lower_range_percentile_input_normalization.value(), self.upper_range_percentile_input_normalization.value()]
+                range = [self.lower_range_percentile_input_normalization.value(),
+                         self.upper_range_percentile_input_normalization.value()]
             data['input_normalization'] = {'method': self.input_normalization.currentText(),
                                            'individual_channels': self.input_b2.isChecked(),
                                            'range': range,
-                                           'clip': True if self.clip_in_range_input.isChecked() and self.clip_in_range_input.isEnabled() else False} # can have different values for the range
-            data['clip_by_frequency'] = self.get_clip_by_freq() # maybe remove that some day ??? think about it...
+                                           'clip': True if self.clip_in_range_input.isChecked() and self.clip_in_range_input.isEnabled() else False}  # can have different values for the range
+            data['clip_by_frequency'] = self.get_clip_by_freq()  # maybe remove that some day ??? think about it...
         if self.allow_ROI:
             data['crop_parameters'] = self.image_cropper_UI.get_crop_parameters()
         if self.show_predict_output:
@@ -1342,7 +1395,8 @@ class image_input_settings(QDialog):
                 # we add the possibility to generate epyseg style mask from the software
                 try:
                     if self.generate_default_epyseg_output_from_mask.isChecked():
-                        data['create_epyseg_style_output'] = 'sevenmasks' if not self.store_mask_on_drive_to_gain_speed.isChecked() else 'sevenmaskssave'
+                        data[
+                            'create_epyseg_style_output'] = 'sevenmasks' if not self.store_mask_on_drive_to_gain_speed.isChecked() else 'sevenmaskssave'
                 except:
                     # if model is not compatible with EPySeg --> do not allow speed up
                     pass
@@ -1456,7 +1510,8 @@ class image_input_settings(QDialog):
                              show_normalization=False, show_channel_nb_change_rules=False, input_mode_only=False,
                              allow_wild_cards_in_path=False,
                              show_preview=False, model_inputs=None, model_outputs=None, show_HQ_settings=False,
-                             show_run_post_process=False, allow_bg_subtraction=False):  #
+                             show_run_post_process=False, allow_bg_subtraction=False,
+                             objectName=''):  #
         # get all the params for augmentation
         dialog = image_input_settings(parent_window=parent_window, show_overlap=show_overlap,
                                       show_input=show_input, show_output=show_output,
@@ -1473,7 +1528,9 @@ class image_input_settings(QDialog):
                                       model_outputs=model_outputs,
                                       _is_dialog=True,
                                       show_HQ_settings=show_HQ_settings,
-                                      show_run_post_process=show_run_post_process, allow_bg_subtraction=allow_bg_subtraction)
+                                      show_run_post_process=show_run_post_process,
+                                      allow_bg_subtraction=allow_bg_subtraction,
+                                      objectName=objectName)
 
         result = dialog.exec_()
         augment = dialog.get_parameters()
@@ -1502,8 +1559,8 @@ if __name__ == '__main__':
                                                             show_channel_nb_change_rules=True,
                                                             show_HQ_settings=True,
                                                             show_run_post_process=True,
-                                                            allow_bg_subtraction=True)
-
+                                                            allow_bg_subtraction=True,
+                                                            objectName='demo')
 
     print(augment, ok)
     sys.exit(0)

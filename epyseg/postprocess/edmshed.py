@@ -53,13 +53,13 @@ def segment_cells(image, __DEBUG=False, __VISUAL_DEBUG=False, stop_at_threshold_
 if __name__ == '__main__':
     from timeit import default_timer as timer
 
-    # image = Img('/media/D/final_folder_scoring/predict_hybrid/mini_test.tif')
-    # image = Img('/media/D/final_folder_scoring/predict_hybrid/AVG_StackFocused_Endocad-GFP(6-12-13)#19_000.tif')
-    # image = Img('/media/D/final_folder_scoring/predict_avg_hq_correction_ensemble_wshed/122.tif')[...,0]
-    # image = Img('/media/D/final_folder_scoring/predict_avg_hq_correction_ensemble_wshed/image_plant_best-zoomed.tif')[...,0]
-    image = Img('/media/D/final_folder_scoring/predict_avg_hq_correction_ensemble_wshed/5.tif')[..., 0]
-    # image = Img('/media/D/final_folder_scoring/predict_hybrid/tmp11.png')
-    # image = Img('/media/D/final_folder_scoring/predict_hybrid/11-1_nuclei_1.tif')
+    # image = Img('/D/final_folder_scoring/predict_hybrid/mini_test.tif')
+    # image = Img('/D/final_folder_scoring/predict_hybrid/AVG_StackFocused_Endocad-GFP(6-12-13)#19_000.tif')
+    # image = Img('/D/final_folder_scoring/predict_avg_hq_correction_ensemble_wshed/122.tif')[...,0]
+    # image = Img('/D/final_folder_scoring/predict_avg_hq_correction_ensemble_wshed/image_plant_best-zoomed.tif')[...,0]
+    image = Img('/D/final_folder_scoring/predict_avg_hq_correction_ensemble_wshed/5.tif')[..., 0]
+    # image = Img('/D/final_folder_scoring/predict_hybrid/tmp11.png')
+    # image = Img('/D/final_folder_scoring/predict_hybrid/11-1_nuclei_1.tif')
     start = timer()
 
     final_mask = segment_cells(image, __DEBUG=False, __VISUAL_DEBUG=False,

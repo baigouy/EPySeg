@@ -33,6 +33,13 @@ class RefineMaskUsingSeeds:
             logger.error('no input image --> nothing to do')
             return
 
+        # TODO test it with several images just to see if that works
+        if isinstance(mode, str) and 'first' in mode:
+            # return first channel only # shall I had a channel axis to it to avoid issues
+            out = input[..., 0]
+            # I do this to keep the ...hwc format...
+            return out[..., np.newaxis]
+
         img_orig = input
 
         if not img_orig.has_c() or img_orig.shape[-1] != 7:

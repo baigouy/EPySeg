@@ -26,11 +26,11 @@ class DefineROI(QDialog):
         layout.setColumnStretch(0, 25)
         layout.setColumnStretch(1, 75)
 
-        self.random_checkbox = QCheckBox('Random ROI (random crop with defined width and height)')
+        self.random_checkbox = QCheckBox('Random ROI (random crop with defined width and height)', objectName='random_checkbox')
         self.random_checkbox.setChecked(False)
 
         labelX1 = QLabel('x1')
-        self.x1_spinner = QSpinBox()
+        self.x1_spinner = QSpinBox(objectName='x1_spinner')
         self.x1_spinner.setSingleStep(1)
         self.x1_spinner.setRange(0, 1_000_000)
         if self.x1 is not None:
@@ -39,7 +39,7 @@ class DefineROI(QDialog):
             self.random_checkbox.setChecked(True)
 
         labelY1 = QLabel('y1')
-        self.y1_spinner = QSpinBox()
+        self.y1_spinner = QSpinBox(objectName='y1_spinner')
         self.y1_spinner.setSingleStep(1)
         self.y1_spinner.setRange(0, 1_000_000)
         if self.y1 is not None:
@@ -48,13 +48,13 @@ class DefineROI(QDialog):
             self.random_checkbox.setChecked(True)
 
         self.labelX2 = QLabel('x2')
-        self.x2_spinner = QSpinBox()
+        self.x2_spinner = QSpinBox(objectName='x2_spinner')
         self.x2_spinner.setSingleStep(1)
         self.x2_spinner.setRange(0, 1_000_000)
         self.x2_spinner.setValue(self.x2)
 
         self.labelY2 = QLabel('y2')
-        self.y2_spinner = QSpinBox()
+        self.y2_spinner = QSpinBox(objectName='y2_spinner')
         self.y2_spinner.setSingleStep(1)
         self.y2_spinner.setRange(0, 1_000_000)
         self.y2_spinner.setValue(self.y2)

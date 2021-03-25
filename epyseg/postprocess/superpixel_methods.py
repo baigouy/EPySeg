@@ -344,7 +344,7 @@ if __name__ == '__main__':
     start = timer()
 
     #
-    # image = Img('/media/D/final_folder_scoring/20190924_ecadGFP_400nM20E_000.tif')
+    # image = Img('/D/final_folder_scoring/20190924_ecadGFP_400nM20E_000.tif')
     #
     # print(image.shape)
     # print(image.has_c())
@@ -367,21 +367,21 @@ if __name__ == '__main__':
     # img = Img('D:/Dropbox/stuff_for_the_new_figure/old/predict_avg_hq_correction_ensemble_wshed/proj0016.tif')[...,0].astype(np.float)
 
     # img = Img('D:/Dropbox/mini_test.tif').astype(np.float)
-    # img = Img('/media/D/final_folder_scoring/predict_avg_hq_correction_ensemble_wshed/5.tif')[...,0].astype(np.float)
-    # img = Img('/media/D/final_folder_scoring/predict_avg_hq_correction_ensemble_wshed/5.tif')[...,1].astype(np.float)
-    # img = Img('/media/D/final_folder_scoring/predict_avg_hq_correction_ensemble_wshed/5.tif')[...,2].astype(np.float)
-    # img = Img('/media/D/final_folder_scoring/predict_avg_hq_correction_ensemble_wshed/122.tif')[...,0].astype(np.float)
-    # img = Img('/media/D/final_folder_scoring/predict_avg_hq_correction_ensemble_wshed/11.tif')[...,0].astype(np.float)
-    # img = Img('/media/D/final_folder_scoring/predict_avg_hq_correction_ensemble_wshed/11.tif')[...,1].astype(np.float)
-    # img = Img('/media/D/final_folder_scoring/predict_avg_hq_correction_ensemble_wshed/11.tif')[...,2].astype(np.float)
-    # img = Img('/media/D/final_folder_scoring/predict_avg_hq_correction_ensemble_wshed/cellpose_img22.tif')[...,0].astype(np.float)
-    # img = Img('/media/D/final_folder_scoring/predict_avg_hq_correction_ensemble_wshed/cellpose_img22_bg_subtracted_ij.tif')[...,0].astype(np.float)
-    # img = Img('/media/D/final_folder_scoring/predict_avg_hq_correction_ensemble_wshed/focused_Series010.tif')[...,0].astype(np.float)
-    # img = Img('/media/D/final_folder_scoring/predict_avg_hq_correction_ensemble_wshed/focused_Series194.tif')[..., 0].astype(np.float)
-    # img = Img('/media/D/final_folder_scoring/predict_avg_hq_correction_ensemble_wshed/focused_Series194.tif')[..., 1].astype(np.float)
-    # img = Img('/media/D/final_folder_scoring/predict_avg_hq_correction_ensemble_wshed/focused_Series194.tif')[..., 2].astype(np.float)
+    # img = Img('/D/final_folder_scoring/predict_avg_hq_correction_ensemble_wshed/5.tif')[...,0].astype(np.float)
+    # img = Img('/D/final_folder_scoring/predict_avg_hq_correction_ensemble_wshed/5.tif')[...,1].astype(np.float)
+    # img = Img('/D/final_folder_scoring/predict_avg_hq_correction_ensemble_wshed/5.tif')[...,2].astype(np.float)
+    # img = Img('/D/final_folder_scoring/predict_avg_hq_correction_ensemble_wshed/122.tif')[...,0].astype(np.float)
+    # img = Img('/D/final_folder_scoring/predict_avg_hq_correction_ensemble_wshed/11.tif')[...,0].astype(np.float)
+    # img = Img('/D/final_folder_scoring/predict_avg_hq_correction_ensemble_wshed/11.tif')[...,1].astype(np.float)
+    # img = Img('/D/final_folder_scoring/predict_avg_hq_correction_ensemble_wshed/11.tif')[...,2].astype(np.float)
+    # img = Img('/D/final_folder_scoring/predict_avg_hq_correction_ensemble_wshed/cellpose_img22.tif')[...,0].astype(np.float)
+    # img = Img('/D/final_folder_scoring/predict_avg_hq_correction_ensemble_wshed/cellpose_img22_bg_subtracted_ij.tif')[...,0].astype(np.float)
+    # img = Img('/D/final_folder_scoring/predict_avg_hq_correction_ensemble_wshed/focused_Series010.tif')[...,0].astype(np.float)
+    # img = Img('/D/final_folder_scoring/predict_avg_hq_correction_ensemble_wshed/focused_Series194.tif')[..., 0].astype(np.float)
+    # img = Img('/D/final_folder_scoring/predict_avg_hq_correction_ensemble_wshed/focused_Series194.tif')[..., 1].astype(np.float)
+    # img = Img('/D/final_folder_scoring/predict_avg_hq_correction_ensemble_wshed/focused_Series194.tif')[..., 2].astype(np.float)
 
-    img = Img('/media/D/final_folder_scoring/predict/11.tif')[..., 0]
+    img = Img('/D/final_folder_scoring/predict/11.tif')[..., 0]
     raw_sauvola = get_optimized_mask2(img, __VISUAL_DEBUG=True, __DEBUG=True)
     Img(raw_sauvola.astype(np.uint8), dimensions='hw').save(
         '/home/aigouy/Bureau/trash/trash4/corrected_bonds_sauvola2.tif')

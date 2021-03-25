@@ -686,7 +686,7 @@ if __name__ == '__main__':
 
     # bug qd on definit une image comme param
     # test = Image2D('./../data/counter/06.png')
-    test = Image2D('/media/D/Sample_images/sample_images_PA/trash_test_mem/counter/01.png')
+    test = Image2D('/D/Sample_images/sample_images_PA/trash_test_mem/counter/01.png')
     print(test.boundingRect())  # --> it is ok there so why not below # not callable --> why -->
     print(test.get_P1())  # ça marche donc où est le bug
     print(test.get_P1().y())  # ça marche donc où est le bug

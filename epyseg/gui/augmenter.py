@@ -31,7 +31,7 @@ class DataAugmentationGUI(QDialog):
         normalization_type_label = QLabel('type (None = raw data)')
         layout.addWidget(normalization_type_label, 0, 0)
 
-        self.augmentation = QComboBox()
+        self.augmentation = QComboBox(objectName='augmentation')
         for type in types_of_augmentations:
             self.augmentation.addItem(type)
 

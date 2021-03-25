@@ -27,12 +27,12 @@ setuptools.setup(
     install_requires=[
         # "tensorflow>=2.0.0",  # to allow for mac OS X conda support #shall I put 2.3 now
         # "tensorflow-gpu>=2.0.0;platform_system!='Darwin'",
-        "tensorflow>=2.3.1",  # to allow for mac OS X conda support #shall I put 2.3 now
-        "tensorflow-gpu>=2.3.1;platform_system!='Darwin'",
+        "tensorflow>=2.3.0",  # to allow for mac OS X conda support #shall I put 2.3 now
+        "tensorflow-gpu>=2.3.0;platform_system!='Darwin'",
         "segmentation-models==1.0.1",
         # "tensorflow-gpu>=2.0.0", # not required ? # make sure it does not install on OS X to prevent crash if does not exist
         "czifile",
-        "h5py", # should be installed with tensorflow gpu so do I need it ???
+        # "h5py", # should be installed with tensorflow gpu so do I need it ??? # probably better to remove it to avoid intsalling erroneous versions that are incompatible with tensorflow... similarly do I really need to have numpy it will be installed with tf anyways??? --> just try
         "Markdown",
         "matplotlib",
         "numpy",

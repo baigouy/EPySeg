@@ -89,7 +89,11 @@ class MetaAugmenter:
                  validation_split=0, test_split=0,
                  shuffle=True, clip_by_frequency=None, is_predict_generator=False, overlap_x=0, overlap_y=0,
                  batch_size=None, batch_size_auto_adjust=False, invert_image=False, input_bg_subtraction=None, create_epyseg_style_output=None, remove_n_border_mask_pixels=None,
-                 is_output_1px_wide=False, rebinarize_augmented_output=False, rotate_n_flip_independently_of_augmentation=False, **kwargs):
+                 is_output_1px_wide=False, rebinarize_augmented_output=False,
+                 rotate_n_flip_independently_of_augmentation=False,
+                 mask_lines_and_cols_in_input_and_mask_GT_with_nans=None, # should be 'id' or 'noid' and requires a custom loss and metrics --> can only be applied with some losses
+                 z_frames_to_add=None,
+                 **kwargs):
 
         self.augmenters = []
 
@@ -117,6 +121,8 @@ class MetaAugmenter:
         self.is_output_1px_wide = is_output_1px_wide
         self.rebinarize_augmented_output = rebinarize_augmented_output
         self.rotate_n_flip_independently_of_augmentation = rotate_n_flip_independently_of_augmentation
+        self.mask_lines_and_cols_in_input_and_mask_GT_with_nans = mask_lines_and_cols_in_input_and_mask_GT_with_nans
+        self.z_frames_to_add = z_frames_to_add
         self.mask_dilations = mask_dilations
         self.infinite = infinite
         self.default_input_tile_width = default_input_tile_width
@@ -165,6 +171,8 @@ class MetaAugmenter:
                                   is_output_1px_wide=is_output_1px_wide,
                                   rebinarize_augmented_output=rebinarize_augmented_output,
                                   rotate_n_flip_independently_of_augmentation=rotate_n_flip_independently_of_augmentation,
+                                  mask_lines_and_cols_in_input_and_mask_GT_with_nans=mask_lines_and_cols_in_input_and_mask_GT_with_nans,
+                                  z_frames_to_add = z_frames_to_add
                                   ))
 
     def _get_significant_parameter(self, local_param, global_param):
@@ -199,7 +207,10 @@ class MetaAugmenter:
                output_normalization=None, validation_split=None, test_split=None,
                shuffle=None, clip_by_frequency=None,
                is_predict_generator=None, overlap_x=None, overlap_y=None, invert_image=None, input_bg_subtraction=None,create_epyseg_style_output=None,
-               remove_n_border_mask_pixels=None, is_output_1px_wide=None, rebinarize_augmented_output=None, rotate_n_flip_independently_of_augmentation=None, **kwargs):
+               remove_n_border_mask_pixels=None, is_output_1px_wide=None, rebinarize_augmented_output=None,
+               rotate_n_flip_independently_of_augmentation=None,mask_lines_and_cols_in_input_and_mask_GT_with_nans=None,
+               z_frames_to_add = None,
+               **kwargs):
 
         # print('debug 123', inputs, outputs, self.inputs, self.outputs)
         # inputs and outputs are ok --> why is there a bug then????
@@ -258,7 +269,10 @@ class MetaAugmenter:
                           rebinarize_augmented_output=self._get_significant_parameter(rebinarize_augmented_output,
                                                                                       self.rebinarize_augmented_output),
                           rotate_n_flip_independently_of_augmentation=self._get_significant_parameter(rotate_n_flip_independently_of_augmentation,
-                                                                                      self.rotate_n_flip_independently_of_augmentation)
+                                                                                      self.rotate_n_flip_independently_of_augmentation),
+                          mask_lines_and_cols_in_input_and_mask_GT_with_nans=self._get_significant_parameter(mask_lines_and_cols_in_input_and_mask_GT_with_nans,
+                                                                                      self.mask_lines_and_cols_in_input_and_mask_GT_with_nans),
+                          z_frames_to_add=self._get_significant_parameter(z_frames_to_add, self.z_frames_to_add),
                           ))
 
     def validation_generator(self, infinite=False):

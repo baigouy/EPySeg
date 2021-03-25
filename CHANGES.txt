@@ -1,3 +1,22 @@
+22/03/2021
+-Reduced GUI minimal/default size so that it can better be used on computers with small screens
+
+23/02/2021
+-Fixed a big memory leak in 'Predict'
+
+01-20/01/2021
+-version changed to 0.1.21
+-Added 'Ensemble' tools (not public yet)
+-Added denoising/surface projection models based on CARE (not public yet)
+-Added masking tools to force the model to learn from pixel neighborhood rather than identity (not public yet)
+-Working on support for ImageJ Rois/Overlays (not public yet)
+-Fixed bugs and added new features to the Img class
+-Added 'keep first channel only' to the post process options (useful for denoising models in order to only keep the denoised image and remove the segmentation masks because the latter often are suboptimal/low quality)
+-Added a tool to preview all images of a folder and a tool to preview outputs of different models (not public yet)
+-Added a tool to load and store GUI settings (not public yet)
+-Modified the code so that a preview is always shown even when no model is selected (for example in the case of ensemble, where models are undefined until the last minute)
+-Fixed a bug occurring when images had too many channels
+
 15/12/2020
 -Fixed a big bug in the flip data augmentation
 -Added 'Shuffle along the Z axis' and 'Roll along the Z axis' data augmentation for 3D images, useful to train best focus deep learning

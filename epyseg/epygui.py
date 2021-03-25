@@ -1,5 +1,6 @@
 import os
 from epyseg.deeplearning.docs.doc2html import browse_tip, markdown_file_to_html
+from epyseg.gui.model import Ensemble_Models_Loader
 
 os.environ['SM_FRAMEWORK'] = 'tf.keras'  # set env var for changing the segmentation_model framework
 import sys
@@ -36,14 +37,13 @@ QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)  # 
 DEBUG = False  # set to True if GUI crashes
 __MAJOR__ = 0
 __MINOR__ = 1
-__MICRO__ = 20
+__MICRO__ = 21
 __RELEASE__ = ''  # a #b  # https://www.python.org/dev/peps/pep-0440/#public-version-identifiers --> alpha beta, ...
 __VERSION__ = ''.join([str(__MAJOR__), '.', str(__MINOR__), '.',
                        str(__MICRO__)])  # if __MICRO__ != 0 else '', __RELEASE__]) # bug here fix some day
 __AUTHOR__ = 'Benoit Aigouy'
 __NAME__ = 'EPySeg'
 __EMAIL__ = 'baigouy@gmail.com'
-
 
 class EPySeg(QWidget):
     '''a deep learning GUI
@@ -105,12 +105,14 @@ class EPySeg(QWidget):
         self.tabs.setTabEnabled(1, False)  # only activate when model is compiled
         self.tabs.addTab(self.predict_tab, 'Predict')
         self.tabs.setTabEnabled(2, False)  # only activate when model is compiled
-        # self.tabs.addTab(self.ensemble_tab, 'Ensemble')  # To combine several outputs/models to improve seg quality
+        self.tabs.addTab(self.ensemble_tab, 'Ensemble')  # To combine several outputs/models to improve seg quality
         self.tabs.setTabEnabled(3, False)
-        self.ensemble_tab.setVisible(False)
+        # self.ensemble_tab.setVisible(False)
+        # self.ensemble_tab.setEnabled(False)
+        # self.tabs.addTab(self.ensemble_tab, 'Ensemble')
+        # self.tabs.setTabEnabled(4, False)
+        # self.advanced_tab.setVisible(False)
         # self.tabs.addTab(self.advanced_tab, 'Advanced')  # mutate model, feeze, 3D, ... TODO
-        self.tabs.setTabEnabled(4, False)
-        self.advanced_tab.setVisible(False)
         # self.tabs.setVisible(False)
         # self.tabs.addTab(self.post_process, 'Post Process') # redundant with predict
 
@@ -125,9 +127,9 @@ class EPySeg(QWidget):
         self.model_tab.layout.setVerticalSpacing(3)
 
         # choice between opening an existing model, building a new model or using a pretrained model
-        self.build_model_radio = QRadioButton('Build a new model')
-        self.load_model_radio = QRadioButton('Load an existing model')
-        self.model_pretrain_on_epithelia = QRadioButton('Use a pre-trained model (2D epithelial segmentation)')
+        self.build_model_radio = QRadioButton('Build a new model', objectName='build_model_radio')
+        self.load_model_radio = QRadioButton('Load an existing model', objectName='load_model_radio')
+        self.model_pretrain_on_epithelia = QRadioButton('Use a pre-trained model (2D epithelial segmentation)', objectName='model_pretrain_on_epithelia')
 
         # we add an help button
         self.help_button_models = QPushButton('?', None)
@@ -135,7 +137,7 @@ class EPySeg(QWidget):
         self.help_button_models.setMaximumWidth(bt_width * 2)
         self.help_button_models.clicked.connect(self.show_tip)
 
-        self.version_pretrained = QComboBox()
+        self.version_pretrained = QComboBox(objectName='version_pretrained')
         self.version_pretrained.addItem('v2')
         self.version_pretrained.addItem('v1')
         self.version_pretrained.setMaximumWidth(bt_width * 6)
@@ -153,10 +155,10 @@ class EPySeg(QWidget):
         # if 'open an existing model' is selected then provide path to the model
         self.input_model = OpenFileOrFolderWidget(parent_window=self, is_file=True,
                                                   extensions="Supported Files (*.h5 *.H5 *.hdf5 *.HDF5 *.json *.JSON *.model);;All Files (*)",
-                                                  tip_text='Drag and drop a single model file here')
+                                                  tip_text='Drag and drop a single model file here', objectName='input_model')
 
         # parameters for the pretrained models
-        self.groupBox_pretrain = QGroupBox('Model')
+        self.groupBox_pretrain = QGroupBox('Model',objectName='groupBox_pretrain')
         self.groupBox_pretrain.setEnabled(True)
         # groupBox layout
         self.groupBox_pretrain_layout = QGridLayout()
@@ -194,8 +196,8 @@ class EPySeg(QWidget):
         self.groupBox_pretrain.setLayout(self.groupBox_pretrain_layout)
 
         # parameters for the model
-        self.groupBox = QGroupBox('Model parameters')
-        self.groupBox.setEnabled(False)
+        self.groupBox_model_parameters = QGroupBox('Model parameters', objectName='groupBox_model_parameters')
+        self.groupBox_model_parameters.setEnabled(False)
         self.input_model.setEnabled(False)
 
         # enable the right input according to mode
@@ -213,7 +215,7 @@ class EPySeg(QWidget):
 
         # Architecture
         model_architecture_label = QLabel('Architecture')
-        self.model_architecture = QComboBox()
+        self.model_architecture = QComboBox(objectName='model_architecture')
         for method in EZDeepLearning.available_model_architectures:
             self.model_architecture.addItem(method)
         # set linknet by default
@@ -229,7 +231,7 @@ class EPySeg(QWidget):
 
         # backbone/encoder
         model_backbone_label = QLabel('Backbone')
-        self.model_backbones = QComboBox()
+        self.model_backbones = QComboBox(objectName='model_backbones')
         for backbone in EZDeepLearning.available_sm_backbones:
             self.model_backbones.addItem(backbone)
         # set vgg16 by default as it is more memory friendly than vgg19
@@ -243,13 +245,13 @@ class EPySeg(QWidget):
 
         # last layer activation
         model_activation_label = QLabel('Activation (last layer)')
-        self.model_last_layer_activation = QComboBox()
+        self.model_last_layer_activation = QComboBox(objectName='model_last_layer_activation')
         for activation in EZDeepLearning.last_layer_activation:
             self.model_last_layer_activation.addItem(activation)
 
         # model input width
         model_width_label = QLabel('Input width (0 = None = Any size) (optional)')
-        self.model_width = QSpinBox()
+        self.model_width = QSpinBox(objectName='model_width')
         self.model_width.setSingleStep(1)
         self.model_width.setRange(0, 100_000)  # 100_000 makes no sense (oom) but anyway
         self.model_width.setValue(0)
@@ -257,21 +259,21 @@ class EPySeg(QWidget):
         # TODO could be useful to find closest multiple of a value
         # model input height
         model_height_label = QLabel('Input height (0 = None = Any size) (optional)')
-        self.model_height = QSpinBox()
+        self.model_height = QSpinBox(objectName='model_height')
         self.model_height.setSingleStep(1)
         self.model_height.setRange(0, 100_000)  # 100_000 makes no sense (oom) but anyway
         self.model_height.setValue(0)
 
         # model input nb of channels
         model_channels_label = QLabel('Input channels (1 for gray, 3 for RGB images)')
-        self.model_channels = QSpinBox()
+        self.model_channels = QSpinBox(objectName='model_channels')
         self.model_channels.setSingleStep(1)
         self.model_channels.setRange(1, 100_000)  # 100_000 makes no sense (oom) but anyway
         self.model_channels.setValue(1)
 
         # nb of classes/indepent semantic segmentations
         model_nb_classes_label = QLabel('Number of classes to predict (output nb of channels)')
-        self.nb_classes = QSpinBox()
+        self.nb_classes = QSpinBox(objectName='nb_classes')
         self.nb_classes.setSingleStep(1)
         self.nb_classes.setRange(1, 1_000_000)  # nb 1000 would already be a lot but anyway...
         self.nb_classes.setValue(1)
@@ -282,7 +284,7 @@ class EPySeg(QWidget):
 
         # parameters for the model
         # model weights optional
-        groupBox_weights = QGroupBox('Model weights (can be optional)')
+        groupBox_weights = QGroupBox('Model weights (can be optional)', objectName='groupBox_weights')
         # groupBox_weights.setToolTip('this is a test of your system')
         groupBox_weights.setEnabled(True)
 
@@ -297,7 +299,7 @@ class EPySeg(QWidget):
         self.input_weights = OpenFileOrFolderWidget(parent_window=self, label_text='Load weights',
                                                     is_file=True,
                                                     extensions="Supported Files (*.h5 *.H5 *.hdf5 *.HDF5);;All Files (*)",
-                                                    tip_text='Drag and drop a single weight file here')  # TODO shall i add *.model ???
+                                                    tip_text='Drag and drop a single weight file here', objectName='input_weights')  # TODO shall i add *.model ???
 
         self.help_button_input_weights = QPushButton('?', None)
         self.help_button_input_weights.setMaximumWidth(bt_width * 2)
@@ -319,7 +321,7 @@ class EPySeg(QWidget):
         self.model_builder_layout.addWidget(model_nb_classes_label)
         self.model_builder_layout.addWidget(self.nb_classes)
         self.model_builder_layout.addWidget(self.help_button_build_model, 3, 8, 1, 8)
-        self.groupBox.setLayout(self.model_builder_layout)
+        self.groupBox_model_parameters.setLayout(self.model_builder_layout)
 
         # line separator
         line_sep_model = QFrame()
@@ -338,7 +340,7 @@ class EPySeg(QWidget):
         # self.model_tab.layout.addLayout(combo_hlayout, 0, 0, 1, 2)
         self.model_tab.layout.addWidget(self.groupBox_pretrain, 1, 0, 1, 2)
         # self.model_tab.layout.addWidget(self.input_model, 2, 0, 1, 2)
-        self.model_tab.layout.addWidget(self.groupBox, 3, 0, 1, 2)
+        self.model_tab.layout.addWidget(self.groupBox_model_parameters, 3, 0, 1, 2)
 
         groupBox_weights_layout.addWidget(self.input_weights, 0, 0, 1, 2)
         groupBox_weights_layout.addWidget(self.help_button_input_weights, 0, 2, 1, 2)
@@ -358,7 +360,7 @@ class EPySeg(QWidget):
         self.train_tab.layout.setVerticalSpacing(3)
 
         # model compilation parameters
-        self.groupBox_compile = QGroupBox('Compile/recompile model')
+        self.groupBox_compile = QGroupBox('Compile/recompile model',objectName='groupBox_compile')
         self.groupBox_compile.setCheckable(True)
         self.groupBox_compile.setChecked(False)
         self.groupBox_compile.setEnabled(True)
@@ -384,16 +386,16 @@ class EPySeg(QWidget):
         # optimizer (gradient descent algortithm)
         optimizer_label = QLabel('Optimizer')
         # put this in a group and deactivate it if model is already compiled ... or offer recompile...
-        self.model_optimizers = QComboBox()
+        self.model_optimizers = QComboBox(objectName='model_optimizers')
         for optimizer in EZDeepLearning.optimizers:
             self.model_optimizers.addItem(optimizer)
 
-        self.default_lr_checkbox = QCheckBox('Default optimizer learning rate')
+        self.default_lr_checkbox = QCheckBox('Default optimizer learning rate', objectName='default_lr_checkbox')
         # connect this to the
         self.default_lr_checkbox.setChecked(True)
         self.default_lr_checkbox.stateChanged.connect(self._learning_rate_changed)
         # TODO connect that in order to do learning rate
-        self.learning_rate_spin = QDoubleSpinBox()
+        self.learning_rate_spin = QDoubleSpinBox(objectName='learning_rate_spin')
         self.learning_rate_spin.setDecimals(10)  # required to see decimals
         self.learning_rate_spin.setSingleStep(0.0001)
         self.learning_rate_spin.setRange(0.0000000001,
@@ -409,7 +411,7 @@ class EPySeg(QWidget):
 
         # loss used to update weights (determines how well the model fits the data)
         loss_label = QLabel('Loss')
-        self.model_loss = QComboBox()
+        self.model_loss = QComboBox(objectName='model_loss')
         for l in EZDeepLearning.loss:
             self.model_loss.addItem(l)
 
@@ -419,7 +421,7 @@ class EPySeg(QWidget):
 
         # metrics: measures how well the model fits the data (not used for backprop)
         metrics_label = QLabel('Metrics')
-        self.model_metrics = QComboBox()
+        self.model_metrics = QComboBox(objectName='model_metrics')
         for metric in EZDeepLearning.metrics:
             self.model_metrics.addItem(metric)
 
@@ -446,7 +448,8 @@ class EPySeg(QWidget):
 
         # ask user where models should be saved
         self.output_models_to = OpenFileOrFolderWidget(parent_window=self, label_text='Output models to',
-                                                       tip_text='Drag and drop a single folder here')
+                                                       tip_text='Drag and drop a single folder here',
+                                                       objectName='output_models_to')
         from os.path import expanduser
         home = expanduser('~')
         home = os.path.join(home, 'trained_models/')
@@ -457,7 +460,7 @@ class EPySeg(QWidget):
         # self.encoder_freeze.setChecked(False)
         # self.encoder_freeze.setEnabled(False)  # coming soon
 
-        self.groupBox_training = QGroupBox('Training parameters')
+        self.groupBox_training = QGroupBox('Training parameters',objectName='groupBox_training')
         self.groupBox_training.setEnabled(True)
 
         # model compilation groupBox layout
@@ -470,33 +473,33 @@ class EPySeg(QWidget):
 
         # nb of epochs
         nb_epochs_label = QLabel('Epochs')
-        self.nb_epochs = QSpinBox()
+        self.nb_epochs = QSpinBox(objectName='nb_epochs')
         self.nb_epochs.setSingleStep(1)
         self.nb_epochs.setRange(0, 1_000_000)  # 1_000_000 makes no sense but anyway
         self.nb_epochs.setValue(100)
 
         # steps per epoch
         steps_per_epoch_label = QLabel('Steps per epoch (-1 = fullset)')
-        self.steps_per_epoch = QSpinBox()
+        self.steps_per_epoch = QSpinBox(objectName='steps_per_epoch')
         self.steps_per_epoch.setSingleStep(1)
         self.steps_per_epoch.setRange(-1, 1_000_000)  # 1_000_000 makes no sense but anyway
         self.steps_per_epoch.setValue(-1)
 
-        self.shuffle_datasets = QCheckBox('Shuffle training sets')
+        self.shuffle_datasets = QCheckBox('Shuffle training sets', objectName='shuffle_datasets')
         self.shuffle_datasets.setChecked(True)
 
         # batch size
         bs_label = QLabel('Batch size (bs)')
-        self.bs = QSpinBox()
+        self.bs = QSpinBox(objectName='bs')
         self.bs.setSingleStep(1)
         self.bs.setRange(1, 1_000_000)  # 1_000_000 makes no sense but anyway
         self.bs.setValue(16)
-        self.bs_checkbox = QCheckBox('Auto reduce bs on OOM (recommended!)')
+        self.bs_checkbox = QCheckBox('Auto reduce bs on OOM (recommended!)', objectName='bs_checkbox')
         self.bs_checkbox.setChecked(True)
 
         # keep n best models
         keep_n_best_models_label = QLabel('Keep')
-        self.keep_n_best_models = QSpinBox()
+        self.keep_n_best_models = QSpinBox(objectName='keep_n_best_models')
         self.keep_n_best_models.setSingleStep(1)
         self.keep_n_best_models.setRange(-1, 100)
         self.keep_n_best_models.setValue(5)
@@ -508,21 +511,21 @@ class EPySeg(QWidget):
 
         # load best or last model once training is completed or when 'stop asap' is pressed
         load_model_upon_completion_of_training = QLabel('Upon completion of training, load the')
-        self.load_best_model_upon_completion = QRadioButton('best model')
-        self.load_last_model_upon_completion = QRadioButton('last model')
+        self.load_best_model_upon_completion = QRadioButton('best model', objectName='load_best_model_upon_completion')
+        self.load_last_model_upon_completion = QRadioButton('last model', objectName='load_last_model_upon_completion')
         best_or_last_radio_group = QButtonGroup()
         best_or_last_radio_group.addButton(self.load_best_model_upon_completion)
         best_or_last_radio_group.addButton(self.load_last_model_upon_completion)
         self.load_best_model_upon_completion.setChecked(True)
 
         # offer reduce LR on plateau
-        self.reduce_lr_on_plateau_checkbox = QCheckBox('Reduce learning rate (lr) on plateau')
+        self.reduce_lr_on_plateau_checkbox = QCheckBox('Reduce learning rate (lr) on plateau', objectName='reduce_lr_on_plateau_checkbox')
         self.reduce_lr_on_plateau_checkbox.setChecked(False)
         self.reduce_lr_on_plateau_checkbox.stateChanged.connect(self._reduce_lr_on_plateau_changed)
 
         self.reduce_lr_on_plateau_label = QLabel('factor (e.g. 0.5 means reduce lr by a factor 2)')
         self.reduce_lr_on_plateau_label.setEnabled(False)
-        self.reduce_lr_on_plateau_spinbox = QDoubleSpinBox()
+        self.reduce_lr_on_plateau_spinbox = QDoubleSpinBox(objectName='reduce_lr_on_plateau_spinbox')
         self.reduce_lr_on_plateau_spinbox.setEnabled(False)
         self.reduce_lr_on_plateau_spinbox.setDecimals(2)
         self.reduce_lr_on_plateau_spinbox.setSingleStep(0.01)
@@ -531,7 +534,7 @@ class EPySeg(QWidget):
 
         self.patience_label = QLabel('Patience')
         self.patience_label.setEnabled(False)
-        self.patience_spinbox = QSpinBox()
+        self.patience_spinbox = QSpinBox(objectName='patience_spinbox')
         self.patience_spinbox.setEnabled(False)
         self.patience_spinbox.setSingleStep(1)
         self.patience_spinbox.setRange(2, 1000)
@@ -539,7 +542,7 @@ class EPySeg(QWidget):
 
         train_validation_split_label = QLabel('Validation split (please keep this % low or null)')
 
-        self.validation_split = QSpinBox()
+        self.validation_split = QSpinBox(objectName='validation_split')
         self.validation_split.setSingleStep(1)
         self.validation_split.setRange(0, 100)
         self.validation_split.setValue(0)
@@ -550,7 +553,7 @@ class EPySeg(QWidget):
         self.help_button_train_parameters.clicked.connect(self.show_tip)
 
         # Tiling parameters
-        self.groupBox_tiling = QGroupBox('Tiling')
+        self.groupBox_tiling = QGroupBox('Tiling',objectName='groupBox_tiling')
         self.groupBox_tiling.setEnabled(True)
 
         # model compilation groupBox layout
@@ -562,12 +565,12 @@ class EPySeg(QWidget):
         groupBox_tiling_layout.setVerticalSpacing(3)
 
         default_tile_width_label = QLabel('Default tile width')
-        self.tile_width = QSpinBox()
+        self.tile_width = QSpinBox(objectName='tile_width')
         self.tile_width.setSingleStep(1)
         self.tile_width.setRange(8, 1_000_000)  # 1_000_000 makes no sense but anyway
         self.tile_width.setValue(256)  # 128 could also be a good default value also
         default_tile_height_label = QLabel('Default tile height')
-        self.tile_height = QSpinBox()
+        self.tile_height = QSpinBox(objectName='tile_height')
         self.tile_height.setSingleStep(1)
         self.tile_height.setRange(8, 1_000_000)  # 1_000_000 makes no sense but anyway
         self.tile_height.setValue(256)  # 128 could also be a good default value also
@@ -579,7 +582,7 @@ class EPySeg(QWidget):
         # TODO ALSO handle TA architecture of files --> can maybe add that all is ok if TA mode or put TA mode detected
 
         # request user for its training sets
-        self.groupBox_training_dataset = QGroupBox('Training datasets')
+        self.groupBox_training_dataset = QGroupBox('Training datasets',objectName='groupBox_training_dataset')
         self.groupBox_training_dataset.setEnabled(True)
 
         # model compilation groupBox layout
@@ -607,7 +610,7 @@ class EPySeg(QWidget):
         self.help_button_dataset.clicked.connect(self.show_tip)
 
         # request user for its training sets
-        self.groupBox_data_aug = QGroupBox('Data augmentation')
+        self.groupBox_data_aug = QGroupBox('Data augmentation',objectName='groupBox_data_aug')
         self.groupBox_data_aug.setEnabled(True)
 
         # model compilation groupBox layout
@@ -636,7 +639,7 @@ class EPySeg(QWidget):
         self.help_button_dataaug.clicked.connect(self.show_tip)
 
         self.rotate_n_flip_independently_of_augmentation_checkbox = QCheckBox(
-            'Rotate (interpolation free) and flip randomly the augmented output')
+            'Rotate (interpolation free) and flip randomly the augmented output', objectName='rotate_n_flip_independently_of_augmentation_checkbox')
         self.rotate_n_flip_independently_of_augmentation_checkbox.setChecked(
             True)  # good idea to have it checked by default I guess --> would probably increase robustness of the model
         # TODO should I apply that to the test and val data or not ??? --> think about it
@@ -706,7 +709,7 @@ class EPySeg(QWidget):
         self.train_tab.layout.addWidget(self.groupBox_tiling, 9, 0, 1, 3)
 
         # THIS IS NOT REALLY BEAUTIFUL SHOULD UNPACK STUFF BUT OK FOR NOW --> WASTE TIME MAKING IT APPEAR NICER WHEN ALL IS DONE AND I HAVE NOTHING ELSE TO DO
-        self.groupBox_input_output_normalization_method = QGroupBox('Normalization')
+        self.groupBox_input_output_normalization_method = QGroupBox('Normalization',objectName='groupBox_input_output_normalization_method')
         self.groupBox_input_output_normalization_method.setEnabled(True)
         groupBox_input_output_normalization_method_layout = QGridLayout()
         groupBox_input_output_normalization_method_layout.setAlignment(Qt.AlignTop)
@@ -714,7 +717,7 @@ class EPySeg(QWidget):
 
         self.input_output_normalization_method = image_input_settings(parent_window=self,
                                                                       show_normalization=True,
-                                                                      show_preview=False)
+                                                                      show_preview=False, objectName='input_output_normalization_method')
         # help for image normalization
         # self.help_button_img_norm_train = QPushButton(help_ico, None)
         # self.help_button_img_norm_train.clicked.connect(self.show_tip)
@@ -789,7 +792,8 @@ class EPySeg(QWidget):
                                                                   show_HQ_settings=True,
                                                                   show_run_post_process=True,
                                                                   allow_bg_subtraction=True,
-                                                                  show_preprocessing=True)
+                                                                  show_preprocessing=True,
+                                                                  objectName='set_custom_predict_parameters')
         # by default we set bg sub to dark
         # self.set_custom_predict_parameters.bg_removal.setCurrentIndex(2)
 
@@ -812,6 +816,47 @@ class EPySeg(QWidget):
         self.predict_tab.layout.addWidget(self.predict, 9, 0)
         self.predict_tab.layout.addWidget(self.stop2, 9, 1)
         self.predict_tab.setLayout(self.predict_tab.layout)
+
+        # Train tab
+        self.ensemble_tab.layout = QGridLayout()
+        self.ensemble_tab.layout.setAlignment(Qt.AlignTop)
+        # self.ensemble_tab.layout.setColumnStretch(0, 25)
+        # self.ensemble_tab.layout.setColumnStretch(1, 75)
+        # self.ensemble_tab.layout.setRowStretch(0,30)
+        self.ensemble_tab.layout.setHorizontalSpacing(3)
+        self.ensemble_tab.layout.setVerticalSpacing(3)
+
+
+        self.ensemble_models =  Ensemble_Models_Loader()
+
+        # need a plus button to add new models and put it or can put five models for now probably enough and easier to code
+        # self.add_model_to_ensemble = QPushButton('+')
+        # self.add_model_to_ensemble.clicked.connect(self._add_model_to_ensemble)
+        #
+        # # model compilation parameters
+        # self.groupBox_ensemble_models = QGroupBox('Ensemble models')
+        # self.groupBox_ensemble_models.setEnabled(True)
+        #
+        # groupBox_ensemble_models_layout = QGridLayout()
+        # groupBox_ensemble_models_layout.setAlignment(Qt.AlignTop)
+        # # groupBox_ensemble_models_layout.setColumnStretch(0, 3)
+        # # groupBox_ensemble_models_layout.setColumnStretch(1, 94)
+        # # groupBox_ensemble_models_layout.setColumnStretch(2, 1)
+        # # groupBox_ensemble_models_layout.setColumnStretch(3, 1)
+        # # groupBox_ensemble_models_layout.setColumnStretch(4, 1)
+        # groupBox_ensemble_models_layout.setHorizontalSpacing(3)
+        # groupBox_ensemble_models_layout.setVerticalSpacing(3)
+        # # put a dialog to embed
+        #
+        # # groupBox_compile_layout.addWidget(optimizer_label, 0, 0)
+        # self.groupBox_ensemble_models.setLayout(groupBox_ensemble_models_layout)
+        #
+        # # self.train_tab.layout.addWidget(self.force_recompile, 0, 0, 1, 3)
+        # self.ensemble_tab.layout.addWidget(self.groupBox_ensemble_models, 1, 0, 1, 2)
+        self.ensemble_tab.layout.addWidget(self.ensemble_models, 0, 0, 1, 3)
+
+        self.ensemble_tab.setLayout(self.ensemble_tab.layout)
+
 
         # post process tab # removed because redundant with predict
         # self.post_process.layout = QGridLayout()
@@ -867,7 +912,7 @@ class EPySeg(QWidget):
         log_and_main_layout.setAlignment(Qt.AlignTop)
 
         # TODO put this in a group to get the stuff
-        log_groupBox = QGroupBox('Log')
+        log_groupBox = QGroupBox('Log',objectName='log_groupBox')
         log_groupBox.setEnabled(True)
 
         help = PyQT_markdown()
@@ -897,10 +942,14 @@ class EPySeg(QWidget):
 
         # Initialize tab screen
         self.help_tabs = QTabWidget(self)
-        self.help_tabs.setMinimumWidth(500)
+        self.help_tabs.setMinimumWidth(250)
         self.log_tab = QWidget()
         self.help_html_tab = QWidget()
         self.settings_GUI = QWidget()
+
+        #make default GUI size smaller to allow better resize on small screens # quick hack for bug
+        self.tabs.setMinimumWidth(500)
+        self.tabs.setMinimumHeight(750)
 
         # Add tabs
         self.help_tabs.addTab(self.log_tab, 'Log')
@@ -925,10 +974,10 @@ class EPySeg(QWidget):
         self.help_html_tab.layout.addWidget(help)
         self.help_html_tab.setLayout(self.help_html_tab.layout)
 
-        self.enable_threading_check = QCheckBox('Threading enable/disable')
+        self.enable_threading_check = QCheckBox('Threading enable/disable', objectName='enable_threading_check')
         self.enable_threading_check.setChecked(True)
         self.enable_threading_check.stateChanged.connect(self._set_threading)
-        self.enable_debug = QCheckBox('Debug mode')
+        self.enable_debug = QCheckBox('Debug mode', objectName='enable_debug') # should I really save this ???
         self.enable_debug.setChecked(False)
         self.enable_debug.stateChanged.connect(self._enable_debug)
 
@@ -978,6 +1027,10 @@ class EPySeg(QWidget):
         format.setForeground(QColor(0, 0, 0))  # black
         self.logger_console.setCurrentCharFormat(format)
         self.logger_console.insertPlainText(text)
+
+    def _add_model_to_ensemble(self):
+        # TODO
+        pass
 
     #
     # def mouseMoveEvent(self, event):
@@ -1099,28 +1152,28 @@ class EPySeg(QWidget):
 
         return self.model_parameters
 
-    def get_post_process_parameters(self):
-        '''Get the parameters for model training
-
-        Returns
-        -------
-        dict
-            containing training parameters
-
-        '''
-
-        # TODO fix it that it really gets the parameters and do not save as predict but as a different name ??? or keep indeed predict as a name
-        self.post_process_parameters = self.set_custom_post_process.get_parameters_directly()
-        if 'inputs' in self.post_process_parameters:
-            self.post_process_parameters['input'] = self.post_process_parameters['inputs'][0]
-        if 'predict_output_folder' in self.post_process_parameters:
-            self.post_process_parameters['output_folder'] = self.post_process_parameters['predict_output_folder']
-        self.post_process_parameters.update(self.groupBox_post_process.get_parameters_directly())
-
-        if DEBUG:
-            print('post proc params', self.post_process_parameters)
-
-        return self.post_process_parameters
+    # def get_post_process_parameters(self):
+    #     '''Get the parameters for model training
+    #
+    #     Returns
+    #     -------
+    #     dict
+    #         containing training parameters
+    #
+    #     '''
+    #
+    #     # TODO fix it that it really gets the parameters and do not save as predict but as a different name ??? or keep indeed predict as a name
+    #     self.post_process_parameters = self.set_custom_post_process.get_parameters_directly()
+    #     if 'inputs' in self.post_process_parameters:
+    #         self.post_process_parameters['input'] = self.post_process_parameters['inputs'][0]
+    #     if 'predict_output_folder' in self.post_process_parameters:
+    #         self.post_process_parameters['output_folder'] = self.post_process_parameters['predict_output_folder']
+    #     self.post_process_parameters.update(self.groupBox_post_process.get_parameters_directly())
+    #
+    #     if DEBUG:
+    #         print('post proc params', self.post_process_parameters)
+    #
+    #     return self.post_process_parameters
 
     def get_train_parameters(self):
         '''Get the parameters for model training
@@ -1277,7 +1330,7 @@ class EPySeg(QWidget):
 
     # also upon model check just see if I have the corresponding model and architecture present
     def _load_or_build_model_settings(self):
-        self.groupBox.setEnabled(self.build_model_radio.isChecked())
+        self.groupBox_model_parameters.setEnabled(self.build_model_radio.isChecked())
         self.input_model.setEnabled(self.load_model_radio.isChecked())
         # self.groupBox_pretrain.setEnabled(self.model_pretrain_on_epithelia.isChecked())
         # enable load weights if load model or if no epithelial training is checked
@@ -1514,7 +1567,7 @@ class EPySeg(QWidget):
                                                                 show_preview=True,
                                                                 model_inputs=self.deepTA.get_inputs_shape(),
                                                                 model_outputs=self.deepTA.get_outputs_shape(),
-                                                                show_HQ_settings=False)
+                                                                show_HQ_settings=False) # is not to be saved so no need for setting object name
 
         if ok:
             item = QListWidgetItem(str(augment), self.list_datasets)

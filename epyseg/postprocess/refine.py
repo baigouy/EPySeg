@@ -612,7 +612,7 @@ class EPySegPostProcess():
             if _DEBUG:
                 print('final duration wshed in secs', duration)
 
-            return final_wshed.astype(np.uint8)
+            return final_wshed.astype(np.uint8)  # is indeed a 2D image
 
     def rect_distance(self, bbox1, bbox2):
         width1 = abs(bbox1[3] - bbox1[1])

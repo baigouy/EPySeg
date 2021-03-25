@@ -523,4 +523,4 @@ if __name__ == '__main__':
     test.setToWidth(512)
     print(test.boundingRect())
 
-    test2 = VectorGraphics2D('/media/D/Sample_images/sample_images_svg/cartman.svg', x=12, y=0, width=100, height=100)
+    test2 = VectorGraphics2D('/D/Sample_images/sample_images_svg/cartman.svg', x=12, y=0, width=100, height=100)

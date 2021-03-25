@@ -1,5 +1,4 @@
 import os
-from epyseg.deeplearning.docs.doc2html import browse_tip, markdown_file_to_html
 
 os.environ['SM_FRAMEWORK'] = 'tf.keras'  # set env var for changing the segmentation_model framework
 import sys
@@ -165,6 +164,7 @@ class DeepTools(QWidget):
         self.model_tab.layout.setVerticalSpacing(3)
 
 
+        # should I allow this to be stored in config file, probably not...
         self.input_model = OpenFileOrFolderWidget(parent_window=self, label_text='Load model',is_file=True,
                                                   extensions="Supported Files (*.h5 *.H5 *.hdf5 *.HDF5 *.json *.JSON *.model);;All Files (*)",
                                                   tip_text='Drag and drop a model file here')
@@ -175,7 +175,7 @@ class DeepTools(QWidget):
                                                     tip_text='Drag and drop a single weight file here')  # TODO shall i add *.model ???
 
         # parameters for the pretrained models
-        self.groupBox_pretrain = QGroupBox('Model')
+        self.groupBox_pretrain = QGroupBox('Model',objectName='groupBox_pretrain')
         self.groupBox_pretrain.setEnabled(True)
         # groupBox layout
         self.groupBox_pretrain_layout = QGridLayout()
@@ -203,7 +203,7 @@ class DeepTools(QWidget):
         log_and_main_layout.setAlignment(Qt.AlignTop)
 
         # TODO put this in a group to get the stuff
-        log_groupBox = QGroupBox('Log')
+        log_groupBox = QGroupBox('Log',objectName='log_groupBox')
         log_groupBox.setEnabled(True)
 
         help = PyQT_markdown()
@@ -262,10 +262,10 @@ class DeepTools(QWidget):
         self.help_html_tab.layout.addWidget(help)
         self.help_html_tab.setLayout(self.help_html_tab.layout)
 
-        self.enable_threading_check = QCheckBox('Threading enable/disable')
+        self.enable_threading_check = QCheckBox('Threading enable/disable',objectName='enable_threading_check')
         self.enable_threading_check.setChecked(True)
         # self.enable_threading_check.stateChanged.connect(self._set_threading)
-        self.enable_debug = QCheckBox('Debug mode')
+        self.enable_debug = QCheckBox('Debug mode', objectName='enable_debug')
         self.enable_debug.setChecked(False)
         self.enable_debug.stateChanged.connect(self._enable_debug)
 

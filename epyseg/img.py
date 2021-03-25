@@ -1,3 +1,14 @@
+# TODO maybe handle conversions using scipy
+# img_as_float
+# Convert to 64-bit floating point.
+# img_as_ubyte
+# Convert to 8-bit uint.
+# img_as_uint
+# Convert to 16-bit uint.
+# img_as_int
+# Convert to 16-bit int.
+
+# TODO allow add or remove ROIs --> create IJ compatible ROIs... --> in a way that is simpler than the crop I was proposing --> think about how to implement that
 # logging
 
 from epyseg.tools.logger import TA_logger
@@ -31,6 +42,7 @@ from skimage.morphology import white_tophat, black_tophat, disk
 from skimage.morphology import square, ball, diamond, octahedron, rectangle
 
 
+
 # for future development
 # np = None
 # try:
@@ -38,6 +50,101 @@ from skimage.morphology import square, ball, diamond, octahedron, rectangle
 # except:
 #     np = __import__('numpy')
 
+def RGB_to_int24(RGBimg):
+    RGB24 = (RGBimg[..., 0].astype(np.uint32) << 16) | (RGBimg[..., 1].astype(np.uint32) << 8) | RGBimg[..., 2].astype(
+        np.uint32)
+    return RGB24
+
+def int24_to_RGB(RGB24):
+    RGBimg = np.zeros(shape=(*RGB24.shape, 3), dtype=np.uint8)
+    for c in range(RGBimg.shape[-1]):
+        RGBimg[..., c] = (RGB24 >> ((RGBimg.shape[-1] - c - 1) * 8)) & 0xFF
+    return RGBimg
+
+# work in progress please don't use
+# marche mais sombre --> faudrait plutot du alphacomposite, je pense que c'est plus ce que je veux
+# TODO maybe also use a mask --> for example exclude all black/0 bg pixels
+# belnded = __create_composite(bg,fg,0.1)
+# pas mal mais aussi essayer composite
+def __create_composite(background, foreground, mask, alpha=0.3):
+
+    # print(background.shape, background.dtype)
+    # print(foreground.shape, foreground.dtype)
+
+    # to blend the images need be single channels
+    bg = background
+    if not isinstance(bg, Image.Image):
+        if bg.dtype == np.dtype(np.float32):
+            
+            # there is a bug in normalization or in image as ubyte --> because the final image is almost completely blaxk
+            bg = Img.normalization(bg, method='Rescaling (min-max normalization)', range=[0,1], clip=True)
+
+            # Img(bg, dimensions='hw').save('/D/Sample_images/segmentation_assistant/ovipo_uncropped/trash_me_norm.tif')
+            #
+            # print(bg.dtype, bg.max(), bg.min()) # there is a bug there --> need fix it rapidly
+
+            # bg = img_as_ubyte(bg) --> bug here the conversion is terrible all signal is lost --> do it manually
+            bg = (bg*255).astype(np.uint8)
+
+
+            # print(bg.shape, bg.dtype, bg.max(), bg.min())
+
+
+            # why is that all black ???
+            # Img(bg, dimensions='hw').save('/D/Sample_images/segmentation_assistant/ovipo_uncropped/trash_me.tif')
+
+
+        #     bg = (bg/bg.max())*255
+        #     bg = bg.astype(np.uint8) # dirty ... do that better --> TODO
+        bg = Image.fromarray(bg)
+
+        # bg.show()
+
+    fg = foreground
+    if not isinstance(fg, Image.Image):
+        if fg.dtype == np.dtype(np.float32):
+            fg = Img.normalization(fg, method='Rescaling (min-max normalization)', range=[0, 1], clip=True)
+            fg = (fg * 255).astype(np.uint8)
+            # fg = img_as_ubyte(fg)
+        #     fg = (fg/fg.max())*255
+        #     fg = fg.astype(np.uint8) # dirty ... do that better --> TODO
+        fg = Image.fromarray(fg)
+
+    # TODO also try composite because that maybe what I want to have in fact
+    # Image.composite
+    # Image.alpha_composite --> maybe exactly what I want or code my own version in pure numpy --> that would be useful
+    # https://pillow.readthedocs.io/en/stable/reference/Image.html#PIL.Image.Image.convert
+
+
+    # print('bg.mode',bg.mode)
+    # print('fg.mode',fg.mode)
+
+    # Image.convert
+    if bg.mode != fg.mode:
+        # images are incompatible --> need convert one or the other to the other type
+        if bg.mode == 'RGB' or fg.mode == 'RGB':
+            if bg.mode == 'L' or bg.mode == 'F':
+                bg = bg.convert(mode="RGB")
+                # print('bg.mode', bg.mode)
+            if fg.mode == 'L' or fg.mode == 'F':
+                fg = fg.convert(mode="RGB")
+
+    # composite fraction assume 8 bits?
+    bg.putalpha(255)
+    fg.putalpha(int(alpha*255))
+
+    # print('bg.mode', bg.mode)
+    # print('fg.mode', fg.mode)
+
+    # result = Image.blend(bg,fg, alpha=alpha)
+    # result = Image.alpha_composite(bg,fg)
+
+    # NB mask need be a PIL image too --> all of this is so slow and so many conversions ...
+    if mask is not None:
+        result = Image.composite(bg,fg, mask) # ignore pure black pixels #TODO handle masks
+    else:
+        result = Image.alpha_composite(bg, fg)
+    return result # nb this is a PIL image --> do I want to make it directly as a numpy array ???
 
 # somehow tophat does not work for 3D but why ???
 def get_nb_of_series_in_lif(lif_file_name):
@@ -48,6 +155,62 @@ def get_nb_of_series_in_lif(lif_file_name):
     series = reader.getSeries()
     return len(series)
 
+
+# TODO maybe make one that does the same with ROIs ???
+# if return mask then I just return the mask with boolean and not the
+def mask_rows_or_columns(img, spacing_X=2, spacing_Y=None, masking_value=0, return_boolean_mask=False,
+                         initial_shiftX=0, initial_shiftY=0, random_start=False):  # , dimension_h=-2, dimension_w=-1
+
+    if isinstance(img, tuple):
+        mask = np.zeros(img, dtype=np.bool)
+    else:
+        mask = np.zeros(img.shape, dtype=np.bool)
+
+    if mask.ndim < 3:  # assume no channel so add one
+        mask = mask[..., np.newaxis]
+
+    if spacing_X is not None:
+        if spacing_X <= 1:
+            spacing_X = None
+    if spacing_Y is not None:
+        if spacing_Y <= 1:
+            spacing_Y = None
+
+    if initial_shiftX == 0 and initial_shiftY == 0 and random_start:
+        if spacing_X is not None:
+            initial_shiftX = random.randint(0, spacing_X)
+        if spacing_Y is not None:
+            initial_shiftY = random.randint(0, spacing_Y)
+
+    # assume all images are with a channel --> probably the best way to do things
+    for c in range(mask.shape[-1]):
+        if spacing_Y is not None:
+            if mask.ndim > 3:
+                mask[..., initial_shiftY::spacing_Y, :, c] = True
+            else:
+                mask[initial_shiftY::spacing_Y, :, c] = True
+        if spacing_X is not None:
+            mask[..., initial_shiftX::spacing_X, c] = True
+
+    if return_boolean_mask or isinstance(img, tuple):
+        return mask
+
+    if img.ndim < 3:  # assume no channel so add one
+        img = img[..., np.newaxis]
+
+    # apply mask to image
+    img[mask] = masking_value
+
+    return img
+
+
+# TODO in development --> code that better and check whether it keeps the intensity range or not
+def resize(img, new_size, order=1):
+    from skimage.transform import resize
+    img = resize(img, new_size, order=1)
+    return img
+
+
 # nb there seems to be a bug in white top hat --> infinite loop or bug ???
 def __top_hat(image, type='black', structuring_element=square(50), preserve_range=True):
     logger.debug('bg subtraction ' + str(type) + '_top_hat')
@@ -56,17 +219,18 @@ def __top_hat(image, type='black', structuring_element=square(50), preserve_rang
         # TODO NB will only work for tensorflow like images or maybe always load and treat images as in tensorflow by adding 1 for channel dimension even if has only one channel?? --> MAY MAKE SENSE
         # for some reason top hat does not work with 3D images --> why --> in fact that does work but if image is very noisy and filter is big then it does nothing
         if len(image.shape) == 4:
-            out = np.zeros_like(image)# , dtype=image.dtype
+            out = np.zeros_like(image)  # , dtype=image.dtype
             for zpos, zimg in enumerate(image):
                 for ch in range(zimg.shape[-1]):
-                    out[zpos, ..., ch] = __top_hat_single_channel__(zimg[..., ch],type=type,
+                    out[zpos, ..., ch] = __top_hat_single_channel__(zimg[..., ch], type=type,
                                                                     structuring_element=structuring_element,
                                                                     preserve_range=preserve_range)
             return out
         elif len(image.shape) == 3:
-            out = np.zeros_like(image) #, dtype=image.dtype
+            out = np.zeros_like(image)  # , dtype=image.dtype
             for ch in range(image.shape[-1]):
-                out[..., ch] = __top_hat_single_channel__(image[..., ch], type=type,structuring_element=structuring_element,
+                out[..., ch] = __top_hat_single_channel__(image[..., ch], type=type,
+                                                          structuring_element=structuring_element,
                                                           preserve_range=preserve_range)
             return out
         elif len(image.shape) == 2:
@@ -80,11 +244,14 @@ def __top_hat(image, type='black', structuring_element=square(50), preserve_rang
         traceback.print_exc()
         return image
 
+
 def black_top_hat(image, structuring_element=square(50), preserve_range=True):
     return __top_hat(image, type='black', structuring_element=structuring_element, preserve_range=preserve_range)
 
+
 def white_top_hat(image, structuring_element=square(50), preserve_range=True):
     return __top_hat(image, type='white', structuring_element=structuring_element, preserve_range=preserve_range)
+
 
 def __top_hat_single_channel__(single_channel_image, type, structuring_element=square(50), preserve_range=True):
     dtype = single_channel_image.dtype
@@ -101,12 +268,14 @@ def __top_hat_single_channel__(single_channel_image, type, structuring_element=s
         out = out.astype(dtype)
     return out
 
+
 class Img(np.ndarray):  # subclass ndarray
     background_removal = ['No', 'White bg', 'Dark bg']
     # see https://en.wikipedia.org/wiki/Feature_scaling
     normalization_methods = ['Rescaling (min-max normalization)', 'Standardization (Z-score Normalization)',
                              'Mean normalization', 'Max normalization (auto)', 'Max normalization (x/255)',
-                             'Max normalization (x/4095)', 'Max normalization (x/65535)', 'Rescaling based on defined lower and upper percentiles',
+                             'Max normalization (x/4095)', 'Max normalization (x/65535)',
+                             'Rescaling based on defined lower and upper percentiles',
                              'None']  # should I add vgg, etc for pretrained encoders ??? maybe put synonyms
     normalization_ranges = [[0, 1], [-1, 1]]
 
@@ -115,7 +284,7 @@ class Img(np.ndarray):  # subclass ndarray
     # TODO allow load list of images all specified as strings one by one
     # TODO allow virtual stack --> open only one image at a time from a series, can probably do that with text files
     def __new__(cls, *args, t=0, d=0, z=0, h=0, y=0, w=0, x=0, c=0, bits=8, serie_to_open=None, dimensions=None,
-                metadata=None, **kwargs):
+                metadata=None, **kwargs) -> object:
         '''Creates a new instance of the Img class
         
         The image class is a numpy ndarray. It is nothing but a matrix of pixel values.
@@ -151,11 +320,21 @@ class Img(np.ndarray):  # subclass ndarray
                      'AR': None,  # wh/depth ratio
                      'LUTs': None,  # lut
                      'cur_d': 0,  # current z/depth pos
-                     'cur_t': 0}  # current time
+                     'cur_t': 0,  # current time
+                     'Overlays': None,  # IJ overlays
+                     'ROI': None,  # IJ ROIs
+                     }
 
         if metadata is not None:
             # if user specified some metadata update them
             meta_data.update(metadata)
+        else:
+            # recover old metadata from original image # is that the correct way
+            if isinstance(args[0], Img):
+                try:
+                    meta_data.update(args[0].metadata)
+                except:
+                    pass
 
         if len(args) == 1:
             # case 1: Input array is an already an ndarray
@@ -164,8 +343,9 @@ class Img(np.ndarray):  # subclass ndarray
                 img.metadata = meta_data
                 if dimensions is not None:
                     img.metadata['dimensions'] = dimensions
+
             elif isinstance(args[0], str):
-                logger.debug('loading '+str(args[0]))
+                logger.debug('loading ' + str(args[0]))
                 # print('loading '+str(args[0]))
                 # input is a string, i.e. a link to one or several files
                 if '*' not in args[0]:
@@ -219,7 +399,8 @@ class Img(np.ndarray):  # subclass ndarray
 
         if img is None:
             # TODO do that better
-            logger.critical("Error, can't open image invalid arguments, file not supported or file does not exist...") # TODO be more precise
+            logger.critical(
+                "Error, can't open image invalid arguments, file not supported or file does not exist...")  # TODO be more precise
             return None
 
         return img
@@ -296,6 +477,20 @@ class Img(np.ndarray):  # subclass ndarray
         for d in self.metadata['dimensions']:
             dimension_parameters[d] = self.get_dimension(d)
         return dimension_parameters
+
+    def get_dim_idx(self, dim):
+        # force dimensions compatibility (e.g. use synonyms)
+        if dim == 'z':
+            dim = 'd'
+        elif dim == 'x':
+            dim = 'w'
+        elif dim == 'y':
+            dim = 'h'
+        elif dim == 'f':
+            dim = 't'
+        if not dim in self.metadata['dimensions']:
+            return None
+        return self.metadata['dimensions'].index(dim)
 
     # TODO code this better
     def pop(self, pause=1, lut='gray', interpolation=None, show_axis=False, preserve_AR=True):
@@ -639,7 +834,9 @@ class Img(np.ndarray):  # subclass ndarray
         if output_name is None:
             return
         output_folder, filename = os.path.split(output_name)
-        os.makedirs(output_folder, exist_ok=True)
+        # bug fix in case just a filename and no parent folder
+        if output_folder:
+            os.makedirs(output_folder, exist_ok=True)
 
     @staticmethod
     def img2Base64(img):
@@ -663,7 +860,8 @@ class Img(np.ndarray):  # subclass ndarray
             buf.close()
             return figdata_png
 
-    def save(self, output_name, print_file_name=False):
+    # mode can be IJ or raw --> if raw --> set IJ to false and save directly TODO clean the mode and mode is only for tif so far --> find a way to make it better and more optimal --> check also how mode would behave with z stacks, etc...
+    def save(self, output_name, print_file_name=False, ijmetadata='copy', mode='IJ'):
         '''saves the current image
 
         Parameters
@@ -682,33 +880,87 @@ class Img(np.ndarray):  # subclass ndarray
 
         # TODO maybe handle tif with stars in their name here to avoid loss of data but ok for now...
         if not '*' in output_name and (output_name.lower().endswith('.tif') or output_name.lower().endswith('.tiff')):
-            # create dir if does not exist
             self._create_dir(output_name)
-            out = self
-            # apparently int type is not supported by IJ
-            if out.dtype == np.int32:
-                out = out.astype(np.float32)  # TODO check if correct with real image but should be
-            if out.dtype == np.int64:
-                out = out.astype(np.float64)  # TODO check if correct with real image but should be
-            # IJ does not support bool type too
-            if out.dtype == np.bool:
-                out = out.astype(np.uint8) * 255
-            if out.dtype == np.double:
-                out = out.astype(np.float32)
-            if self.has_c():
-                if not self.has_d() and self.has_t():
-                    out = np.expand_dims(out, axis=-1)
-                    out = np.moveaxis(out, -1, 1)
-                out = np.moveaxis(out, -1, -3)
-                tifffile.imwrite(output_name, out, imagej=True)  # make the data compatible with IJ
+            if mode != 'IJ':  # TODO maybe do a TA mode or alike instead...
+                out = self
+                tifffile.imwrite(output_name, out)
             else:
-                if not self.has_d() and self.has_t():
-                    out = np.expand_dims(out, axis=-1)
-                    out = np.moveaxis(out, -1, 1)
-                out = np.expand_dims(out, axis=-1)
-                # reorder dimensions in the IJ order
-                out = np.moveaxis(out, -1, -3)
-                tifffile.imwrite(output_name, out, imagej=True)  # this is the way to get the data compatible with IJ
+                # create dir if does not exist
+                out = self
+                # apparently int type is not supported by IJ
+                if out.dtype == np.int32:
+                    out = out.astype(np.float32)  # TODO check if correct with real image but should be
+                if out.dtype == np.int64:
+                    out = out.astype(np.float64)  # TODO check if correct with real image but should be
+                # IJ does not support bool type too
+                if out.dtype == np.bool:
+                    out = out.astype(np.uint8) * 255
+                if out.dtype == np.double:
+                    out = out.astype(np.float32)
+                # if self.has_c():
+                #     if not self.has_d() and self.has_t():
+                #         out = np.expand_dims(out, axis=-1)
+                #         out = np.moveaxis(out, -1, 1)
+                #     out = np.moveaxis(out, -1, -3)
+                #     tifffile.imwrite(output_name, out, imagej=True)  # make the data compatible with IJ
+                # else:
+                #     # most likely a big bug here --> fix it --> if has d and no t does it create a bug ???? --> maybe
+                #     if not self.has_d() and self.has_t():
+                #         out = np.expand_dims(out, axis=-1)
+                #         out = np.moveaxis(out, -1, 1)
+                #     out = np.expand_dims(out, axis=-1)
+                #     # reorder dimensions in the IJ order
+                #     out = np.moveaxis(out, -1, -3)
+                #     tifffile.imwrite(output_name, out, imagej=True)  # this is the way to get the data compatible with IJ
+                # should work better now and fix several issues... but need test it with real images
+                # if image has no c --> assume all ok
+                if self.metadata['dimensions'] is not None:
+                    # print('in dims')
+                    # print(self.has_c())  # why has no c channel ???
+                    if not self.has_c():
+                        out = out[..., np.newaxis]
+                    if not self.has_d():
+                        out = out[np.newaxis, ...]
+                    if not self.has_t():
+                        out = out[np.newaxis, ...]
+                else:
+                    # print('othyer')
+                    # no dimension specified --> assume always the same order that is tzyxc --> TODO maybe ...tzyxc
+                    if out.ndim < 3:
+                        out = out[..., np.newaxis]
+                    if out.ndim < 4:
+                        out = out[np.newaxis, ...]
+                    if out.ndim < 5:
+                        out = out[np.newaxis, ...]
+
+                # print('final', out.shape)
+
+                out = np.moveaxis(out, -1, -3)  # need move c channel before hw (because it is default IJ style)
+
+                # TODO maybe offer compression at some point to gain space ???
+                # imageJ order is TZCYXS order with dtype is uint8, uint16, or float32. Is S a LUT ???? probably yes because (S=3 or S=4) must be uint8. can I use compression with ImageJ's Bio-Formats import function.
+                # TODO add the possibility to save ROIs if needed...
+                #        Parameters 'append', 'byteorder', 'bigtiff', and 'imagej', are passed             #         to TiffWriter(). Other parameters are passed to TiffWriter.save().
+                # print(ijmetadata)
+                rois = {}
+                if ijmetadata == 'copy' and self.metadata['Overlays']:
+                    rois['Overlays'] = self.metadata['Overlays']
+                if ijmetadata == 'copy' and self.metadata['ROI']:
+                    rois['ROI'] = self.metadata['ROI']
+                if not rois:
+                    rois = None
+
+                # quick hack to force images to display as composite in IJ if they have channels -> probably needs be improved at some point
+                # try:
+                tifffile.imwrite(output_name, out, imagej=True, ijmetadata=rois,
+                                 metadata={'mode': 'composite'} if self.metadata[
+                                                                       'dimensions'] is not None and self.has_c() else {})  # small hack to keep only non RGB images as composite and self.get_dimension('c')!=3
+                # TODO at some point handle support for RGB 24-32 bits images saving as IJ compatible but skip for now
+                # nb tifffile.imwrite(os.path.join(filename0_without_ext,'tra_test_saving_24bits_0.tif'), tracked_cells_t0, imagej=True,                      metadata={}) --> saves as RGB if image RGB 3 channels
+
+                # TODO --> some day do the saving smartly with the dimensions included see https://pypi.org/project/tifffile/
+                # imwrite('temp.tif', data, bigtiff=True, photometric='minisblack',  compression = 'deflate', planarconfig = 'separate', tile = (32, 32),    metadata = {'axes': 'TZCYX'})
+                # imwrite('temp.tif', volume, imagej=True, resolution=(1. / 2.6755, 1. / 2.6755),        metadata = {'spacing': 3.947368, 'unit': 'um', 'axes': 'ZYX'})
         else:
             if output_name.lower().endswith('.npy') or output_name.lower().endswith('.epyseg'):
                 # directly save as .npy --> the numpy default array format
@@ -747,6 +999,8 @@ class Img(np.ndarray):  # subclass ndarray
                 if not self.has_t() and not self.has_d():
                     new_im = Image.fromarray(self)
                     new_im.save(output_name)
+                    self.save_IJ_ROIs_or_overlays(output_name)
+                    # try save IJ ROIs and overlays if they exist
                 else:
                     # TODO recode below to allow any number of dimensions
                     if self.has_t():
@@ -768,6 +1022,7 @@ class Img(np.ndarray):  # subclass ndarray
                                                                                               z_counter)))  # replace * by tover 3 digit and z over 4 digits
                                 z_counter += 1
                             t_counter += 1
+                        self.save_IJ_ROIs_or_overlays(output_name)
                     elif self.has_d():
                         # loop over all z of the image
                         z_counter = 0
@@ -783,6 +1038,63 @@ class Img(np.ndarray):  # subclass ndarray
                             new_im.save(
                                 output_name.replace('*', 'z{:04d}'.format(z_counter)))  # replace * by z over 4 digits
                             z_counter += 1
+                        self.save_IJ_ROIs_or_overlays(output_name)
+
+    # returns IJ ROIs from metadata
+    def get_IJ_ROIs(self):
+        try:
+            # trying to save ROIs from ij images
+            from roifile import ImagejRoi
+            rois = []
+            if self.metadata['Overlays'] is not None:
+                overlays = self.metadata['Overlays']
+                if isinstance(overlays, list):
+                    if overlays:
+                        overlays = [ImagejRoi.frombytes(roi) for roi in overlays]
+                        rois.extend(overlays)
+                else:
+                    overlays = ImagejRoi.frombytes(overlays)
+                    rois.append(overlays)
+            if self.metadata['ROI'] is not None:
+                rois_ = self.metadata['ROI']
+                print(len(rois_), rois_)
+                if isinstance(rois_, list):
+                    if rois_:
+                        rois_ = [ImagejRoi.frombytes(roi) for roi in rois_]
+                        rois.extend(rois_)
+                else:
+                    rois_ = ImagejRoi.frombytes(rois_)
+                    rois.append(rois_)
+            if not rois:
+                return None
+
+            return rois
+        except:
+            # no big deal if it fails --> just print error for now
+            traceback.print_exc()
+
+    # maybe do an IJ ROI editor some day ????
+    # saves IJ ROIs as a .roi file or .zip file
+    def save_IJ_ROIs_or_overlays(self, filename):
+        try:
+            # trying to save ROIs from ij images
+            rois = self.get_IJ_ROIs()
+            if not rois:
+                return
+            output_filename = filename
+            if len(rois) > 1:
+                # delete file if exists
+                output_filename += '.zip'
+                if os.path.exists(output_filename):
+                    os.remove(output_filename)
+            else:
+                output_filename += '.roi'
+            if rois is not None and rois:
+                for roi in rois:
+                    roi.tofile(output_filename)
+        except:
+            # no big deal if it fails --> just print error for now
+            traceback.print_exc()
 
     def get_width(self):
         return self.get_dimension('w')
@@ -1088,7 +1400,7 @@ class Img(np.ndarray):  # subclass ndarray
                 padding.append((0, 0))
             # padding_required = False
             padding[dimension_h] = (0, height - inp.shape[dimension_h])
-                # padding_required = True
+            # padding_required = True
             # bigger = np.zeros(
             #     (*inp.shape[:dimension_h], height + overlap_y, inp.shape[dimension_w], *inp.shape[dimension_w + 1:]),
             #     dtype=inp.dtype)
@@ -1259,7 +1571,8 @@ class Img(np.ndarray):  # subclass ndarray
         return out
 
     @staticmethod
-    def normalization(img, method=None, range=None, individual_channels=False, clip=False, normalization_minima_and_maxima=None):
+    def normalization(img, method=None, range=None, individual_channels=False, clip=False,
+                      normalization_minima_and_maxima=None):
         '''normalize an image
 
         Parameters
@@ -1294,21 +1607,22 @@ class Img(np.ndarray):  # subclass ndarray
             logger.debug('Image will be normalized using percentiles')
             img = img.astype(np.float32)
             img = Img._nomalize(img, individual_channels=individual_channels, method=method,
-                                 norm_range=range, clip=clip, normalization_minima_and_maxima=normalization_minima_and_maxima) # TODO if range is list of list --> assume per channel data and do norm that way --> TODO --> think about the best way to do that
+                                norm_range=range, clip=clip,
+                                normalization_minima_and_maxima=normalization_minima_and_maxima)  # TODO if range is list of list --> assume per channel data and do norm that way --> TODO --> think about the best way to do that
             logger.debug('max after normalization=' + str(img.max()) + ' min after normalization=' + str(img.min()))
             return img
         elif 'ormalization' in method and not 'tandardization' in method:
             logger.debug('Image will be normalized')
             img = img.astype(np.float32)
             img = Img._nomalize(img, individual_channels=individual_channels, method=method,
-                                 norm_range=range)
+                                norm_range=range)
             logger.debug('max after normalization=' + str(img.max()) + ' min after normalization=' + str(img.min()))
             return img
         elif 'tandardization' in method:
             logger.debug('Image will be standardized')
             img = img.astype(np.float32)
             img = Img._standardize(img, individual_channels=individual_channels, method=method,
-                                    norm_range=range)
+                                   norm_range=range)
             logger.debug('max after standardization=' + str(img.max()) + ' min after standardization=' + str(img.min()))
             return img
         else:
@@ -1317,7 +1631,8 @@ class Img(np.ndarray):  # subclass ndarray
 
     # https://en.wikipedia.org/wiki/Feature_scaling
     @staticmethod
-    def _nomalize(img, individual_channels=False, method='Rescaling (min-max normalization)', norm_range=None, clip=False, normalization_minima_and_maxima=None):
+    def _nomalize(img, individual_channels=False, method='Rescaling (min-max normalization)', norm_range=None,
+                  clip=False, normalization_minima_and_maxima=None):
         eps = 1e-20  # for numerical stability avoid division by 0
         if individual_channels:
             for c in range(img.shape[-1]):
@@ -1329,7 +1644,8 @@ class Img(np.ndarray):  # subclass ndarray
                     else:
                         norm_min_max = normalization_minima_and_maxima
                 img[..., c] = Img._nomalize(img[..., c], individual_channels=False, method=method,
-                                            norm_range=norm_range, clip=clip, normalization_minima_and_maxima=norm_min_max)
+                                            norm_range=norm_range, clip=clip,
+                                            normalization_minima_and_maxima=norm_min_max)
         else:
             # that should work
             if 'percentile' in method:
@@ -1343,7 +1659,8 @@ class Img(np.ndarray):  # subclass ndarray
                     highest_percentile = normalization_minima_and_maxima[1]
                 try:
                     import numexpr
-                    img = numexpr.evaluate("(img - lowest_percentile) / ( highest_percentile - lowest_percentile + eps )")
+                    img = numexpr.evaluate(
+                        "(img - lowest_percentile) / ( highest_percentile - lowest_percentile + eps )")
                 except:
                     img = (img - lowest_percentile) / (highest_percentile - lowest_percentile + eps)
                 if clip:
@@ -1358,7 +1675,8 @@ class Img(np.ndarray):  # subclass ndarray
                         import numexpr
                         img = numexpr.evaluate("(img - min) / (max - min + eps)")
                     except:
-                        img = (img - min) / (max - min + eps)  # TODO will it take less memory if I split it into two lines
+                        img = (img - min) / (
+                                max - min + eps)  # TODO will it take less memory if I split it into two lines
                 elif norm_range == [-1, 1] or norm_range == '[-1, 1]':
                     try:
                         import numexpr
@@ -1745,18 +2063,34 @@ class ImageReader:
         t_frames = None
         luts = None
         ar = None
+        overlays = None
+        roi = None
 
         dimensions_string = ''
 
         metadata = {'w': width, 'h': height, 'c': channels, 'd': depth, 't': t_frames, 'bits': bits, 'vx': voxel_x,
                     'vy': voxel_y, 'vz': voxel_z, 'AR': ar, 'dimensions': dimensions_string, 'LUTs': luts,
-                    'times': times}
+                    'times': times, 'Overlays': overlays, 'ROI': roi}  # TODO check always ok
 
         logger.debug('loading' + str(f))
 
         if f.lower().endswith('.tif') or f.lower().endswith('.tiff') or f.lower().endswith(
                 '.lsm'):
             with tifffile.TiffFile(f) as tif:
+
+                # TODO need handle ROIs there!!!
+                # just copy stuff
+                # --> can then use it and pass it directly then if needed --> maybe need a smart handling in case there is a reduction of the number of dimensions to only keep the correct ROIs
+
+                # if image is IJ image preserve ROIs and overlays
+                if tif.is_imagej:
+                    if 'Overlays' in tif.imagej_metadata:
+                        overlays = tif.imagej_metadata['Overlays']
+                        metadata['Overlays'] = overlays
+                    if 'ROI' in tif.imagej_metadata:
+                        roi = tif.imagej_metadata['ROI']
+                        metadata['ROI'] = roi
+
                 tif_tags = {}
                 for tag in tif.pages[0].tags.values():
                     name, value = tag.name, tag.value
@@ -2017,7 +2351,8 @@ class ImageReader:
         # update metadata
         metadata.update({'w': width, 'h': height, 'c': channels, 'd': depth, 't': t_frames, 'bits': bits, 'vx': voxel_x,
                          'vy': voxel_y, 'vz': voxel_z, 'AR': ar, 'dimensions': dimensions_string, 'LUTs': luts,
-                         'times': times})
+                         'times': times, 'Overlays': overlays, 'ROI': roi})
+        # print(metadata)
 
         logger.debug('image params:' + str(metadata))
         logger.debug('final shape:' + str(image.shape))

@@ -9,8 +9,8 @@ import os
 
 class QLineEditDND(QLineEdit):
 
-    def __init__(self, title, parent, tip_text=None):
-        super().__init__(title, parent)
+    def __init__(self, title, parent, tip_text=None, objectName=''):
+        super().__init__(title, parent, objectName=objectName)
         if tip_text is not None:
             self.setPlaceholderText(tip_text)
         self.setAcceptDrops(True)
@@ -30,7 +30,7 @@ class QLineEditDND(QLineEdit):
 class OpenFileOrFolderWidget(QWidget):
 
     def __init__(self, parent_window=None, add_timer_to_changetext=False, show_ok_or_not_icon=False, label_text=None,
-                 is_file=False, extensions="All Files (*);;", show_size=False, tip_text=None):
+                 is_file=False, extensions="All Files (*);;", show_size=False, tip_text=None, objectName=''):
         super().__init__(parent=parent_window)
         self.ok_ico = self.style().standardIcon(QStyle.SP_DialogYesButton).pixmap(QSize(12, 12))
         self.not_ok_ico = self.style().standardIcon(QStyle.SP_DialogNoButton).pixmap(QSize(12, 12))
@@ -43,9 +43,9 @@ class OpenFileOrFolderWidget(QWidget):
         # self.is_file_or_folder = is_file_or_folder
         self.extensions = extensions
         self.show_size = show_size
-        self.initUI()
+        self.initUI(objectName)
 
-    def initUI(self):
+    def initUI(self, objectName):
         layout = QGridLayout()
         size_begin = 80
         size_label = 0
@@ -74,7 +74,7 @@ class OpenFileOrFolderWidget(QWidget):
         layout.setVerticalSpacing(0)
         layout.setContentsMargins(0, 0, 0, 0)
 
-        self.path = QLineEditDND('', self, tip_text=self.tip_text)
+        self.path = QLineEditDND('', self, tip_text=self.tip_text, objectName=objectName)
 
         if self.add_timer_to_changetext:
             from PyQt5.QtCore import QSize, QTimer

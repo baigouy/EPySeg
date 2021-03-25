@@ -7,7 +7,7 @@ from skimage import filters
 from skimage.util import random_noise
 from epyseg.binarytools.cell_center_detector import get_seeds
 from skimage.measure import label
-from epyseg.img import Img, white_top_hat, black_top_hat
+from epyseg.img import Img, white_top_hat, black_top_hat, mask_rows_or_columns
 import random
 from scipy import ndimage
 from skimage import transform
@@ -65,6 +65,7 @@ class DataGenerator:
                                      'stretch': 3.
                                      }
 
+    #z_frames_to_add --> an int, or a tuple or a list of len == 2 --> can be used to add black images above or below...
     def __init__(self, inputs=None, outputs=None, output_folder=None, input_shape=(None, None, None, 1),
                  output_shape=(None, None, None, 1), input_channel_of_interest=None, output_channel_of_interest=None,
                  input_channel_reduction_rule='copy channel of interest to all channels',
@@ -83,7 +84,10 @@ class DataGenerator:
                  shuffle=True, clip_by_frequency=None, is_predict_generator=False, overlap_x=0, overlap_y=0,
                  invert_image=False, input_bg_subtraction=None, create_epyseg_style_output=None,
                  remove_n_border_mask_pixels=None, is_output_1px_wide=False,
-                 rebinarize_augmented_output=False, rotate_n_flip_independently_of_augmentation=False, **kwargs):
+                 rebinarize_augmented_output=False, rotate_n_flip_independently_of_augmentation=False,
+                 mask_lines_and_cols_in_input_and_mask_GT_with_nans=None, # if none does nothing if noid --> cannot learn from masked pixels at all reducedid --> can learn from masked pixels --> requires specific losses to work --> find an easy way to do that ...
+                 z_frames_to_add=None,
+                 **kwargs):
 
         logger.debug('clip by freq' + str(clip_by_frequency))
 
@@ -95,8 +99,8 @@ class DataGenerator:
                                                'flip': self.flip, 'blur': self.blur,
                                                'intensity': self.change_image_intensity_and_shift_range,
                                                'translate': self.translate, 'invert': self.invert,
-                                               'roll along Z (2D + GT ignored)':self.rollZ,
-                                               'shuffle images along Z (2D + GT ignored)':self.shuffleZ,
+                                               'roll along Z (2D + GT ignored)': self.rollZ,
+                                               'shuffle images along Z (2D + GT ignored)': self.shuffleZ,
                                                'low noise': self.low_noise, 'high noise': self.high_noise,
                                                'stretch': self.stretch,
                                                'random_intensity_gamma_contrast': self.random_intensity_gamma_contrast_changer}
@@ -188,6 +192,18 @@ class DataGenerator:
         self.is_output_1px_wide = is_output_1px_wide
         self.rebinarize_augmented_output = rebinarize_augmented_output
         self.rotate_n_flip_independently_of_augmentation = rotate_n_flip_independently_of_augmentation
+        self.mask_lines_and_cols_in_input_and_mask_GT_with_nans = mask_lines_and_cols_in_input_and_mask_GT_with_nans
+
+
+        # can be used to add black frames above or below --> can be useful for denoising and surface projection
+        self.z_frames_to_add = z_frames_to_add
+        if z_frames_to_add is not None:
+            if isinstance(z_frames_to_add, int):
+                self.z_frames_to_add_above = z_frames_to_add
+                self.z_frames_to_add_below = z_frames_to_add
+            else:
+                self.z_frames_to_add_above = z_frames_to_add[0]
+                self.z_frames_to_add_below = z_frames_to_add[1]
 
         # TODO need create an incrementer per input and output
         self.input_incr = 0
@@ -864,6 +880,37 @@ class DataGenerator:
             try:
                 # logger.info('processing', input)
                 input = Img(input)
+
+                # can be the first thing to be done in a way then need copy parameters of the image and increase the value for the Z if that worked
+
+                # should work but need to test it !!! # the
+                # add black frames above and below the z channel
+                try:
+                    logger.debug('adding Z frames to image')
+                    if self.z_frames_to_add is not None:
+                        if input.has_d():
+                            # copy the metadata
+                            # print('added Z frame in', input.shape)
+                            meta = input.metadata
+                            input= self.add_z_frames(input,[], False)[1]
+                            # print('added Z frame 2', input.shape)
+                            # print(input.metadata)
+                            input = Img(input, metadata=meta) # reinject metadata!!! # see if I can do that in a cleaner way ???
+                            # print(input.metadata)
+                            # print('added Z frame', input.shape)
+                except:
+                    traceback.print_exc()
+                    logger.error('could not add Z frames to image')
+
+
+                # TODO add         if self.z_frames_to_add is not None:
+                #             input =
+
+                # pb is that it will require the image to have shape dhwc and c may not have been added yet... and need be done before normalization... --> really not good think how to do and really clean the code
+                # best is to hack the image so that it always generate image with the same shape... + a few controls to handle pbs such as display and save with numpy squeeze!!!
+                # in fact all is ok...
+
+
             except:
                 logger.error('Missing/corrupt/unsupported file \'' + input + '\'')
                 return None, None, None
@@ -872,6 +919,9 @@ class DataGenerator:
         input = self.increase_or_reduce_nb_of_channels(input, input_shape, self.input_channel_of_interest,
                                                        self.input_channel_augmentation_rule,
                                                        self.input_channel_reduction_rule)
+
+
+
 
         # TODO in fact that would make more sense to clip by freq before --> indeed clipping should be done before any data augmentation
         if self.clip_by_frequency is not None:
@@ -985,24 +1035,26 @@ class DataGenerator:
         method = last_method
 
         # force invert/negative to be every other image if added to augmentation
-        if method is None:
-            # TODO fix bug here and allow infinite nb of dimensions
-            input = np.reshape(input, (1, *input.shape))
+        if method is not None:
+            parameters, input = method(input, parameters, False)
+
+        input = np.reshape(input, (1, *input.shape))  # need add batch and need add one dim if not enough
+
+        if self.mask_lines_and_cols_in_input_and_mask_GT_with_nans is not None:
+            logger.debug(
+                'final pixel masking before passing to the model ' + str(input.shape) + ' ' + str(input.dtype))
+            input = self.mask_pixels_and_compute_for_those(input, False, False if 'no' in self.mask_lines_and_cols_in_input_and_mask_GT_with_nans else True)
+
+        if self.rotate_n_flip_independently_of_augmentation:
             logger.debug('data augmenter output before tiling ' + str(input.shape) + ' ' + str(input.dtype))
-            if self.rotate_n_flip_independently_of_augmentation:
-                # print('rotate n flip output')
-                input = self.angular_yielder(input)
+            # print('rotate n flip output')
+            input = self.angular_yielder(input)
                 # Img(input, dimensions='hwc').save('/home/aigouy/Bureau/trash_soon/test_input.tif')
+
+        if method is None:
             return method, None, input
         else:
-            parameters, orig = method(input, parameters, False)
-            orig = np.reshape(orig, (1, *orig.shape))  # need add batch and need add one dim if not enough
-            logger.debug('data augmenter output before tiling ' + str(orig.shape) + ' ' + str(orig.dtype))
-            if self.rotate_n_flip_independently_of_augmentation:
-                orig = self.angular_yielder(orig)
-                # Img(input, dimensions='hwc').save('/home/aigouy/Bureau/trash_soon/test_input.tif')
-                # print('rotate n flip output')
-            return method, parameters, orig
+            return method, parameters, input
 
     def augment_output(self, msk, output_shape, last_method,
                        parameters,
@@ -1092,25 +1144,55 @@ class DataGenerator:
             msk = Img.normalization(msk, **self.input_normalization)
             # print('Classical normalization msk!', msk.min(), msk.max())
 
-        if method is None:
-            msk = np.reshape(msk, (1, *msk.shape))
+        if method is not None:
+            parameters, msk = method(msk, parameters, True)
+        msk = np.reshape(msk, (1, *msk.shape))
+
+        if self.mask_lines_and_cols_in_input_and_mask_GT_with_nans is not None:
+            logger.debug(
+                'final pixel masking before passing to the model ' + str(msk.shape) + ' ' + str(msk.dtype))
+            msk = self.mask_pixels_and_compute_for_those(msk, True, False if 'no' in self.mask_lines_and_cols_in_input_and_mask_GT_with_nans else True)
+
+        if self.rotate_n_flip_independently_of_augmentation:
             logger.debug('data augmenter output before tiling ' + ' ' + str(msk.shape) + ' ' + str(msk.dtype))
-            if self.rotate_n_flip_independently_of_augmentation:
-                msk = self.angular_yielder(msk)
-                # Img(msk, dimensions='hwc').save('/home/aigouy/Bureau/trash_soon/test_msk.tif')
+            msk = self.angular_yielder(msk)
+            # Img(msk, dimensions='hwc').save('/home/aigouy/Bureau/trash_soon/test_msk.tif')
+        if method is None:
             return method, None, msk
         else:
-            parameters, msk = method(msk, parameters, True)
-            #
-            # print('tada', type(msk)) # sometimes maks
-            # print(msk)
-            # print(msk.shape)
-            msk = np.reshape(msk, (1, *msk.shape))
-            logger.debug('data augmenter output before tiling ' + ' ' + str(msk.shape) + ' ' + str(msk.dtype))
-            if self.rotate_n_flip_independently_of_augmentation:
-                msk = self.angular_yielder(msk)
-                # Img(msk, dimensions='hwc').save('/home/aigouy/Bureau/trash_soon/test_msk.tif')
             return method, parameters, msk
+
+        # else:
+        #
+        #     #
+        #     # print('tada', type(msk)) # sometimes maks
+        #     # print(msk)
+        #     # print(msk.shape)
+        #     msk = np.reshape(msk, (1, *msk.shape))
+        #     logger.debug('data augmenter output before tiling ' + ' ' + str(msk.shape) + ' ' + str(msk.dtype))
+        #     if self.rotate_n_flip_independently_of_augmentation:
+        #         msk = self.angular_yielder(msk)
+        #         # Img(msk, dimensions='hwc').save('/home/aigouy/Bureau/trash_soon/test_msk.tif')
+        #     return method, parameters, msk
+        # if method is None:
+        #     msk = np.reshape(msk, (1, *msk.shape))
+        #     logger.debug('data augmenter output before tiling ' + ' ' + str(msk.shape) + ' ' + str(msk.dtype))
+        #     if self.rotate_n_flip_independently_of_augmentation:
+        #         msk = self.angular_yielder(msk)
+        #         # Img(msk, dimensions='hwc').save('/home/aigouy/Bureau/trash_soon/test_msk.tif')
+        #     return method, None, msk
+        # else:
+        #     parameters, msk = method(msk, parameters, True)
+        #     #
+        #     # print('tada', type(msk)) # sometimes maks
+        #     # print(msk)
+        #     # print(msk.shape)
+        #     msk = np.reshape(msk, (1, *msk.shape))
+        #     logger.debug('data augmenter output before tiling ' + ' ' + str(msk.shape) + ' ' + str(msk.dtype))
+        #     if self.rotate_n_flip_independently_of_augmentation:
+        #         msk = self.angular_yielder(msk)
+        #         # Img(msk, dimensions='hwc').save('/home/aigouy/Bureau/trash_soon/test_msk.tif')
+        #     return method, parameters, msk
 
     def change_image_intensity_and_shift_range(self, orig, parameters, is_mask):
         if parameters is None:
@@ -1575,6 +1657,29 @@ class DataGenerator:
 
         return [shear, order], sheared_orig
 
+    # allow for shift mask but only for the mask
+    def mask_pixels_and_compute_for_those(self, orig, is_mask, shift_mask=False):
+        if not is_mask:
+            rolled_orig = mask_rows_or_columns(orig, spacing_X=2, spacing_Y=5)
+        else:
+            # THIS ALLOWS MODEL TO PARTIALLY LEARN IDENTITY OR AT LEAST TO ALSO LEARN FROM THE PIXEL OF INTEREST WHICH DOES MAKE A LOT OF SENSE!!!
+            initial_shift_X = 0
+            initial_shift_Y = 0
+            if shift_mask:
+                if random.uniform(0, 1) < 0.5:
+                    if random.uniform(0, 1) < 0.5:
+                        if random.uniform(0, 1) < 0.5:
+                            initial_shift_X = 1
+                        else:
+                            initial_shift_Y = 1
+                    else:
+                        initial_shift_X = 1
+                        initial_shift_Y = 1
+            rolled_orig = mask_rows_or_columns(orig, spacing_X=2, spacing_Y=5, initial_shiftX=initial_shift_X, initial_shiftY=initial_shift_Y, return_boolean_mask=True)
+            orig[rolled_orig==False] = np.nan
+            rolled_orig = orig # pb non nan anymore
+        return rolled_orig
+
     # rolls along the Z axis of a 3D image ignores for 2D images and ignores for masks
     def rollZ(self, orig, parameters, is_mask):
         # print('in rollz', orig.shape)
@@ -1633,6 +1738,68 @@ class DataGenerator:
 
     def low_noise(self, orig, parameters, is_mask):
         return self._add_noise(orig, parameters, is_mask, 'low')
+
+    # (img, Zpos=-4, z_frames_to_add_above=0, z_frames_to_add_below=0):
+    def add_z_frames(self, orig, parameters, is_mask):
+        # print(orig.shape)
+        # TODO do expand along the Z with black
+        # de meme si l'image est 2D --> ignore I guess -->
+
+
+        # ignore that for masks --> is that wise or not to ignore it for masks ???
+        if is_mask:
+            return orig
+
+        if self.z_frames_to_add_below == 0 and self.z_frames_to_add_above == 0:
+            # nothing to do...
+            return orig
+
+        # smarter way --> get Z pos
+        zpos = -4
+        try:
+            zpos = orig.get_dim_idx('d')
+        except:
+            logger.error('dimension d/z not found, assuming Z pos = -4, i.e. ...dhwc image')
+
+        # print('in1')
+
+        # if orig.ndim < 4:
+        #     # orig has no Z channel --> nothing to do ...
+        #     return orig
+
+        # print('in2')
+
+        # print('zpos', zpos)
+        if orig.shape[zpos] == 1:
+            # image is 2D --> nothing to do ...
+            return orig
+
+        # print('in3')
+
+        if self.z_frames_to_add_above != 0:
+            # add Z frames before
+            smallest_shape = list(orig.shape)
+            smallest_shape[zpos] = self.z_frames_to_add_above
+            missing_frames_above = np.zeros((smallest_shape), dtype=orig.dtype)
+
+            # print(missing_frames_above.shape)
+
+            orig = np.append(missing_frames_above, orig, axis=zpos)  # nb should do that per channel in fact... -->
+            # print(orig.shape)
+
+        if self.z_frames_to_add_below != 0:
+            # add Z frames after
+            smallest_shape[zpos] = self.z_frames_to_add_below
+            missing_frames_below = np.zeros((smallest_shape), dtype=orig.dtype)
+            # print(missing_frames_below.shape)
+            orig = np.append(orig, missing_frames_below, axis=zpos)  # nb should do that per channel in fact... -->
+            # print(orig.shape)
+
+        # print(orig.shape)
+
+        # print('final', orig.shape)
+        # TODO maybe just do this as a classical function that does not return the parameters...
+        return [], orig
 
     # use skimage to add noise
     def _add_noise(self, orig, parameters, is_mask, strength='low'):
@@ -1746,20 +1913,24 @@ if __name__ == '__main__':
     # SELECTED_AUG = [{'type': 'random_intensity_gamma_contrast'}]  # [{'type': 'None'}]#[{'type': 'stretch'}] #[{'type': 'rotate'}] #[{'type': 'zoom'}]#[{'type': 'shear'}] #"[{'type': 'rotate'}] #[{'type': 'low noise'}] # en effet c'est destructeur... voir comment le restaurer avec un fesh wshed sur l'image originelle ou un wshed sur
     # SELECTED_AUG = [{'type': 'rotate (interpolation free)'}]
     # SELECTED_AUG = [{'type': 'intensity'}, {'type': 'random_intensity_gamma_contrast'}]
-    SELECTED_AUG = [{'type': 'roll along Z (2D + GT ignored)'}, {'type': 'shuffle images along Z (2D + GT ignored)'}]
-    # SELECTED_AUG = None
+    # SELECTED_AUG = [{'type': 'roll along Z (2D + GT ignored)'}, {'type': 'shuffle images along Z (2D + GT ignored)'}]
+    # SELECTED_AUG = [{'type': 'mask_pixels'}] # not existing anymore will rather be an option
+    SELECTED_AUG = None
 
     normalization = {'method': Img.normalization_methods[7], 'range': [2, 99.8],
                      'individual_channels': True, 'clip': False}
 
+    mask_lines_and_cols_in_input_and_mask_GT_with_nans = True
+
     # 3D
+    # seems to work --> but check
     augmenter = DataGenerator(
         # 'D:/dataset1/tests_focus_projection', 'D:/dataset1/tests_focus_projection',
         # 'D:/dataset1/tests_focus_projection/proj', 'D:/dataset1/tests_focus_projection/proj/*/hand*.tif',
-        inputs='/media/D/Sample_images/sample_images_denoise_manue/210219/raw',
-        outputs='/media/D/Sample_images/sample_images_denoise_manue/210219/raw/predict',
-        # '/media/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/tests_focus_projection/proj', '/media/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/tests_focus_projection/proj/',
-        # '/media/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/tests_focus_projection', '/media/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/tests_focus_projection',
+        inputs='/D/Sample_images/sample_images_denoise_manue/210219/raw',
+        outputs='/D/Sample_images/sample_images_denoise_manue/210219/raw/predict',
+        # '/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/tests_focus_projection/proj', '/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/tests_focus_projection/proj/',
+        # '/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/tests_focus_projection', '/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/tests_focus_projection',
         # '/home/aigouy/Bureau/last_model_not_sure_that_works/tmp', '/home/aigouy/Bureau/last_model_not_sure_that_works/tmp',
         # is_predict_generator=True,
         # crop_parameters={'x1':256, 'y1':256, 'x2':512, 'y2':512},
@@ -1782,18 +1953,18 @@ if __name__ == '__main__':
         # is_output_1px_wide=True,
         # rebinarize_augmented_output=True
         create_epyseg_style_output=False,
-        rotate_n_flip_independently_of_augmentation=True
+        rotate_n_flip_independently_of_augmentation=True,
+        mask_lines_and_cols_in_input_and_mask_GT_with_nans =mask_lines_and_cols_in_input_and_mask_GT_with_nans,
         # force rotation and flip of images independently of everything
-
     )
 
     # augmenter = DataGenerator(
     #     # 'D:/dataset1/tests_focus_projection', 'D:/dataset1/tests_focus_projection',
     #     # 'D:/dataset1/tests_focus_projection/proj', 'D:/dataset1/tests_focus_projection/proj/*/hand*.tif',
-    #     inputs='/media/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/tests_focus_projection/proj',
-    #     outputs='/media/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/tests_focus_projection/proj/*/hand*.tif',
-    #     # '/media/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/tests_focus_projection/proj', '/media/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/tests_focus_projection/proj/',
-    #     # '/media/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/tests_focus_projection', '/media/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/tests_focus_projection',
+    #     inputs='/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/tests_focus_projection/proj',
+    #     outputs='/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/tests_focus_projection/proj/*/hand*.tif',
+    #     # '/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/tests_focus_projection/proj', '/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/tests_focus_projection/proj/',
+    #     # '/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/tests_focus_projection', '/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/tests_focus_projection',
     #     # '/home/aigouy/Bureau/last_model_not_sure_that_works/tmp', '/home/aigouy/Bureau/last_model_not_sure_that_works/tmp',
     #     # is_predict_generator=True,
     #     # crop_parameters={'x1':256, 'y1':256, 'x2':512, 'y2':512},
@@ -1827,12 +1998,12 @@ if __name__ == '__main__':
 
         # just for a test
         _, test = augmenter.generate_or_load_pretrained_epyseg_style_mask(
-            # '/media/D/Sample_images/sample_images_epiguy_pyta/images_with_different_bits/predict/100708_png06.tif',
-            # '/media/D/Sample_images/sample_images_epiguy_pyta/images_with_different_bits/predict/single_8bits.tif',
-            '/media/D/Sample_images/sample_images_epiguy_pyta/images_with_different_bits/predict/100708_png06_rgb.tif',
+            # '/D/Sample_images/sample_images_epiguy_pyta/images_with_different_bits/predict/100708_png06.tif',
+            # '/D/Sample_images/sample_images_epiguy_pyta/images_with_different_bits/predict/single_8bits.tif',
+            '/D/Sample_images/sample_images_epiguy_pyta/images_with_different_bits/predict/100708_png06_rgb.tif',
             (None, None, 7), False)
         Img(test, dimensions='hwc').save(
-            '/media/D/Sample_images/sample_images_epiguy_pyta/images_with_different_bits/predict/test_7_masks.tif')
+            '/D/Sample_images/sample_images_epiguy_pyta/images_with_different_bits/predict/test_7_masks.tif')
         import sys
 
         sys.exit(0)
@@ -1865,19 +2036,24 @@ if __name__ == '__main__':
         print('inside loop')
         # print('out', len(orig), len(mask))
         # print(orig[0].shape, mask[0].shape)
-        if False:
-             # the generator ignore exit and runs one more time
+        if True:
+            # the generator ignore exit and runs one more time
             print('in')
             # just save two images for a test
 
             # why is that called another time ????
             print(type(orig[0]))
-            Img(orig[0], dimensions='dhwc').save('/media/D/Sample_images/trash_tests/orig.tif')
-            Img(mask[0], dimensions='hwc').save('/media/D/Sample_images/trash_tests/mask.tif')
+            print(orig[0].shape)
+            # Img(orig[0], dimensions='dhwc').save('/D/Sample_images/trash_tests/orig.tif')
+            # Img(mask[0], dimensions='hwc').save('/D/Sample_images/trash_tests/mask.tif')
+
+            Img(orig[0]).save('/D/Sample_images/trash_tests/orig.tif')
+            Img(mask[0]).save('/D/Sample_images/trash_tests/mask.tif')
 
             # somehow the generator gets called another time no big deal but I must have done smthg wrong somewhere
             print('quitting')
             import sys
+
             sys.exit(0)
             print('hello')
 
@@ -1925,10 +2101,10 @@ if __name__ == '__main__':
 
                 # plt.show()
         for i in range(len(mask)):
-            print('in here2', mask[i].shape)
+            print('in here2', mask[i].shape) # --> seems ok
+            # print(mask[i]) # marche car contient des nans
             if counter < 5:
                 try:
-
                     center = int(len(mask[i]) / 2)
                     # center = 0
                     plt.imshow(np.squeeze(mask[i][center]))

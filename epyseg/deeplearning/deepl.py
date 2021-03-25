@@ -257,7 +257,7 @@ class EZDeepLearning:
 
         '''
 
-        # use_cpu = True
+        # use_cpu = True # can be used to test a tf model easily using the CPU while the GPU is running.
 
         print('Using tensorflow version ' + str(tf.__version__))
         print('Using segmentation models version ' + sm.__version__)
@@ -265,6 +265,7 @@ class EZDeepLearning:
         if use_cpu:
             # must be set before model is compiled
             self.force_use_cpu()
+            print('Using CPU')
 
         # gpu_options = tf.GPUOptions(allow_growth=True)
         # session = tf.InteractiveSession(config=tf.ConfigProto(gpu_options=gpu_options))
@@ -509,7 +510,7 @@ class EZDeepLearning:
         if self.saver_cbk is not None:
             self.saver_cbk.stop_me = True
 
-    def load_model(self, model=None):
+    def load_model(self, model=None, skip_comile=False):
         '''loads a model
 
         Parameters
@@ -547,21 +548,32 @@ class EZDeepLearning:
         if model is not None:
             if not model.lower().endswith('.json'):
                 # load non JSON models
-                try:
-                    model_binary = tf.keras.models.load_model(model,
-                                                              custom_objects=custom_objects)
-                    return model_binary
-                except:
-                    traceback.print_exc()
-                    logger.error('failed loading model, retrying with compile=False')
+                if skip_comile:
                     try:
-                        model_binary = tf.keras.models.load_model(model, custom_objects=custom_objects, compile=False)
+                        model_binary = tf.keras.models.load_model(model, custom_objects=custom_objects,
+                                                                  compile=False)
                         return model_binary
                     except:
                         # failed to load the model
                         traceback.print_exc()
                         logger.error('Failed loading model')
                         return None
+                else:
+                    try:
+                        model_binary = tf.keras.models.load_model(model,
+                                                                  custom_objects=custom_objects)
+                        return model_binary
+                    except:
+                        traceback.print_exc()
+                        logger.error('failed loading model, retrying with compile=False')
+                        try:
+                            model_binary = tf.keras.models.load_model(model, custom_objects=custom_objects, compile=False)
+                            return model_binary
+                        except:
+                            # failed to load the model
+                            traceback.print_exc()
+                            logger.error('Failed loading model')
+                            return None
             else:
                 # load model from a JSON file
                 with open(model, 'r') as f:
@@ -905,6 +917,7 @@ class EZDeepLearning:
                                           **kwargs)
         return predict_generator
 
+    # TODO check how I can save the settings in a smart way ????
     def train(self, metagenerator, progress_callback=None, output_folder_for_models=None, keep_n_best=5,
               steps_per_epoch=-1, epochs=100,
               batch_size_auto_adjust=False, upon_train_completion_load='last', lr=None, reduce_lr_on_plateau=None, patience=10,  **kwargs):
@@ -1062,7 +1075,7 @@ class EZDeepLearning:
                     # if user does not want batch size to be adjusted --> quit loop
                     break
                 logger.error(
-                    'An error occured but soft did not crash, most likely batch size is too big, giving rise to oom, reducing bacth size to ' + str(
+                    'An error occurred but soft did not crash, most likely batch size is too big, giving rise to oom, reducing bacth size to ' + str(
                         metagenerator.batch_size))
                 self.clear_mem()
 
@@ -1100,7 +1113,7 @@ class EZDeepLearning:
             traceback.print_exc()
 
     def predict(self, datagenerator, output_shapes, progress_callback=None, batch_size=1, predict_output_folder=None,
-                hq_predictions='mean', post_process_algorithm=None, **kwargs):
+                hq_predictions='mean', post_process_algorithm=None, append_this_to_save_name='', **kwargs):
         '''run the model
 
         Parameters
@@ -1165,7 +1178,6 @@ class EZDeepLearning:
                 if hq_predictions is not None:
                     results = self.get_HQ_predictions(files, results, batch_size=batch_size,
                                                       projection_method=hq_predictions)
-
             except:
                 traceback.print_exc()
                 logger.error('Could not predict output for image \'' + str(
@@ -1195,17 +1207,19 @@ class EZDeepLearning:
                     # print(reconstructed_tile[50,50])
 
                     # run post process directly on the image if available
-                    if output_shape[-1]!=7 and (post_process_algorithm is not None or (isinstance(post_process_algorithm, str) and 'imply' in post_process_algorithm)):
-                        logger.error('Model is not compatible with epyseg and cannot be optimized, so it will simply be thresholded according to selected options, sorry...')
+                    if output_shape[-1]!=7 and (post_process_algorithm is not None and (isinstance(post_process_algorithm, str) and not ('imply' in post_process_algorithm or 'first' in post_process_algorithm))):
+                        logger.error('Model is not compatible with epyseg and cannot be optimized, so the desired post processing cannot be applied, sorry...')
 
                     if isinstance(post_process_algorithm, str) and 'imply' in post_process_algorithm: #  or output_shape[-1]!=7 # bug why did I put that ??? # if model is incompatible
                         # simply binarise all
                         reconstructed_tile = simpleFilter(Img(reconstructed_tile, dimensions='hwc'), **kwargs)
                         # print('oubsi 1')
-                        Img(reconstructed_tile, dimensions='hwc').save(filename_to_use_to_save)
+                        Img(reconstructed_tile, dimensions='hwc').save(filename_to_use_to_save+append_this_to_save_name)
+                        del reconstructed_tile
                     elif post_process_algorithm is not None:
                         try:
                             logger.info('post processing/refining mask, please wait...')
+                            # print('post_process_algorithm', post_process_algorithm)
                             reconstructed_tile = self.run_post_process(Img(reconstructed_tile, dimensions='hwc'),
                                                                        post_process_algorithm,
                                                                        progress_callback=progress_callback, **kwargs)
@@ -1213,7 +1227,12 @@ class EZDeepLearning:
                                 filename_to_use_to_save = filename_to_use_to_save.replace('epyseg_raw_predict.tif',
                                                                                           'handCorrection.tif')
                             # print('oubsi 2')
-                            Img(reconstructed_tile, dimensions='hw').save(filename_to_use_to_save)
+
+                            # print('bug her"',reconstructed_tile.shape)  # most likely not 2D
+
+                            # Img(reconstructed_tile, dimensions='hw').save(filename_to_use_to_save)
+                            Img(reconstructed_tile).save(filename_to_use_to_save+append_this_to_save_name)  # TODO check if that fixes bugs
+                            del reconstructed_tile
                         except:
                             logger.error('running post processing/refine mask failed')
                             traceback.print_exc()
@@ -1221,7 +1240,8 @@ class EZDeepLearning:
                         # import tifffile
                         # tifffile.imwrite('/home/aigouy/Bureau/201104_armGFP_different_lines_tila/predict/test_direct_save.tif', reconstructed_tile, imagej=True)
                         # print('oubsi 3')
-                        Img(reconstructed_tile, dimensions='hwc').save(filename_to_use_to_save)
+                        Img(reconstructed_tile, dimensions='hwc').save(filename_to_use_to_save+append_this_to_save_name)
+                        del reconstructed_tile
                 else:
                     reconstructed_tile = Img.reassemble_tiles(ordered_tiles, crop_parameters[j], three_d=True)
                     # run post process directly on the image if available
@@ -1234,7 +1254,8 @@ class EZDeepLearning:
                         # nb that will NOT WORK TODO FIX BUT OK FOR NOW
                         # reconstructed_tile = simpleFilter(Img(reconstructed_tile, dimensions='dhwc'), **kwargs)
                         logger.error('not supported yet please threshold outside the software')
-                        Img(reconstructed_tile, dimensions='dhwc').save(filename_to_use_to_save)
+                        Img(reconstructed_tile, dimensions='dhwc').save(filename_to_use_to_save+append_this_to_save_name)
+                        del reconstructed_tile
                     elif post_process_algorithm is not None:
                         try:
                             logger.info('post processing/refining mask, please wait...')
@@ -1244,14 +1265,16 @@ class EZDeepLearning:
                             if 'epyseg_raw_predict.tif' in filename_to_use_to_save:
                                 filename_to_use_to_save = filename_to_use_to_save.replace('epyseg_raw_predict.tif',
                                                                                           'handCorrection.tif')  # nb java TA does not support 3D masks yet --> maybe do that specifically for the python version
-                            Img(reconstructed_tile, dimensions='dhw').save(filename_to_use_to_save)
+                            Img(reconstructed_tile, dimensions='dhw').save(filename_to_use_to_save+append_this_to_save_name)
+                            del reconstructed_tile
                         except:
                             logger.error('running post processing/refine mask failed')
                             traceback.print_exc()
                     else:
-                        Img(reconstructed_tile, dimensions='dhwc').save(filename_to_use_to_save)
+                        Img(reconstructed_tile, dimensions='dhwc').save(filename_to_use_to_save+append_this_to_save_name)
+                        del reconstructed_tile
                 logger.info('saving file as ' + str(filename_to_use_to_save))
-
+            del results
         try:
             if progress_callback is not None:
                 progress_callback.emit(100)
@@ -1272,8 +1295,6 @@ class EZDeepLearning:
 
         # if does not have 7 ouputs --> deactivate my own post proc and only allow none or simply threshold
 
-        method = post_process_algorithm
-
         if isinstance(post_process_algorithm, str):
 
             # print('chosen', post_process_algorithm)
@@ -1283,6 +1304,8 @@ class EZDeepLearning:
             #     method = SimplyThresholdMask
             else:  # MEGA TODO add parameters with partial according to input
                 method = RefineMaskUsingSeeds
+        else:
+            method = post_process_algorithm
 
         return method().process(input=image_to_process, mode=post_process_algorithm, **kwargs,
                                 progress_callback=progress_callback)
@@ -1305,7 +1328,7 @@ class EZDeepLearning:
     def get_HQ_predictions(self, files, results, batch_size=1,
                            projection_method='mean'):  # 'max' #'mean' # max_mean # do max for flips and mean for increase contrast
         DEBUG = False  # True
-        path = '/media/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/output_models/test_spliiting_augs'
+        path = '/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/output_models/test_spliiting_augs'
         counter = 1
 
         logger.info('HQ predictions')
@@ -1795,7 +1818,7 @@ if __name__ == '__main__':
         tile_width_overlap=32,
         tile_height_overlap=32, input_normalization=input_normalization, clip_by_frequency=0.05)
 
-    predict_output_folder = os.path.join('/media/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/trash',
+    predict_output_folder = os.path.join('/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/trash',
                                          deepTA.model._name if deepTA.model._name is not None else 'model')  # 'TA_mode'
 
     deepTA.predict(predict_generator, output_shape, predict_output_folder=predict_output_folder,

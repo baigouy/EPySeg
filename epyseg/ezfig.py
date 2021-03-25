@@ -116,11 +116,11 @@ class MyWidget(QtWidgets.QWidget):
             self.shapes_to_draw.append(Point2D(10, 10, color=0x000000, fill_color=0x00FFFF, stroke=3))
 
             self.shapes_to_draw.append(Rect2D(0, 0, 512, 512, color=0xFF00FF, stroke=6))
-            img0 = Image2D('/media/D/Sample_images/sample_images_PA/trash_test_mem/counter/00.png')
+            img0 = Image2D('/D/Sample_images/sample_images_PA/trash_test_mem/counter/00.png')
 
-            inset = Image2D('/media/D/Sample_images/sample_images_PA/trash_test_mem/counter/01.png')
-            inset2 = Image2D('/media/D/Sample_images/sample_images_PA/trash_test_mem/counter/01.png')
-            inset3 = Image2D('/media/D/Sample_images/sample_images_PA/trash_test_mem/counter/01.png')
+            inset = Image2D('/D/Sample_images/sample_images_PA/trash_test_mem/counter/01.png')
+            inset2 = Image2D('/D/Sample_images/sample_images_PA/trash_test_mem/counter/01.png')
+            inset3 = Image2D('/D/Sample_images/sample_images_PA/trash_test_mem/counter/01.png')
             # inset.setToHeight(32)
             # check inset
 
@@ -192,7 +192,7 @@ class MyWidget(QtWidgets.QWidget):
             img0.annotation.append(Point2D(128, 128, color=0xFFFF00, stroke=6))
             # everything seems to work but do check
 
-            img1 = Image2D('/media/D/Sample_images/sample_images_PA/trash_test_mem/counter/01.png')
+            img1 = Image2D('/D/Sample_images/sample_images_PA/trash_test_mem/counter/01.png')
             # img1 = Image2D('D:/dataset1/unseen/focused_Series012.png')
             # img1.setLetter(TAText2D(text="<font face='Comic Sans Ms' size=16 color='blue' >this is a <br>test</font>"))
             # ça ça marche vraiment en fait --> use css to write my text instead of that
@@ -213,7 +213,7 @@ class MyWidget(QtWidgets.QWidget):
             # display:inline; float:left # to display as the same line .... --> does that work html to svg
             # https://stackoverflow.com/questions/10451445/two-div-blocks-on-same-line --> same line for two divs
 
-            img2 = Image2D('/media/D/Sample_images/sample_images_PA/trash_test_mem/counter/02.png')
+            img2 = Image2D('/D/Sample_images/sample_images_PA/trash_test_mem/counter/02.png')
 
             # crop is functional again but again a packing error
             img2.crop(left=60)
@@ -225,12 +225,12 @@ class MyWidget(QtWidgets.QWidget):
             # now seems ok --> see how to do that with figures/vector graphics ...
             # img2.crop(right=60)
             # img2.crop(bottom=60)
-            img3 = Image2D('/media/D/Sample_images/sample_images_PA/trash_test_mem/counter/03.png')
-            img4 = Image2D('/media/D/Sample_images/sample_images_PA/trash_test_mem/counter/04.png')
-            img5 = Image2D('/media/D/Sample_images/sample_images_PA/trash_test_mem/counter/05.png')
-            img6 = Image2D('/media/D/Sample_images/sample_images_PA/trash_test_mem/counter/06.png')
-            img7 = Image2D('/media/D/Sample_images/sample_images_PA/trash_test_mem/counter/07.png')
-            img8 = Image2D('/media/D/Sample_images/sample_images_PA/trash_test_mem/counter/08.png')
+            img3 = Image2D('/D/Sample_images/sample_images_PA/trash_test_mem/counter/03.png')
+            img4 = Image2D('/D/Sample_images/sample_images_PA/trash_test_mem/counter/04.png')
+            img5 = Image2D('/D/Sample_images/sample_images_PA/trash_test_mem/counter/05.png')
+            img6 = Image2D('/D/Sample_images/sample_images_PA/trash_test_mem/counter/06.png')
+            img7 = Image2D('/D/Sample_images/sample_images_PA/trash_test_mem/counter/07.png')
+            img8 = Image2D('/D/Sample_images/sample_images_PA/trash_test_mem/counter/08.png')
 
             # reference point is the original image and stroke should be constant irrespective of zoom --> most likely need the scaling factor too there
             # reference size is also the underlying original image --> TODO
@@ -239,8 +239,8 @@ class MyWidget(QtWidgets.QWidget):
             # need make the scale rese
             # img8.annotation.append(Ellipse2D(0, 50, 600, 200, stroke=3))
 
-            img9 = Image2D('/media/D/Sample_images/sample_images_PA/trash_test_mem/counter/09.png')
-            img10 = Image2D('/media/D/Sample_images/sample_images_PA/trash_test_mem/counter/10.png')
+            img9 = Image2D('/D/Sample_images/sample_images_PA/trash_test_mem/counter/09.png')
+            img10 = Image2D('/D/Sample_images/sample_images_PA/trash_test_mem/counter/10.png')
             # Data for plotting
             import numpy as np
             import matplotlib.pyplot as plt
@@ -264,20 +264,20 @@ class MyWidget(QtWidgets.QWidget):
             graph2d = VectorGraphics2D(fig)
             graph2d.crop(all=20) # not great neither
 
-            vectorGraphics = VectorGraphics2D('/media/D/Sample_images/sample_images_svg/cartman.svg')
+            vectorGraphics = VectorGraphics2D('/D/Sample_images/sample_images_svg/cartman.svg')
 
             # nb cropping marche en raster mais pas en svg output --> besoin de faire un masque d'ecretage --> pourrait aussi dessiner un rectangle de la meme taille de facon à le faire
 
             # TODO KEEP unfortunately cropping does not work when saved as svg but works when saved as raster...
             vectorGraphics.crop(left=10, right=30, top=10, bottom=10)
-            animatedVectorGraphics = VectorGraphics2D('/media/D/Sample_images/sample_images_svg/animated.svg')
+            animatedVectorGraphics = VectorGraphics2D('/D/Sample_images/sample_images_svg/animated.svg')
 
             # bug cause shears the stuff --> would need crop the other dimension too to maintain AR
             animatedVectorGraphics.crop(left=30)#, top=20, bottom=20
 
             # self.shapes_to_draw.append(graph2d)
 
-            # img10 = Image2D('/media/D/Sample_images/sample_images_PA/trash_test_mem/counter/10.png')
+            # img10 = Image2D('/D/Sample_images/sample_images_PA/trash_test_mem/counter/10.png')
             # img2 = Image2D('D:/dataset1/unseen/100708_png06.png')
             # img3 = Image2D('D:/dataset1/unseen/100708_png06.png')
             # img4 = Image2D('D:/dataset1/unseen/100708_png06.png')
@@ -606,19 +606,19 @@ if __name__ == '__main__':
     # maybe do a panel and allow cols and rows and also allow same size because in some cases people may want that --> offer an option that is fill and
     # TO SAVE AS SVG
     if True:
-        widget.save('/media/D/Sample_images/sample_images_svg/out2.svg')
+        widget.save('/D/Sample_images/sample_images_svg/out2.svg')
         # TODO make it also paint to a raster just to see what it gives
 
     # TO SAVE AS RASTER --> quite good
     if True:
         # Tif, jpg and png are supported --> this is more than enouch for now
-        # self.paintToFile('/media/D/Sample_images/sample_images_svg/out2.png')
-        # self.paintToFile('/media/D/Sample_images/sample_images_svg/out2.tif')
-        # widget.save('/media/D/Sample_images/sample_images_svg/out2.jpg')
-        # widget.save('/media/D/Sample_images/sample_images_svg/out2.png')
-        widget.save('/media/D/Sample_images/sample_images_svg/out2.jpg')
-        widget.save('/media/D/Sample_images/sample_images_svg/out2.png')
-        widget.save('/media/D/Sample_images/sample_images_svg/out2.tif') # now has noise
+        # self.paintToFile('/D/Sample_images/sample_images_svg/out2.png')
+        # self.paintToFile('/D/Sample_images/sample_images_svg/out2.tif')
+        # widget.save('/D/Sample_images/sample_images_svg/out2.jpg')
+        # widget.save('/D/Sample_images/sample_images_svg/out2.png')
+        widget.save('/D/Sample_images/sample_images_svg/out2.jpg')
+        widget.save('/D/Sample_images/sample_images_svg/out2.png')
+        widget.save('/D/Sample_images/sample_images_svg/out2.tif') # now has noise
         # first save is ok then gets weird lines
 
     sys.exit(app.exec_())
