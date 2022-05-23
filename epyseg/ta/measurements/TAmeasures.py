@@ -262,10 +262,10 @@ def TAMeasurements(file_or_list, __forced_orig=None, __forced_cells=None, __forc
             from functools import partial
             import sys
             import multiprocessing
-            import platform
-
-            if platform.system() == "Darwin":
-                multiprocessing.set_start_method('spawn')
+            # import platform
+            #
+            # if platform.system() == "Darwin":
+            #     multiprocessing.set_start_method('spawn')
 
             nb_procs = multiprocessing.cpu_count()-1
             if nb_procs<=0:
