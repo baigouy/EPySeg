@@ -23,8 +23,8 @@ import numpy as np
 from epyseg.deeplearning.deepl import EZDeepLearning
 import os
 from epyseg.img import Img, has_metadata
-from tensorflow.python.keras.layers.core import Lambda
-from tensorflow.python.keras.models import Sequential
+from tensorflow.keras.layers import Lambda
+from tensorflow.keras.models import Sequential
 
 # img = Img('/E/Sample_images/sample_images_pyta/Image49.lsm')
 

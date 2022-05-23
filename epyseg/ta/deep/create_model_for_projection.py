@@ -2,11 +2,12 @@
 
 # the model should take a denoiser optionally and a surface proj model and then have the heightmap added to it and the conversion of any type of output to a single output model --> TODO --> no need for keep first channel as can be done by post processing --> and easier this way
 
+# bug fix --> don't mix  tensorflow.keras with tensorflow.python.keras
 from tensorflow.keras.models import Model
-from tensorflow.python.keras.backend import argmax
-from tensorflow.python.keras.layers.convolutional import ZeroPadding3D, Conv2D
-from tensorflow.python.keras.layers.core import Lambda
-from tensorflow.python.keras.models import Sequential
+# from tensorflow.keras.backend import argmax
+# from tensorflow.keras.layers.convolutional import ZeroPadding3D, Conv2D
+from tensorflow.keras.layers import Lambda
+from tensorflow.keras.models import Sequential
 
 from epyseg.deeplearning.deepl import *
 from tensorflow import keras
@@ -96,16 +97,18 @@ def create_surface_projection_denoise_and_height_map_combinatorial_model(surface
     # print('real Height map')
 
 
-    model_real_height_map = Sequential()
-    model_real_height_map.add(model_height_map)
-    # KEEP MEGA NB the reason why I do get floats instead of integers for the height map is simply due to my average code and that means that the augmented data likely give different heights --> also need be careful because I can lose the softmax effect of CARE in some cases, but this has some advantages for the height map
-    model_real_height_map.add(Lambda(lambda x: K.cast(K.argmax(x, axis=-4), dtype='float32'), name='height_map'))
-    # print('model_real_height_map', model_real_height_map.summary(line_length=250))
-    # if height_map_model is not None:
-    #     model_real_height_map.save(os.path.join(main_path, height_map_model), include_optimizer=True,
-    #                                overwrite=True, save_format='h5')
-    # except:
-    #     traceback.print_exc()
+    # print('model_height_map.summary(',model_height_map.summary())
+    #
+    # model_real_height_map = Sequential()
+    # model_real_height_map.add(model_height_map)
+    # # KEEP MEGA NB the reason why I do get floats instead of integers for the height map is simply due to my average code and that means that the augmented data likely give different heights --> also need be careful because I can lose the softmax effect of CARE in some cases, but this has some advantages for the height map
+    # model_real_height_map.add(Lambda(lambda x: K.cast(K.argmax(x, axis=-4), dtype='float32'), name='height_map'))
+    # # print('model_real_height_map', model_real_height_map.summary(line_length=250))
+    # # if height_map_model is not None:
+    # #     model_real_height_map.save(os.path.join(main_path, height_map_model), include_optimizer=True,
+    # #                                overwrite=True, save_format='h5')
+    # # except:
+    # #     traceback.print_exc()
 
 
     # # add extra frames to the model # --> maybe put this at the very beginning maybe # maybe should be first thing TO DO
@@ -174,7 +177,9 @@ def create_surface_projection_denoise_and_height_map_combinatorial_model(surface
     # shall I force it sequential again
 
     # <tensorflow.python.keras.engine.functional.ModuleWrapper object at 0x7fb7d55d8d10> Traceback (most recent call last): in tf 2.7.2 but not in
-    # print('model_3D_projection.layers[0]',model_3D_projection.layers[0])
+    print('model_3D_projection.layers[0]',model_3D_projection.layers[0])
+    # when working it is a <tensorflow.python.keras.engine.functional.Functional object at 0x7f5823bb0390>
+
     real_denoised_3D_image = model_3D_projection.layers[0].layers[-2]([input_image_3D,
                                                                        model_3D_height_map])  # MEGA NB DON'T FORGET THAT THIS LAYER NEEDS TWO INPUTS!!!! # en fait c'est ça mais ce truc a besoin de 2 inputs --> les lui fournir --> facile mais faut qd meme reflechir un peu
     surface_projection_before_running_2D_denoising_model = model_3D_projection.layers[0].layers[-1](
@@ -244,6 +249,13 @@ if __name__ == '__main__':
     # now using pretrained models
     surface_proj_model = 'SURFACE_PROJECTION'
     denoiser_model = '2D_DENOISER'
+
+    surface_proj_model = 'SURFACE_PROJECTION_4'  # this one was not pushed neither --> need do it too
+    # surface_proj_model = 'SURFACE_PROJECTION_5' # this one was not pushed neither --> need do it too
+    # surface_proj_model = 'SURFACE_PROJECTION_6' # this one was not pushed neither --> need do it too --> sometimes better with folds, otherwise the 3 or 4 are better
+    # denoiser_model = '2D_DENOISER'
+    denoiser_model = '2D_DENOISEG'
+
     model = create_surface_projection_denoise_and_height_map_combinatorial_model(surface_proj_model, denoiser_model)
     print(model.summary(line_length=250))
 

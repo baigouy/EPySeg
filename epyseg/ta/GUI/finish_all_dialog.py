@@ -37,14 +37,15 @@ class FinishAllDialog(QDialog):
         layout.addWidget(self.min_cell_area_spin)
 
         self.polarity_check = QCheckBox('Measure polarity (Slower)')
-        self.polarity_check.setChecked(True)
+        self.polarity_check.setChecked(False)
         layout.addWidget(self.polarity_check)
 
         self.check_3D = QCheckBox('3D measurements (Slow and requires a "height_map.tif" file)')
         layout.addWidget(self.check_3D)
 
-        self.multi_threading = QCheckBox('Multi Threading Enabled (speeds up the analysis/requires more memory)')
-        self.multi_threading.setChecked(True)
+        # or keep MT and deactivate progress
+        self.multi_threading = QCheckBox('Multi Threading Enabled (faster but more memory, not recommended work in progress)')
+        self.multi_threading.setChecked(False)
         layout.addWidget(self.multi_threading)
 
         # OK and Cancel buttons

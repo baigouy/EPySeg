@@ -659,7 +659,7 @@ class TissueAnalyzer(QtWidgets.QMainWindow):
         self.threading_enabled = True
 
         # self.threads = [] # contains all threads so that I can stop them immediately
-        self.thread = None
+        # self.thread = None
         # self.event_stop = threading.Event() # allows to stop a thread
         self.threadpool = QThreadPool()
         self.threadpool.setMaxThreadCount(self.threadpool.maxThreadCount() - 1)  # spare one core for system
@@ -1144,11 +1144,11 @@ class TissueAnalyzer(QtWidgets.QMainWindow):
     #         # self.threads.append(worker)
 
     def launch_in_a_tread(self, func):
+        early_stop.stop = False
         self.pbar.setValue(0)
         self.overlay.show()
         worker = self._get_worker(func)
-
-        self.thread = worker
+        # self.thread = worker
 
         # worker.signals.result.connect(self.print_output)
         worker.signals.finished.connect(self.thread_complete)
@@ -2098,7 +2098,6 @@ class TissueAnalyzer(QtWidgets.QMainWindow):
         #                         save_raw_image=save_raw_image, channel=self.paint.get_selected_channel())
 
         del deepTA
-
         # run update to load mask if exists
 
         # pas mal mais vraiment besoin d'une progress bar...
@@ -2115,16 +2114,15 @@ class TissueAnalyzer(QtWidgets.QMainWindow):
         # global stop_threads
         # stop_threads = True
 
-
         # self.overlay.hide()
-        if self.thread is not None:
+        # if self.thread is not None:
             # print('stopping thread')
-            self.thread.stop()
+            # self.thread.stop()
             # print('thread stopped')
-
+        early_stop.stop = True
         #
 
-        self.thread = None
+        # self.thread = None
 
         # stop_threads = False
 

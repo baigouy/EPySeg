@@ -24,7 +24,7 @@ from segmentation_models.metrics import *
 from segmentation_models.losses import *
 from skimage import exposure
 from epyseg.tools.logger import TA_logger # logging
-from tensorflow.python.keras.callbacks import ReduceLROnPlateau
+from tensorflow.keras.callbacks import ReduceLROnPlateau
 import gc
 
 logger = TA_logger()
