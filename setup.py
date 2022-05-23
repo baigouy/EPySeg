@@ -27,7 +27,7 @@ setuptools.setup(
     install_requires=[
         # "tensorflow>=2.0.0",  # to allow for mac OS X conda support #shall I put 2.3 now
         # "tensorflow-gpu>=2.0.0;platform_system!='Darwin'",
-        "tensorflow==2.3.1",  # I have a modulewrapper bug with tf 2.7.1 --> so until I understand it I will rely on that version TODO should I add ;platform_system=='Darwin' ? --> try it # to allow for mac OS X conda support #shall I put 2.3 now # current collab version is 2.8
+        "tensorflow==2.3.4",  # I have a modulewrapper bug with tf 2.7.1 --> so until I understand it I will rely on that version TODO should I add ;platform_system=='Darwin' ? --> try it # to allow for mac OS X conda support #shall I put 2.3 now # current collab version is 2.8
         # "tensorflow-gpu>=2.3.1;platform_system!='Darwin'", # tensorflow-gpu==2.3.1 # do I still need to exclude macOS??? --> pb is old macs maybe # apparently this line is useless now and there is no point in having it because tensorflow uses the gpu by default if it's there and properly congigured !
         "segmentation-models==1.0.1",
         # "tensorflow-gpu>=2.0.0", # not required ? # make sure it does not install on OS X to prevent crash if does not exist

@@ -120,7 +120,7 @@ from epyseg.ta.database.advanced_sql_plotter import plot_as_any
 from epyseg.ta.database.sql import populate_table_content, createMasterDB
 from epyseg.ta.GUI.watershed_dialog import WshedDialog
 from epyseg.ta.minimal_code_surf_proj_pyTA import surface_projection_pyta
-from epyseg.ta.pyqt_test_threads_instead_of_threadpool import Worker2, FakeWorker2
+# from epyseg.ta.pyqt_test_threads_instead_of_threadpool import Worker2, FakeWorker2
 from epyseg.ta.GUI.stackedduallist import dualList
 from epyseg.ta.GUI.tascrollablepaint import tascrollablepaint
 from epyseg.ta.luts.lut_minimal_test import list_availbale_luts, apply_lut, PaletteCreator
@@ -1087,14 +1087,14 @@ class TissueAnalyzer(QtWidgets.QMainWindow):
             # non threaded worker
             return FakeWorker(func, *args, **kwargs)
 
-    def _get_worker_neo(self, func, *args, **kwargs):
-        # returns the worker to proceed with building, training or running the model
-        if self.threading_enabled:
-            # threaded worker
-            return Worker2(func, *args, **kwargs)
-        else:
-            # non threaded worker
-            return FakeWorker2(func, *args, **kwargs)
+    # def _get_worker_neo(self, func, *args, **kwargs):
+    #     # returns the worker to proceed with building, training or running the model
+    #     if self.threading_enabled:
+    #         # threaded worker
+    #         return Worker2(func, *args, **kwargs)
+    #     else:
+    #         # non threaded worker
+    #         return FakeWorker2(func, *args, **kwargs)
 
     def thread_complete(self):
         '''Called every time a thread completed
@@ -1119,29 +1119,29 @@ class TissueAnalyzer(QtWidgets.QMainWindow):
     # def print_output(self, s):
     #     print(s)
 
-    def launch_in_a_tread_bckp2(self, func):
-        self.pbar.setValue(0)
-        self.overlay.show()
-        worker = self._get_worker(func)
-
-        self.thread = worker
-
-        # worker.signals.result.connect(self.print_output)
-        worker.signals.finished.connect(self.thread_complete)
-        # this is specific of this method I must update the nb of inputs and outputs of the model # be CAREFUL IF COPYING THIS CODE THE FOLLOWING MUST BE REMOVED
-        # worker.signals.finished.connect(self._set_model_inputs_and_outputs)
-        worker.signals.progress.connect(self.progress_fn)
-        self.thread.setTerminationEnabled(True)
-        # Execute
-        if isinstance(worker, FakeWorker2):
-            # no threading
-            worker.run()
-        else:
-            # threading
-            self.threadpool.start(worker)
-            # self.thread.start()
-            # self.thread.join()
-            # self.threads.append(worker)
+    # def launch_in_a_tread_bckp2(self, func):
+    #     self.pbar.setValue(0)
+    #     self.overlay.show()
+    #     worker = self._get_worker(func)
+    #
+    #     self.thread = worker
+    #
+    #     # worker.signals.result.connect(self.print_output)
+    #     worker.signals.finished.connect(self.thread_complete)
+    #     # this is specific of this method I must update the nb of inputs and outputs of the model # be CAREFUL IF COPYING THIS CODE THE FOLLOWING MUST BE REMOVED
+    #     # worker.signals.finished.connect(self._set_model_inputs_and_outputs)
+    #     worker.signals.progress.connect(self.progress_fn)
+    #     self.thread.setTerminationEnabled(True)
+    #     # Execute
+    #     if isinstance(worker, FakeWorker2):
+    #         # no threading
+    #         worker.run()
+    #     else:
+    #         # threading
+    #         self.threadpool.start(worker)
+    #         # self.thread.start()
+    #         # self.thread.join()
+    #         # self.threads.append(worker)
 
     def launch_in_a_tread(self, func):
         self.pbar.setValue(0)
@@ -1157,7 +1157,7 @@ class TissueAnalyzer(QtWidgets.QMainWindow):
         worker.signals.progress.connect(self.progress_fn)
         # self.thread.setTerminationEnabled(True)
         # Execute
-        if isinstance(worker, FakeWorker2):
+        if isinstance(worker, FakeWorker):
             # no threading
             worker.run()
         else:
@@ -1167,40 +1167,40 @@ class TissueAnalyzer(QtWidgets.QMainWindow):
             # self.thread.join()
             # self.threads.append(worker)
 
-    def launch_in_a_tread_neo_buggy(self, func):
-        # print('launching in a thread')
-
-        # stop_threads = False
-        self.pbar.setValue(0)
-
-        # self.thread = QThread()
-
-        self.overlay.show()
-        self.thread = self._get_worker(func)
-
-        # self.thread.result.connect(self.print_output)
-        self.thread.finished.connect(self.thread_complete)
-        # this is specific of this method I must update the nb of inputs and outputs of the model # be CAREFUL IF COPYING THIS CODE THE FOLLOWING MUST BE REMOVED
-        # worker.signals.finished.connect(self._set_model_inputs_and_outputs)
-        self.thread.progress.connect(self.progress_fn)
-        self.thread.setTerminationEnabled(True)
-
-        # Execute
-        if isinstance(self.thread, FakeWorker2):
-            # no threading
-            self.thread.run()
-        else:
-            # threading
-            # self.threadpool.start(worker)
-            # self.threads.append(worker)
-            # worker.moveToThread(self.thread)
-
-            # self.thread.started.connect(self.thread.run)
-
-            # print('inside')
-
-            self.thread.start()
-        # print('end launching in a thread')
+    # def launch_in_a_tread_neo_buggy(self, func):
+    #     # print('launching in a thread')
+    #
+    #     # stop_threads = False
+    #     self.pbar.setValue(0)
+    #
+    #     # self.thread = QThread()
+    #
+    #     self.overlay.show()
+    #     self.thread = self._get_worker(func)
+    #
+    #     # self.thread.result.connect(self.print_output)
+    #     self.thread.finished.connect(self.thread_complete)
+    #     # this is specific of this method I must update the nb of inputs and outputs of the model # be CAREFUL IF COPYING THIS CODE THE FOLLOWING MUST BE REMOVED
+    #     # worker.signals.finished.connect(self._set_model_inputs_and_outputs)
+    #     self.thread.progress.connect(self.progress_fn)
+    #     self.thread.setTerminationEnabled(True)
+    #
+    #     # Execute
+    #     if isinstance(self.thread, FakeWorker2):
+    #         # no threading
+    #         self.thread.run()
+    #     else:
+    #         # threading
+    #         # self.threadpool.start(worker)
+    #         # self.threads.append(worker)
+    #         # worker.moveToThread(self.thread)
+    #
+    #         # self.thread.started.connect(self.thread.run)
+    #
+    #         # print('inside')
+    #
+    #         self.thread.start()
+    #     # print('end launching in a thread')
 
     def surf_proj_run(self):
         lst = self.get_full_list(warn_on_empty_list=True)
