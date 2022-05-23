@@ -229,7 +229,12 @@ def toQimage(img, autofix_always_display2D=True, normalize=True):
         if 't' in dimensions:
             img = img[0]  # get first time point
 
+
+        # bug here cause my stuff is not very smart because the image is not having d as the first dimension...
         if 'd' in dimensions:
+            if dimensions.index('d') != 0:
+                logger.error('xyzt images not supported, only xyz images are supported.')
+                return None
             # reduce dimensionality --> take central image
             img = img[int(img.shape[dimensions.index('d')] / 2)]
 

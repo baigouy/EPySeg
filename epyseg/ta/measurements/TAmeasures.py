@@ -122,6 +122,7 @@ from epyseg.ta.tracking.tracking_error_detector_and_fixer import get_border_cell
     get_cells_and_their_neighbors_from_image
 from epyseg.ta.utils.rps_tools import pavlidis, compute_distance_between_consecutive_points
 import math
+from math import sqrt
 from epyseg.tools.logger import TA_logger  # logging
 
 logger = TA_logger()
@@ -261,6 +262,10 @@ def TAMeasurements(file_or_list, __forced_orig=None, __forced_cells=None, __forc
             from functools import partial
             import sys
             import multiprocessing
+            import platform
+
+            if platform.system() == "Darwin":
+                multiprocessing.set_start_method('spawn')
 
             nb_procs = multiprocessing.cpu_count()-1
             if nb_procs<=0:

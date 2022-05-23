@@ -170,6 +170,11 @@ def create_surface_projection_denoise_and_height_map_combinatorial_model(surface
     real_height_map = Lambda(lambda x: K.cast(K.argmax(x, axis=-4), dtype='float32'), name='height_map')(
         model_3D_height_map)
 
+    # returns AttributeError: 'ModuleWrapper' object has no attribute 'layers' on new tensorflows ???
+    # shall I force it sequential again
+
+    # <tensorflow.python.keras.engine.functional.ModuleWrapper object at 0x7fb7d55d8d10> Traceback (most recent call last): in tf 2.7.2 but not in
+    # print('model_3D_projection.layers[0]',model_3D_projection.layers[0])
     real_denoised_3D_image = model_3D_projection.layers[0].layers[-2]([input_image_3D,
                                                                        model_3D_height_map])  # MEGA NB DON'T FORGET THAT THIS LAYER NEEDS TWO INPUTS!!!! # en fait c'est ça mais ce truc a besoin de 2 inputs --> les lui fournir --> facile mais faut qd meme reflechir un peu
     surface_projection_before_running_2D_denoising_model = model_3D_projection.layers[0].layers[-1](

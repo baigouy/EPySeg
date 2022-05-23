@@ -40,6 +40,8 @@ class PyQT_markdown(QWidget):
         with open(filepath, 'r') as file:
             data = file.read()
             html = markdown(data)
+        # print(html)
+        # html = '<html><body>this is a test</body></html>'
         view.setHtml(html)
 
 
