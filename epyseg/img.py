@@ -75,7 +75,7 @@ def __create_composite(background, foreground, mask, alpha=0.3):
     bg = background
     if not isinstance(bg, Image.Image):
         if bg.dtype == np.dtype(np.float32):
-            
+
             # there is a bug in normalization or in image as ubyte --> because the final image is almost completely blaxk
             bg = Img.normalization(bg, method='Rescaling (min-max normalization)', range=[0,1], clip=True)
 
@@ -162,9 +162,9 @@ def mask_rows_or_columns(img, spacing_X=2, spacing_Y=None, masking_value=0, retu
                          initial_shiftX=0, initial_shiftY=0, random_start=False):  # , dimension_h=-2, dimension_w=-1
 
     if isinstance(img, tuple):
-        mask = np.zeros(img, dtype=np.bool)
+        mask = np.zeros(img, dtype=bool)
     else:
-        mask = np.zeros(img.shape, dtype=np.bool)
+        mask = np.zeros(img.shape, dtype=bool)
 
     if mask.ndim < 3:  # assume no channel so add one
         mask = mask[..., np.newaxis]
@@ -286,7 +286,7 @@ class Img(np.ndarray):  # subclass ndarray
     def __new__(cls, *args, t=0, d=0, z=0, h=0, y=0, w=0, x=0, c=0, bits=8, serie_to_open=None, dimensions=None,
                 metadata=None, **kwargs) -> object:
         '''Creates a new instance of the Img class
-        
+
         The image class is a numpy ndarray. It is nothing but a matrix of pixel values.
 
         Parameters
@@ -300,7 +300,7 @@ class Img(np.ndarray):  # subclass ndarray
         w, x : int
             image width
         c : int
-            number of color channels 
+            number of color channels
         bits : int
             bits per pixel
         dimensions : string
@@ -893,7 +893,7 @@ class Img(np.ndarray):  # subclass ndarray
                 if out.dtype == np.int64:
                     out = out.astype(np.float64)  # TODO check if correct with real image but should be
                 # IJ does not support bool type too
-                if out.dtype == np.bool:
+                if out.dtype == bool:
                     out = out.astype(np.uint8) * 255
                 if out.dtype == np.double:
                     out = out.astype(np.float32)
