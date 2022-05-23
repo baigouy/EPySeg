@@ -31,6 +31,8 @@
 
 from epyseg.draw.shapes.rect2d import Rect2D
 from PyQt5.QtCore import QPointF, QRectF
+
+from epyseg.figure.fig_tools import preview
 from epyseg.figure.row import Row
 # import math
 # logger
@@ -333,10 +335,10 @@ class Panel(Rect2D):
                 #     logger.debug('not enough images so adding empty images with same size as last entry')
                 #     row += Image2D(width=last_size.width(), height=last_size.height())
             if row is not None and not len(row) == 0:
-                from deprecated_demos.ezfig_tests.image_organizer import packX
+                from epyseg.draw.widgets.image_organizer import packX
                 # packing seems correct then need align top
                 packX(row, self.space) # ça ça marche
-                from deprecated_demos.ezfig_tests.image_organizer import alignTop
+                from epyseg.draw.widgets.image_organizer import alignTop
                 alignTop(row) # ça ça marche
                 # seems ok too
 
@@ -351,10 +353,10 @@ class Panel(Rect2D):
         print('fig len', len(fig))  # --> ok
         #     logger.error('empty panel created there has to be an error somewhere')
 
-        from deprecated_demos.ezfig_tests.image_organizer import packY
+        from epyseg.draw.widgets.image_organizer import packY
         # not necessarily that by the way
         # packY(fig, space=self.space)
-        from deprecated_demos.ezfig_tests.image_organizer import sameHeight
+        from epyseg.draw.widgets.image_organizer import sameHeight
 
         # required
 
@@ -363,7 +365,7 @@ class Panel(Rect2D):
         sameHeight(self.images, space=self.space) # bug here
         print('arfter same height', self.boundingRect())
 
-        from deprecated_demos.ezfig_tests.image_group import group
+        from epyseg.draw.widgets.image_group import group
         if self.width() != 0:
             group(*self.images).setToWidth(self.width())
         if self.height() !=0:
@@ -408,7 +410,7 @@ class Panel(Rect2D):
         # maybe bug is just because of not properly handling set to with and set to height
 
         # why the hell do I have a figure in panel really need to recode that
-        from deprecated_demos.ezfig_tests.col import col
+        from epyseg.draw.widgets.col import col
         fig = col(space=self.space)
         self.rows=[]
 
@@ -500,11 +502,11 @@ class Panel(Rect2D):
 if __name__ == '__main__':
     from epyseg.draw.shapes.image2d import Image2D  # KEEP Really required to avoid circular imports
 
-    img0 = Image2D('/D/Sample_images/sample_images_PA/trash_test_mem/counter/00.png')
+    img0 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/00.png')
     # img0.setLetter(TAText2D(
     #     text='<p style="text-align:left;color: yellow">This text is left aligned <span style="float:right;font-style: italic;font-size: 8pt;"> This text is right aligned </span><span style="float:right;font-size: 4pt;color:red"> This text is another text </span></p>'))
 
-    img1 = Image2D('/D/Sample_images/sample_images_PA/trash_test_mem/counter/01.png')
+    img1 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/01.png')
     # img1 = Image2D('D:/dataset1/unseen/focused_Series012.png')
     # img1.setLetter(TAText2D(text="<font face='Comic Sans Ms' size=16 color='blue' >this is a <br>test</font>"))
     # ça ça marche vraiment en fait --> use css to write my text instead of that
@@ -524,17 +526,17 @@ if __name__ == '__main__':
     # display:inline; float:left # to display as the same line .... --> does that work html to svg
     # https://stackoverflow.com/questions/10451445/two-div-blocks-on-same-line --> same line for two divs
 
-    img2 = Image2D('/D/Sample_images/sample_images_PA/trash_test_mem/counter/02.png')
-    img3 = Image2D('/D/Sample_images/sample_images_PA/trash_test_mem/counter/03.png')
-    img4 = Image2D('/D/Sample_images/sample_images_PA/trash_test_mem/counter/04.png')
-    img5 = Image2D('/D/Sample_images/sample_images_PA/trash_test_mem/counter/05.png')
-    img6 = Image2D('/D/Sample_images/sample_images_PA/trash_test_mem/counter/06.png')
-    img7 = Image2D('/D/Sample_images/sample_images_PA/trash_test_mem/counter/07.png')
-    img8 = Image2D('/D/Sample_images/sample_images_PA/trash_test_mem/counter/08.png')
-    img9 = Image2D('/D/Sample_images/sample_images_PA/trash_test_mem/counter/09.png')
-    img10 = Image2D('/D/Sample_images/sample_images_PA/trash_test_mem/counter/10.png')
+    img2 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/02.png')
+    img3 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/03.png')
+    img4 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/04.png')
+    img5 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/05.png')
+    img6 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/06.png')
+    img7 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/07.png')
+    img8 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/08.png')
+    img9 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/09.png')
+    img10 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/10.png')
 
-    # img10 = Image2D('/D/Sample_images/sample_images_PA/trash_test_mem/counter/10.png')
+    # img10 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/10.png')
     # img2 = Image2D('D:/dataset1/unseen/100708_png06.png')
     # img3 = Image2D('D:/dataset1/unseen/100708_png06.png')
     # img4 = Image2D('D:/dataset1/unseen/100708_png06.png')
@@ -592,23 +594,23 @@ if __name__ == '__main__':
 
     panel2.setToWidth(128)
 
-    # img1 = Image2D('/D/Sample_images/sample_images_PA/trash_test_mem/counter/00.png')
-    # img2 = Image2D('/D/Sample_images/sample_images_PA/trash_test_mem/counter/01.png')
-    # img3 = Image2D('/D/Sample_images/sample_images_PA/trash_test_mem/counter/02.png')
-    # img4 = Image2D('/D/Sample_images/sample_images_PA/trash_test_mem/counter/03.png')
+    # img1 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/00.png')
+    # img2 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/01.png')
+    # img3 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/02.png')
+    # img4 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/03.png')
 
     # panel = Panel(img1, img2)
     print('last', panel2.boundingRect(), panel2.boundingRect().height())
 
-    if True:
-        import sys
+    # if True:
+    #     import sys
+    #
+    #     sys.exit(0)
 
-        sys.exit(0)
-
-    result = img1 + img2
-
-    print(result)
-    print(len(result.images))
+    # result = img1 + img2
+    #
+    # print(result)
+    # print(len(result.images))
 
     #    result += img3
     #    result += img4
@@ -621,67 +623,73 @@ if __name__ == '__main__':
 
     # img3.pop()
 
-    row2 = img3 + img4
+    # row2 = img3 + img4
     # row2 = row(img3, img4)
 
-    print(row2)
-    print(row2.images)  # why 4 images here ....
-    print('row2', len(row2.images))  # pas bon trop d'images --> pkoi ????
+    # print(row2)
+    # print(row2.images)  # why 4 images here ....
+    # print('row2', len(row2.images))  # pas bon trop d'images --> pkoi ????
 
-    print(Image2D)
-
-    fig = result + row2
-    print(fig)
-    print(len(fig.images))
-
-    count = 0
-    for img in fig.images:
-        print(count, img.filename)
-        count += 1
-
-    final_result = fig - img4
-    print(final_result)
-    print(final_result.images)
-    print(len(final_result.images))
-
+    # print(Image2D)
+    #
+    # fig = result + row2
+    # print(fig)
+    # print(len(fig.images))
+    #
+    # count = 0
+    # for img in fig.images:
+    #     print(count, img.filename)
+    #     count += 1
+    #
+    # final_result = fig - img4
+    # print(final_result)
+    # print(final_result.images)
+    # print(len(final_result.images))
+    #
     # ça marche
 
-    final_result = img4 + fig  # ça ne marche pas
-    print(final_result)
-    print(final_result.images)
-    print(len(final_result.images))
+    # final_result = img4 + fig  # ça ne marche pas
+    # print(final_result)
+    # print(final_result.images)
+    # print(len(final_result.images))
 
     # si je divide une row alors ça ajoute une colonne à la figure --> return 2 rows in a figure
 
-    img5 = Image2D('/D/Sample_images/sample_images_PA/trash_test_mem/counter/04.png')
-    img6 = Image2D('/D/Sample_images/sample_images_PA/trash_test_mem/counter/05.png')
+    img5 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/04.png')
+    img6 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/05.png')
 
     fig = img5 / img6  # --> could create a panel vertical containing two stuff
 
     print(fig)
-    print(fig.rows)
-    print(len(fig.rows))
+    # print(fig.cols)
+    # print(len(fig.cols))
 
     final_fig = fig - img5
 
-    print(final_fig)
-    print(final_fig.rows)
-    print(len(final_fig.rows))
+    # print(final_fig)
+    # print(final_fig.rows)
+    # print(len(final_fig.rows))
 
-    final_fig += row2
+    # final_fig += row2
 
-    print(final_fig)
-    print(final_fig.rows)
-    print(len(final_fig.rows))
+    # print(final_fig)
+    # print(final_fig.rows)
+    # print(len(final_fig.rows))
 
-    img8 = Image2D('/D/Sample_images/sample_images_PA/trash_test_mem/counter/06.png')
-    img9 = Image2D('/D/Sample_images/sample_images_PA/trash_test_mem/counter/07.png')
-    img10 = Image2D('/D/Sample_images/sample_images_PA/trash_test_mem/counter/08.png')
-    img11 = Image2D('/D/Sample_images/sample_images_PA/trash_test_mem/counter/09.png')
+    img8 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/06.png')
+    img9 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/07.png')
+    img10 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/08.png')
+    img11 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/09.png')
 
-    fig = (img8 + img9) / (img10 + img11)
-    print(fig)
-    print(fig.rows)
-    print(len(fig.rows))
-    print('r1', len(fig.rows[0].images))
-    print('r2', len(fig.rows[1].images))
+    # fig = (img8 + img9) / (img10 + img11)
+    # print(fig)
+    # print(fig.rows)
+    # print(len(fig.rows))
+    # print('r1', len(fig.rows[0].images))
+    # print('r2', len(fig.rows[1].images))
+
+    # nb there are big size bugs here in terms of size --> not the same size but maybe this is what I want ????
+    columns = Panel(img8, img9, img10, img11, nCols=2)
+    columns.setToWidth(300)
+
+    preview(columns)

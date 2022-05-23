@@ -1,7 +1,6 @@
 import numpy as np
 import random
-# logging
-from epyseg.tools.logger import TA_logger
+from epyseg.tools.logger import TA_logger # logging
 
 logger = TA_logger()
 
@@ -173,6 +172,11 @@ class MetaGenerator:
         # hack to avoid errors when tf stops the generator
         pass
 
+    # this is to handle GeneratorExit that is called at the end
+    def __exit__(self,  exc_type, exc_value, traceback):
+        if exc_type:
+            logger.error("Aborted %s", self,
+                          exc_info=(exc_type, exc_value, traceback))
 
 if __name__ == '__main__':
     test_input_img_1 = np.zeros((10, 1, 1, 1))

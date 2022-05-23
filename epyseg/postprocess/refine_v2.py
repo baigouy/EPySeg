@@ -1,15 +1,13 @@
 from scipy import ndimage
 from skimage.filters import threshold_otsu
-# from skimage.morphology import watershed
+# from skimage.segmentation import watershed 
 from skimage.segmentation import watershed
 
 from epyseg.img import Img
 from skimage.measure import label, regionprops
 import os
 import numpy as np
-
-# logging
-from epyseg.tools.logger import TA_logger
+from epyseg.tools.logger import TA_logger # logging
 import tempfile
 
 from epyseg.postprocess.filtermask import FilterMask

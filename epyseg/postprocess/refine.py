@@ -1,7 +1,7 @@
 import glob
 import traceback
 from scipy import ndimage
-# from skimage.morphology import watershed
+# from skimage.segmentation import watershed 
 from skimage.segmentation import watershed
 from epyseg.img import Img
 from matplotlib import pyplot as plt
@@ -11,8 +11,7 @@ import os
 import numpy as np
 from natsort import natsorted  # sort strings as humans would do
 import statistics
-# logging
-from epyseg.tools.logger import TA_logger
+from epyseg.tools.logger import TA_logger # logging
 
 logger = TA_logger()
 

@@ -11,14 +11,18 @@ logger = TA_logger()
 
 class PolyLine2D(Polygon2D):
 
-    def __init__(self, *args, color=0xFFFF00, opacity=1., stroke=0.65, line_style=None, theta=0,  **kwargs):
+    def __init__(self, *args, color=0xFFFF00, opacity=1., stroke=0.65, line_style=None, theta=0, fill_color=None,  **kwargs):
         super(PolyLine2D, self).__init__()
         points = []
         if len(args) > 0:
-            for i in range(0, len(args), 2):
-                self.append(QPointF(args[i], args[i+1]))
+            if isinstance(args[0],tuple):
+                for i in range(0, len(args)):
+                    self.append(QPointF(args[i][0], args[i][1]))
+            else:
+                for i in range(0, len(args), 2):
+                    self.append(QPointF(args[i], args[i+1]))
         self.color = color
-        self.fill_color = None
+        self.fill_color = fill_color
         self.stroke = stroke
         self.opacity = opacity
         self.isSet = False
@@ -42,7 +46,7 @@ class PolyLine2D(Polygon2D):
         # if style is a list then assume custom pattern otherwise apply solidline
 
     def draw(self, painter, draw=True):
-        if self.color is None:
+        if self.color is None: # and self.fill_color is None
             return
 
         if draw:
@@ -56,7 +60,17 @@ class PolyLine2D(Polygon2D):
                 elif isinstance(self.line_style, list):
                     pen.setStyle(Qt.CustomDashLine)
                     pen.setDashPattern(self.line_style)
-            painter.setPen(pen)
+            if self.color is not None:
+                painter.setPen(pen)
+            else:
+                painter.setPen(Qt.NoPen)
+            if self.fill_color is not None:
+                # print('coloring')
+                brush = QBrush(QColor(self.fill_color))
+                painter.setBrush(brush)
+            else:
+                painter.setBrush(Qt.NoBrush)
+
             painter.setOpacity(self.opacity)
             polyline_to_draw = self.translated(0, 0)
             if self.scale is not None and self.scale != 1:
@@ -72,6 +86,7 @@ class PolyLine2D(Polygon2D):
                 painter.rotate(self.theta)
                 painter.translate(-polyline_to_draw.boundingRect().center())
 
+            # painter.drawPolygon(polyline_to_draw)
             painter.drawPolyline(polyline_to_draw)
             painter.restore()
     #

@@ -1,7 +1,7 @@
 import traceback
 from scipy import ndimage
 from skimage.filters import threshold_otsu
-# from skimage.morphology import watershed
+# from skimage.segmentation import watershed 
 from skimage.segmentation import watershed
 from epyseg.img import Img
 from matplotlib import pyplot as plt
@@ -10,8 +10,7 @@ from timeit import default_timer as timer
 import os
 import numpy as np
 import statistics
-# logging
-from epyseg.tools.logger import TA_logger
+from epyseg.tools.logger import TA_logger # logging
 
 logger = TA_logger()
 

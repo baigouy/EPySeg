@@ -1,17 +1,8 @@
-# TODO maybe handle conversions using scipy
-# img_as_float
-# Convert to 64-bit floating point.
-# img_as_ubyte
-# Convert to 8-bit uint.
-# img_as_uint
-# Convert to 16-bit uint.
-# img_as_int
-# Convert to 16-bit int.
-
 # TODO allow add or remove ROIs --> create IJ compatible ROIs... --> in a way that is simpler than the crop I was proposing --> think about how to implement that
-# logging
+# NB I have a bug with czi files that have channels --> need fix so that they appear as being channel last !!! --> TODO rapidly
+from imageio.plugins._tifffile import imagej_metadata_tags
 
-from epyseg.tools.logger import TA_logger
+from epyseg.tools.logger import TA_logger  # logging
 
 logger = TA_logger()  # logging_level=TA_logger.DEBUG
 
@@ -40,7 +31,10 @@ import matplotlib.pyplot as plt
 import traceback
 from skimage.morphology import white_tophat, black_tophat, disk
 from skimage.morphology import square, ball, diamond, octahedron, rectangle
-
+import pathlib
+import platform
+import datetime as dt
+import elasticdeform
 
 
 # for future development
@@ -50,10 +44,134 @@ from skimage.morphology import square, ball, diamond, octahedron, rectangle
 # except:
 #     np = __import__('numpy')
 
+# mode : ({nearest, wrap, reflect, mirror, constant})
+# mode reflect is cool so that I don't have to zoom to increase the size  by default
+# assumes image is hwc except if two channels then expect hw
+# nb could be useful to deform only in the Z axis to do 3D data aug!!!!
+def elastic_deform(image, displacement=None, axis=None, order=0, zoom=None, rotation=None, mode='reflect',
+                   return_deformation_matrix=False):
+    if axis is None:
+        if len(image.shape) == 4:
+            # assume 'dhwc'
+            axis = (1, 2)
+        else:
+            # assume 'hw' or 'hwc'
+            axis = (0, 1)
+    if displacement is None:
+        displacement = np.random.randn(2, 3, 3) * 25
+    X_deformed = elasticdeform.deform_grid(image, displacement, axis=axis, order=order, mode=mode, rotate=rotation, zoom=zoom)
+    if return_deformation_matrix:
+        # maybe would be smart to return the comple parameter dict some day but ok for now
+        return displacement, X_deformed  # diplacement can be used to pass all the parameters to another image --> quite easy to do
+    else:
+        return X_deformed
+
+def avg_proj(image, axis=0):
+    return np.mean(image, axis=axis)
+
+def max_proj(image, axis=0):  # z proj for a 3D image
+    return np.max(image, axis=axis)
+
+# we check if the image is a binary image --> retrun True if yes, False otherwise
+def is_binary(image):
+    mx = image.max()
+    mn = image.min()
+    if mx == mn:
+        return True
+    return image.size == np.count_nonzero((image == mn) | (image == mx))
+
+
+def to_stack(images):
+    # Nothing to do
+    if images is None or not images:
+        return
+    # we need to determine the max width and height of the images so that we can create an image that contains all images if they haven't the same size already
+
+    # if this are just paths --> convert them to images
+    if isinstance(images[0], str):
+        images = [Img(image) for image in images]
+
+    for iii, image in enumerate(images):
+        image = image[np.newaxis, ...]
+        images[iii] = image
+    # try create a stack and if fails try find a solution
+    try:
+        # stack = np.dstack(images)#, axis=np.newaxis)
+        # stack = np.moveaxis(stack,-1, 0)
+        # NB this will fail if not all dims are the same --> need more control ValueError: all the input array dimensions for the concatenation axis must match exactly, but along dimension 1, the array at index 0 has size 51 and the array at index 1 has size 48
+        stack = np.concatenate(images, axis=0)
+        return stack
+    except:
+        # if fails then see how to fix that
+        traceback.print_exc()
+        print('conversion to stack failed')
+        pass
+
+def fake_n_channels(image, n_channels=3):
+    if len(image.shape)==2:
+        tmp = np.zeros((*image.shape,n_channels), dtype=image.dtype)
+        for ch in range(3):
+            tmp[...,ch]=image
+        return tmp
+    else:
+        return image
+
+# returns True if an image is of Img class and has metadata, if it was converted to a classical nd array it will have lost it
+def has_metadata(im):
+    return hasattr(im, 'metadata')
+
+
+def numpy_to_PIL(im, force_RGB=True):
+    img = Image.fromarray(im)
+    return img
+
+
+def PIL_to_numpy(PIL_image):
+    return np.array(PIL_image)
+
+
+# converts a matplotlib fig to a numpy array
+def fig_to_numpy(fig, tight=True):
+    buf = io.BytesIO()
+    if tight:
+        # save with tight layout, very useful for saving LUTs for example
+        # the good thing about png is that the size is saved in it --> avoids pbs I was having with saving as raw images
+        fig.savefig(buf, format='png', bbox_inches='tight')
+    else:
+        fig.savefig(buf, format='png')
+    buf.seek(0)
+    # open in mem image
+    im = Image.open(buf)
+    img = np.array(im)
+    # close buffer
+    buf.close()
+    return img
+
+
+# TODO check on the different oses maybe replace mtime by mtime_nano
+# https://docs.python.org/3/library/os.html#os.stat_result
+def get_file_creation_time(filename, return_datetime_object=False):
+    fname = pathlib.Path(filename)
+    assert fname.exists(), f'No such file: {fname}'  # check that the file exists # shall I replace with try catch to be more flexible
+    mtime = dt.datetime.fromtimestamp(fname.stat().st_mtime)
+    if 'indow' in platform.system():
+        ctime = dt.datetime.fromtimestamp(fname.stat().st_ctime)
+        if return_datetime_object:
+            return ctime
+        else:
+            return str(ctime)
+    else:
+        if return_datetime_object:
+            return mtime
+        else:
+            return str(mtime)
+
+
 def RGB_to_int24(RGBimg):
     RGB24 = (RGBimg[..., 0].astype(np.uint32) << 16) | (RGBimg[..., 1].astype(np.uint32) << 8) | RGBimg[..., 2].astype(
         np.uint32)
     return RGB24
+
 
 def int24_to_RGB(RGB24):
     RGBimg = np.zeros(shape=(*RGB24.shape, 3), dtype=np.uint8)
@@ -61,92 +179,503 @@ def int24_to_RGB(RGB24):
         RGBimg[..., c] = (RGB24 >> ((RGBimg.shape[-1] - c - 1) * 8)) & 0xFF
     return RGBimg
 
-# work in progress please don't use
-# marche mais sombre --> faudrait plutot du alphacomposite, je pense que c'est plus ce que je veux
-# TODO maybe also use a mask --> for example exclude all black/0 bg pixels
-# belnded = __create_composite(bg,fg,0.1)
-# pas mal mais aussi essayer composite
-def __create_composite(background, foreground, mask, alpha=0.3):
 
-    # print(background.shape, background.dtype)
-    # print(foreground.shape, foreground.dtype)
-
-    # to blend the images need be single channels
-    bg = background
-    if not isinstance(bg, Image.Image):
-        if bg.dtype == np.dtype(np.float32):
-
-            # there is a bug in normalization or in image as ubyte --> because the final image is almost completely blaxk
-            bg = Img.normalization(bg, method='Rescaling (min-max normalization)', range=[0,1], clip=True)
-
-            # Img(bg, dimensions='hw').save('/D/Sample_images/segmentation_assistant/ovipo_uncropped/trash_me_norm.tif')
-            #
-            # print(bg.dtype, bg.max(), bg.min()) # there is a bug there --> need fix it rapidly
-
-            # bg = img_as_ubyte(bg) --> bug here the conversion is terrible all signal is lost --> do it manually
-            bg = (bg*255).astype(np.uint8)
+def _normalize_8bits(img, mode='min_max'):
+    try:
+        if mode == 'min_max':
+            if img.max() == img.min():
+                return np.zeros_like(img, dtype=np.uint8)
+            img = (img - img.min()) / (img.max() - img.min()) * 255.0
+            img = img.astype(np.uint8)
+        else:
+            img /= img.max() / 255.0
+            img = img.astype(np.uint8)
+    except:
+        pass
+    return img
 
 
-            # print(bg.shape, bg.dtype, bg.max(), bg.min())
+# NB I ASSUME IMAGE IS hw or hwc and nothing else which may be wrong!!! but then conversion should take place before the image is passed there
+def toQimage(img, autofix_always_display2D=True, normalize=True):
+    '''get a qimage from ndarray
 
+    Returns
+    -------
+    qimage
+        a pyqt compatible image
+    '''
+    qimage = None
 
-            # why is that all black ???
-            # Img(bg, dimensions='hw').save('/D/Sample_images/segmentation_assistant/ovipo_uncropped/trash_me.tif')
+    logger.debug('Creating a qimage from a numpy image')
+    dimensions = None
+    if isinstance(img, Img):
+        try:
+            dimensions = img.get_dimensions_as_string()
+        except:
+            # fall back to hw dimensions if unknown as it is the default TA format anyawqy --> there are probably better solutions and I should not let images be built without dimensions but ok for now
+            # dimensions = 'hw'
+            if len(img.shape) == 2:
+                dimensions = 'hw'
+            elif len(img.shape) == 3:
+                dimensions = 'hwc'
+            else:
+                logger.error('unknown image dimensions')
+                return
 
+    img = np.copy(img)  # need copy the array
 
-        #     bg = (bg/bg.max())*255
-        #     bg = bg.astype(np.uint8) # dirty ... do that better --> TODO
-        bg = Image.fromarray(bg)
+    if autofix_always_display2D and dimensions is not None:
+        # probably need more fixes
+        if 't' in dimensions:
+            img = img[0]  # get first time point
 
-        # bg.show()
+        if 'd' in dimensions:
+            # reduce dimensionality --> take central image
+            img = img[int(img.shape[dimensions.index('d')] / 2)]
 
-    fg = foreground
-    if not isinstance(fg, Image.Image):
-        if fg.dtype == np.dtype(np.float32):
-            fg = Img.normalization(fg, method='Rescaling (min-max normalization)', range=[0, 1], clip=True)
-            fg = (fg * 255).astype(np.uint8)
-            # fg = img_as_ubyte(fg)
-        #     fg = (fg/fg.max())*255
-        #     fg = fg.astype(np.uint8) # dirty ... do that better --> TODO
-        fg = Image.fromarray(fg)
+    if img.dtype != np.uint8:
+        # just to remove the warning raised by img_as_ubyte
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore')
+            try:
+                # need manual conversion of the image so that it can be read as 8 bit or alike
+                # force image between 0 and 1 then do convert
+                img = img_as_ubyte((img - img.min()) / (
+                        img.max() - img.min()))  # do I really need that --> probably better to do it myself ???
+            except:
+                try:
+                    img = img.astype(
+                        np.uint8)  # error is probably due to a full black image --> can be fixed by converting it to uint8 dircetly!!!
+                except:
+                    logger.error('error converting image to 8 bits')
+                    return None
 
-    # TODO also try composite because that maybe what I want to have in fact
-    # Image.composite
-    # Image.alpha_composite --> maybe exactly what I want or code my own version in pure numpy --> that would be useful
-    # https://pillow.readthedocs.io/en/stable/reference/Image.html#PIL.Image.Image.convert
+    # KEEP UNCHANGED
+    # DIRTY HACK FOR BUG https://doc.qt.io/qtforpython-5/PySide2/QtGui/QImage.html Warning  Painting on a QImage with the format Format_Indexed8 is not supported.
+    if len(img.shape) == 2:
+        # convert to RGB because of bug https://doc.qt.io/qtforpython-5/PySide2/QtGui/QImage.html Warning  Painting on a QImage with the format Format_Indexed8 is not supported.
+        tmp = np.zeros((*img.shape, 3), dtype=np.uint8)
+        tmp[..., 0] = img
+        tmp[..., 1] = img
+        tmp[..., 2] = img
+        img = tmp
+        del tmp
 
+    bytesPerLine = img.strides[1]
 
-    # print('bg.mode',bg.mode)
-    # print('fg.mode',fg.mode)
+    if len(img.shape) == 3:
+        # print('in here channels toqimage')
 
-    # Image.convert
-    if bg.mode != fg.mode:
-        # images are incompatible --> need convert one or the other to the other type
-        if bg.mode == 'RGB' or fg.mode == 'RGB':
-            if bg.mode == 'L' or bg.mode == 'F':
-                bg = bg.convert(mode="RGB")
-                # print('bg.mode', bg.mode)
-            if fg.mode == 'L' or fg.mode == 'F':
-                fg = fg.convert(mode="RGB")
+        nb_channels = img.shape[-1]
+        logger.debug('Image has ' + str(nb_channels) + ' channels')
+        # print('Image has ' + str(nb_channels) + ' channels')
 
-    # composite fraction assume 8 bits?
-    bg.putalpha(255)
-    fg.putalpha(int(alpha*255))
+        if nb_channels == 3:
+            # print( img.shape, bytesPerLine)
 
-    # print('bg.mode', bg.mode)
-    # print('fg.mode', fg.mode)
+            # NB check that I haven't inverted stuff --> PB CANNOT LOAD 'ON 290119.lif - Series003.tif_t000.tif'
+            # qimage = QImage(img.data,  img.shape[-2], img.shape[-3], bytesPerLine, QImage.Format_RGB888) # --> bug fix but no display --> why ???
 
-    # result = Image.blend(bg,fg, alpha=alpha)
-    # result = Image.alpha_composite(bg,fg)
+            # bug fix is here
+            # https://stackoverflow.com/questions/55468135/what-is-the-difference-between-an-opencv-bgr-image-and-its-reverse-version-rgb-i
 
-    # NB mask need be a PIL image too --> all of this is so slow and so many conversions ...
-    if mask is not None:
-        result = Image.composite(bg,fg, mask) # ignore pure black pixels #TODO handle masks
+            if normalize:
+                img = _normalize_8bits(img)
+
+            bytesPerLine = 3 * img.shape[-2]
+
+            # qimage = QImage(img.data.tobytes(),  img.shape[-3], img.shape[-2], bytesPerLine, QImage.Format_RGB888) # --> bug fix but no display --> why ???
+            qimage = QImage(img.data.tobytes(), img.shape[-2], img.shape[-3], bytesPerLine,
+                            QImage.Format_RGB888)  # --> bug fix but no display --> why ???
+
+            # bug here --> why
+        elif nb_channels < 3:
+            # add n dimensions
+            bgra = np.zeros((img.shape[-3], img.shape[-2], 3), np.uint8, 'C')
+            if img.shape[2] >= 1:
+                bgra[..., 0] = img[..., 0]
+            if img.shape[2] >= 2:
+                bgra[..., 1] = img[..., 1]
+            if img.shape[2] >= 3:
+                bgra[..., 2] = img[..., 2]
+            bytesPerLine = 3 * bgra.shape[-2]
+            if normalize:
+                bgra = _normalize_8bits(bgra)
+            qimage = QImage(bgra.data.tobytes(), img.shape[-2], img.shape[-3], bytesPerLine, QImage.Format_RGB888)
+        else:
+            # this does not make sense to handle ARGB in science but when I deactivate this all my images are black --> WHY
+            if nb_channels == 4:
+                # if False:
+                bgra = np.zeros((img.shape[-3], img.shape[-2], 4), np.uint8, 'C')
+                bgra[..., 0] = img[..., 0]
+                bgra[..., 1] = img[..., 1]
+                bgra[..., 2] = img[..., 2]
+                if img.shape[2] >= 4:
+                    logger.debug('using 4th numpy color channel as alpha for qimage')
+                    bgra[..., 3] = img[..., 3]
+                else:
+                    bgra[..., 3].fill(255)
+                if normalize:
+                    bgra = _normalize_8bits(bgra)
+                bytesPerLine = 4 * bgra.shape[-2]
+                qimage = QImage(bgra.data.tobytes(), img.shape[-2], img.shape[-3], bytesPerLine,
+                                QImage.Format_ARGB32)
+            else:
+                # here we have images with many channels
+                # logger.error("not implemented yet!!!!, too many channels")
+                # best here is to average all the channels --> good idea
+                # print(img.shape)
+                bgra = np.average(img, axis=-1)
+
+                # print(img.shape)
+                tmp = np.zeros((*bgra.shape, 3), dtype=np.uint8)
+                tmp[..., 0] = bgra
+                tmp[..., 1] = bgra
+                tmp[..., 2] = bgra
+                bgra = tmp
+                del tmp
+                # pb can't be drawn over --> need force it to be RGB
+                # qimage = QImage(img.data.tobytes(), img.shape[1], img.shape[0], bytesPerLine,
+                #        QImage.Format_Indexed8)
+
+                if normalize:
+                    bgra = _normalize_8bits(bgra)
+                bytesPerLine = 3 * bgra.shape[-2]
+
+                # qimage = QImage(img.data.tobytes(),  img.shape[-3], img.shape[-2], bytesPerLine, QImage.Format_RGB888) # --> bug fix but no display --> why ???
+                qimage = QImage(bgra.data.tobytes(), bgra.shape[-2], bgra.shape[-3], bytesPerLine, QImage.Format_RGB888)
+
+                # print('in')
     else:
-        result = Image.alpha_composite(bg, fg)
-    return result # nb this is a PIL image --> do I want to make it directly as a numpy array ???
+        # should never be reached because can't be painted over --> useless stuff and creates seg faults
 
-# somehow tophat does not work for 3D but why ???
+        # print('in here 2') #reached"
+        # there is a seg fault bug with the indexed version --> never use that --> rely on RGB maybe instead
+
+        '''KEEP MEGA IMPORTANT
+        # https://doc.qt.io/qtforpython-5/PySide2/QtGui/QImage.html
+        # Warning
+        # Painting on a QImagewith the format Format_Indexed8 is not supported. --> NEVER USE THIS THAT'S IT AND FIX ALWAYS
+        '''
+
+        logger.warning('this should never have been reached --> errors may occur')
+        # seg fault was due to inversion in width and height of the image --> need be careful and fix always
+        qimage = QImage(img.data.tobytes(), img.shape[1], img.shape[0], bytesPerLine,
+                        QImage.Format_Indexed8)
+
+        # qim = QImage(im.data, im.shape[1], im.shape[0], im.strides[0], QImage.Format_Indexed8)
+
+        # print('in here 3')  # reached"
+
+        # required to allow creation of a qicon --> need keep --> in fact cause some crashes --> do not keep that
+        # the crash is here !!!! --> WHY AND DO I NEED THAT
+        # for i in range(256):
+        #     qimage.setColor(i, QColor(i, i, i).rgb())
+        # print('in here 4')  # reached"
+    # print('out qimage') # never reaches there!!!
+    return qimage
+
+
+def _get_white_bounds(img):
+    coords = np.where(img != 0)
+    if coords[0].size == 0:
+        return None
+    return np.min(coords[0]), np.max(coords[0]), np.min(coords[1]), np.max(coords[1])
+
+
+def get_white_bounds(imgs):
+    if isinstance(imgs, list):
+        bounds = [10000000, 0, 10000000, 0]
+        for img in imgs:
+            curbounds = _get_white_bounds(img)
+            if curbounds is None:
+                continue
+            # print(curbounds)
+            bounds[0] = min(curbounds[0], bounds[0])
+            bounds[1] = max(curbounds[1], bounds[1])
+            bounds[2] = min(curbounds[2], bounds[2])
+            bounds[3] = max(curbounds[3], bounds[3])
+        if bounds[0] == 10000000:
+            return None
+    else:
+        bounds = _get_white_bounds(imgs)
+    return bounds
+
+
+def crop_smartly(imgs, bounds=None, bounds_around=0):
+    if bounds is None:
+        bounds = get_white_bounds(imgs)
+        # print(bounds)
+    if isinstance(imgs, list):
+        for iii, img in enumerate(imgs):
+            imgs[iii] = img[bounds[0] - bounds_around:bounds[1] + bounds_around,
+                        bounds[2] - bounds_around:bounds[3] + bounds_around]
+        return imgs
+    else:
+        return imgs[bounds[0] - bounds_around:bounds[1] + bounds_around,
+               bounds[2] - bounds_around:bounds[3] + bounds_around]
+
+
+# nb it assumes the image has a c channel or is two at most # or use pos x and pos y
+# can also use this to make a black border I guess
+# this is much smarter than the setBorder code --> replace it everywhere
+# shall I make it from within ??? using self so that I keep the dims ???
+# if mode is a value --> not a string then assume constant
+def pad_border_xy(img, dim_x=-2, dim_y=-3, size=1, mode='symmetric'):
+    if size <= 0:
+        # null or negative padding --> nothing to do --> return original
+        return img
+
+    if img is None:
+        logger.error('Image is None -> nothing to do')
+        return None
+
+    smart_slices = []
+    pad_seq = []
+
+    if dim_y == -3 and abs(dim_y) > len(img.shape):
+        if dim_x == -2:
+            dim_x = -1
+            dim_y = -2
+    # print(dim_x, dim_y)
+
+    for dim in range(len(img.shape)):
+        smart_slices.append(slice(None))
+        pad_seq.append((0, 0))
+
+    smart_slices[dim_x] = slice(size, -size)
+    smart_slices[dim_y] = slice(size, -size)
+
+    pad_seq[dim_x] = ((size, size))
+    pad_seq[dim_y] = ((size, size))
+
+    if isinstance(mode, str):
+        img = np.pad(img[tuple(smart_slices)], tuple(pad_seq), mode=mode)
+    else:
+        # print(smart_slices)
+        # print(pad_seq)
+        img = np.pad(img[tuple(smart_slices)], tuple(pad_seq), mode='constant', constant_values=mode)
+    return img
+
+
+# could also add forbidden colors that are ultimately converted to masks that can be used in blending
+# NB IF I IMPLEMENT FORBIDDEN COLORS I REALLY NEED TO HAVE THE MASKS COMPUTED INITIALLY COULD RENAME MASK AS MASK_OR_FORBIDDEN_COLOR --> would be clearer
+
+# NB what I do is not very smart masking should ideally be applied before compositing --> that would be more efficient --> think about it because not so easy to do and that works well already
+# this is work in progress --> probably still full of bugs
+def blend(bg, fg, alpha=0.3, mask_or_forbidden_colors=None):
+    # TODO do conversion so that all images are all in the same range --> not very hard in fact
+    # create compatible images in shape TODO probably need also make sure images match at the level of dtype otherwise things will not work
+    bg, fg = create_compatible_image(bg, fg, auto_sort=True)
+
+    # if bg
+
+    # trick to normalize the bg image so that it is in the same range as fg image that is an RGB image --> maybe need do that more cleanly but ok for now
+    # added that if image is not of type uint 8 --> most likely type float it must be converted to 0 255 so that the blending can be applied to it
+    if bg.max() > 255 or bg.dtype != np.uint8:
+        bg = np.interp(bg, (bg.min(), bg.max()), (0, 255))
+    # --> indeed bug if not same range --> make sure range is same of make them fit --> TODO --> convert to RGB the image or single channel whichever format it is
+    # --> test
+
+    # print('fg.shape, bg.shape, fg.dtype, bg.dtype',fg.shape, bg.shape, fg.dtype, bg.dtype)
+
+    # plt.imshow(fg)
+    # plt.show()
+    #
+    # plt.imshow(bg)
+    # plt.show()
+
+    blended = fg * (alpha) + bg * (1. - alpha)
+    blended = np.clip(blended, 0, 255)
+    blended = blended.astype(np.uint8)
+
+    if mask_or_forbidden_colors is None:
+        return blended
+
+    # do the masking based on colors or on mask
+    if not isinstance(mask_or_forbidden_colors, np.ndarray):
+        # assume colors must have been passed --> get a mask from them
+        mask_or_forbidden_colors = mask_colors(fg, colors_to_mask=mask_or_forbidden_colors)
+        # the mask is full of bugs
+        # if mask_or_forbidden_colors is not None:
+        #     plt.imshow(mask_or_forbidden_colors.astype(np.uint8)*255)
+        #     plt.show()
+        # else:
+        #     print('EROOR EMPTY')
+
+    if mask_or_forbidden_colors is None:
+        # no color found or error --> return default blended image
+        return blended
+
+    # not easy --> can create a lot of errors --> need a smart fix some day
+    # maybe force also the mask to be compatible with bg
+
+    # marche pas --> il y a un bug qq part mais j'en suis pas loin en fait
+    bg, mask_or_forbidden_colors = create_compatible_image(bg, mask_or_forbidden_colors, auto_sort=False)
+    if mask_or_forbidden_colors.dtype != bool:
+        # need normalization
+        if mask_or_forbidden_colors.max() != 0:
+            mask_or_forbidden_colors = mask_or_forbidden_colors / mask_or_forbidden_colors.max()
+
+    bg = bg * mask_or_forbidden_colors
+    bg = np.clip(bg, 0, 255)
+    bg = bg.astype(np.uint8)
+    # restore bg for masked colors
+    blended[bg != 0] = bg[bg != 0]
+
+    return blended
+
+
+# TODO maybe add range and dtype check at some point
+# NB if auto --> match directly to the image with the max nb of channels/dimensions
+# in fact need return just the image to be changed
+# but need identify which image it is in fact --> need return an idx --> such as 0 or 1
+
+# maybe fix image if it has more dims than 3
+def create_compatible_image(desired_image, image_to_change, auto_sort=False):
+    # print('desired_image.shape',desired_image.shape) # --> pb if image has 4 channels --> need a fix --> see how to do --> probably convert to 3 channels...  ????
+    # print('image_to_change.shape',image_to_change.shape)
+
+    # in case the bg image has too many channels convert it to a 3 channel image --> simpler or remove the last channel --> ???
+    # dirty fix when source image has more than 3 channels (e.g. 4 channels) is there any more elegant way of doing that ???? not sure
+    if len(desired_image.shape) >= 3 and desired_image.shape[-1] > 3:
+        # convert it first to a RGB image
+        # original_dtype = desired_image.dtype
+        desired_image = np.average(desired_image, axis=-1)
+        # desired_image = desired_image.astype(original_dtype)
+
+        # tmp = np.zeros((*desired_image.shape, 3), dtype=np.uint8)
+        # tmp[..., 0] = desired_image
+        # tmp[..., 1] = desired_image
+        # tmp[..., 2] = desired_image
+        # desired_image = tmp
+        # nb there seems to still be a bug in the blending algo because the image is too bright -->
+
+    # NB if auto --> match directly to the image with the max nb of channels/dimensions
+    if len(desired_image.shape) == len(image_to_change.shape) and desired_image.shape == image_to_change.shape:
+        # images are already compatible --> nothing todo
+        return desired_image, image_to_change
+    # else modify image so that it matches the desired stuff
+
+    # otherwise too complex and return an error
+    if abs(len(desired_image.shape) - len(image_to_change.shape)) > 1:
+        logger.error('Images cannot be rendered compatible easily --> ignoring')
+        return desired_image, image_to_change
+    # check that all dimensions but channels match otherwise return an error
+    # assume just the nb of channels differ --> do fix them
+    try:
+        if not desired_image.shape[0] == image_to_change.shape[0] and desired_image.shape[1] == image_to_change.shape[
+            1]:
+            logger.error(
+                'Images cannot be rendered compatible easily, because the two first dimensions are not equal between the two images')
+            return desired_image, image_to_change
+    except:
+        logger.error(
+            'Images cannot be rendered compatible easily, because the two first dimensions are not equal between the two images')
+        return desired_image, image_to_change
+
+    # now enter the serious stuff --> image really needs be changed
+    need_swap = False
+    desired_image_clone, image_to_change_clone = desired_image, image_to_change
+    if auto_sort:
+        # find image withthe more dims or nb of channels and match the other to it
+
+        # print(desired_image_clone.shape, image_to_change_clone.shape)  #(512, 512, 3) (512, 512) -->should not swap in fact --> bug is here
+        # print(len(image_to_change_clone.shape)>len(desired_image_clone.shape), image_to_change_clone.shape[-1]>desired_image_clone.shape[-1])
+
+        if len(image_to_change.shape) > len(desired_image.shape):
+            desired_image_clone, image_to_change_clone = image_to_change_clone, desired_image_clone
+            need_swap = True
+            # print('swappped', desired_image_clone.shape,image_to_change_clone.shape)
+        elif len(image_to_change.shape) == len(desired_image.shape) and image_to_change.shape[-1] > desired_image.shape[
+            -1]:
+            desired_image_clone, image_to_change_clone = image_to_change_clone, desired_image_clone
+            need_swap = True
+            # print('swappped', desired_image_clone.shape, image_to_change_clone.shape)
+        # idx = 1
+
+    # print(desired_image_clone.shape, image_to_change_clone.shape)# bug here --> wrong image in fact
+
+    # print('desired_image_clone.shape',desired_image_clone.shape, 'image_to_change_clone.shape',image_to_change_clone.shape)
+
+    tmp = np.zeros_like(desired_image_clone, dtype=image_to_change_clone.dtype)
+    # print()
+
+    # print(tmp.shape) # --> ok
+    # just do copy the image several times --> should work
+    # si ça ne marche pas je fais quoi ????
+    # si image a top de channels que dois-je faire dois-je forcer l'image à etre exactement 3 channels anyway cannot show so many channels ...
+
+    for c in range(tmp.shape[-1]):
+        tmp[..., c] = image_to_change_clone
+
+    if not need_swap:
+        return desired_image_clone, tmp
+    else:
+        return tmp, desired_image_clone
+
+
+# not bad and can be useful !!!
+# colors to mask should be an array colors/values
+def mask_colors(colored_image, colors_to_mask, invert_mask=False, warn_on_color_not_found=False):
+    if colors_to_mask is None:
+        logger.warning('No color to be masked was specified --> ignoring mask')
+        return None
+    if not (isinstance(colors_to_mask, list) or isinstance(colors_to_mask, tuple)):
+        colors_to_mask = [colors_to_mask]
+    if not invert_mask:
+        # if len(mask.shape) > 3
+        mask = np.zeros_like(colored_image, dtype=bool)
+    else:
+        mask = np.ones((colored_image.shape), dtype=bool)
+    mask_value = True
+    if invert_mask:
+        mask_value = False
+
+    # print(colored_image.shape, mask.shape)
+    for color in colors_to_mask:
+        # print(color)
+        # if not isinstance(color, tuple):
+        #     print('before 1')
+        #     plt.imshow(mask.astype(np.uint8)*255)
+        #     plt.show()
+
+        # mask[np.where(colored_image==color)]=mask_value
+
+        #  is that even working --> need test
+
+        if len(mask.shape) == 3:
+            mask[np.where(np.all(colored_image == color, axis=-1))] = mask_value  # cretin
+        else:
+            mask[np.where(colored_image == color)] = mask_value
+
+        # print(np.where(np.all(colored_image == color, axis=-1)))
+
+        # coords = np.where(np.all(colored_image == color, axis=-1))
+        # mask[coords]=mask_value
+
+        # print('after 1')
+        # plt.imshow(mask.astype(np.uint8)*255)
+        # plt.show()
+    # else:
+    #     print('in')
+    #
+    #     print(color)
+    #
+    #     for ccc, col in enumerate(color):
+    #         mask[...,ccc][colored_image[...,ccc]==col]=mask_value
+    # print('out')
+
+    if mask.max() == mask.min():
+        # colors not found --> ignore
+        if warn_on_color_not_found:
+            logger.warning('Colors not found --> no mask created')
+        return None
+    return mask
+
+
+# TODO maybe make this a more generic stuff
+
 def get_nb_of_series_in_lif(lif_file_name):
     if not lif_file_name or not lif_file_name.lower().endswith('.lif'):
         logger.error('Error only lif file supported')
@@ -154,6 +683,90 @@ def get_nb_of_series_in_lif(lif_file_name):
     reader = read_lif.Reader(lif_file_name)
     series = reader.getSeries()
     return len(series)
+
+
+# TODO --> do a code to reinject the metadata from one file into another especially the dimensions or save them as a .meta file that is independent --> would be a good idea
+# see if and how I can reinject the metadata in the stuff
+
+
+# TODO split my code into metadata gathering data and image opener --> ideally make this separately ????
+# see how to do that
+# can I get just the metadata of the lif in order to gain time and not process everything, can I also get the name of the series
+def get_series_names_in_lif(lif_file_name):
+    if not lif_file_name or not lif_file_name.lower().endswith('.lif'):
+        logger.error('Error only lif file supported')
+        return None
+    reader = read_lif.Reader(lif_file_name)
+    series = reader.getSeries()
+    for serie in series:
+        print('name', serie.getName())  # --> ok
+        print('ts',
+              len(serie.getTimeStamps()))  # so it would be easy to associate a time or a time stamp to every image --> maybe that is what I want
+        print('tl', serie.getTimeLapse())  # is filled when a time lapse is made
+        # print('rts',len(serie.getRelativeTimeStamps())) # always empty --> exclude all of this
+        print('times',
+              serie.getNbFrames())  # ça c'est super utile pr recupérer les temps en fait aussi --> peut etre aussi l'extraire et le stocker qq part ds les metadata (en fait c'est deja stocke dans une des dimensions)
+        # Voir comment finaliser les temps
+        # tester un fichier de height map --> faire un and entre le mask et le fichier de height map et voir comment je peux faire mon analyse
+        # dupliquer la classe pr éviter de casser des trucs
+        # could maybe format this
+        # need get the ratio xy over z in order to compute the area --> simpler TODO
+        print('Zx ratio', serie.getZXratio())  # --> exactly what I want and need
+        # dimensions = serie.getDimensions()
+        # for dim in range(len(dimensions)):
+        #     try:
+        #         print('Voxel size dim', dim, serie.getVoxelSize(dimensions[dim])) # --> exactly what I want and need
+        #     except:
+        #         pass
+        metadata = serie.getMetadata()
+        print('voxel_size_x', metadata['voxel_size_x'])
+        print('voxel_size_y', metadata['voxel_size_y'])
+        print('voxel_size_z', metadata['voxel_size_z'])
+
+        print('nb series', len(series))
+    # print(series)
+    return len(series)
+
+
+# work in progress to transfer metadata from one file to another --> DO NOT USE A LOT MORE WORK IS NEEDED HERE AND THINGS HAVE NOT BEEN MADE PROPERLY!!!
+def _transfer_voxel_size_metadata(input_file_with_correct_metadata, output_file_with_missing_metadata):
+    img1 = Img(input_file_with_correct_metadata)
+    img2 = Img(output_file_with_missing_metadata)
+
+    relevant_metadatas = ['vx', 'vy', 'vz', 'AR',
+                          'creation_time']  # , 'times']--> in lsm time is an array --> not serializable --> ignore for now --> fix that in future
+
+    meta_changed = False
+    for relevant_metadata in relevant_metadatas:
+        if relevant_metadata in img1.metadata:
+            if relevant_metadata in img2.metadata:
+                if img2.metadata[relevant_metadata] == img1.metadata[relevant_metadata]:
+                    continue
+                else:
+                    img2.metadata[relevant_metadata] = img1.metadata[relevant_metadata]
+                    meta_changed = True
+            else:
+                img2.metadata[relevant_metadata] = img1.metadata[relevant_metadata]
+                meta_changed = True
+        else:
+            logger.warning('relevant metadata "' + relevant_metadata + '" not found --> ignoring')
+            meta_changed = True
+
+    # print(img2.metadata)
+    # return
+
+    if meta_changed:
+        if 'vx' in img2.metadata and 'vy' in img2.metadata:
+            # just to make resolution rationale
+
+            # TODO replace resolution by fractions.Fraction https://docs.python.org/3/library/fractions.html
+            tifffile.imwrite(output_file_with_missing_metadata, img2, imagej=False, resolution=(
+                (int(1_000_000 / img2.metadata['vx']), 1000000), (int(1_000_000 / img2.metadata['vy']), 1000000)),
+                             # resolution=(1_000_000/img2.metadata['vx'], 1_000_000/img2.metadata['vy']), # resolution is almost ok but I do have a small bug in fact
+                             metadata=img2.metadata)
+        else:
+            tifffile.imwrite(output_file_with_missing_metadata, img2,
+                             imagej=False, metadata=img2.metadata)
 
 
 # TODO maybe make one that does the same with ROIs ???
@@ -205,9 +818,9 @@ def mask_rows_or_columns(img, spacing_X=2, spacing_Y=None, masking_value=0, retu
 
 
 # TODO in development --> code that better and check whether it keeps the intensity range or not
-def resize(img, new_size, order=1):
+def resize(img, new_size, order=1, preserve_range=False):
     from skimage.transform import resize
-    img = resize(img, new_size, order=1)
+    img = resize(img, new_size, order=order, preserve_range=preserve_range)
     return img
 
 
@@ -253,6 +866,7 @@ def white_top_hat(image, structuring_element=square(50), preserve_range=True):
     return __top_hat(image, type='white', structuring_element=structuring_element, preserve_range=preserve_range)
 
 
+# somehow tophat does not work for 3D but why ???
 def __top_hat_single_channel__(single_channel_image, type, structuring_element=square(50), preserve_range=True):
     dtype = single_channel_image.dtype
     min = single_channel_image.min()
@@ -286,7 +900,7 @@ class Img(np.ndarray):  # subclass ndarray
     def __new__(cls, *args, t=0, d=0, z=0, h=0, y=0, w=0, x=0, c=0, bits=8, serie_to_open=None, dimensions=None,
                 metadata=None, **kwargs) -> object:
         '''Creates a new instance of the Img class
-
+        
         The image class is a numpy ndarray. It is nothing but a matrix of pixel values.
 
         Parameters
@@ -300,7 +914,7 @@ class Img(np.ndarray):  # subclass ndarray
         w, x : int
             image width
         c : int
-            number of color channels
+            number of color channels 
         bits : int
             bits per pixel
         dimensions : string
@@ -317,12 +931,14 @@ class Img(np.ndarray):  # subclass ndarray
                      'vx': None,  # voxel x size
                      'vy': None,  # voxel y size
                      'vz': None,  # voxel z size
-                     'AR': None,  # wh/depth ratio
+                     'AR': None,  # vz/vx ratio
                      'LUTs': None,  # lut
                      'cur_d': 0,  # current z/depth pos
                      'cur_t': 0,  # current time
                      'Overlays': None,  # IJ overlays
                      'ROI': None,  # IJ ROIs
+                     'timelapse': None,  # time between frames when in a time lapse movie-->
+                     'creation_time': None,
                      }
 
         if metadata is not None:
@@ -345,24 +961,38 @@ class Img(np.ndarray):  # subclass ndarray
                     img.metadata['dimensions'] = dimensions
 
             elif isinstance(args[0], str):
-                logger.debug('loading ' + str(args[0]))
-                # print('loading '+str(args[0]))
+                logger.debug('loading ' + args[0])
+
                 # input is a string, i.e. a link to one or several files
                 if '*' not in args[0]:
                     # single image
+                    creation_time = get_file_creation_time(args[0])
                     meta, img = ImageReader.read(args[0], serie_to_open=serie_to_open)
                     meta_data.update(meta)
                     meta_data['path'] = args[0]  # add path to metadata
+                    # meta_data['creation_time'] = creation_time
+                    if not 'creation_time' in meta_data or meta_data['creation_time'] == None:
+                        meta_data['creation_time'] = str(dt.datetime.now())
                     img = np.asarray(img).view(cls)
                     img.metadata = meta_data
+                    # img.metadata.update({'creation_time': creation_time})
                 else:
                     # series of images
                     image_list = [img for img in glob.glob(args[0])]
                     image_list = natsorted(image_list)
+                    # maybe create an array of creation time in this case
+                    creation_time = []
+                    for file in image_list:
+                        creation_time.append(get_file_creation_time(file))
                     img = ImageReader.imageread(image_list)  # TODO add metadata here too for w,h d and channels
-                    meta_data['path'] = args[0]  ## add path to metadata
+                    meta_data['path'] = args[
+                        0]  ## add path to metadata # TODO make this an array of files instead --> smarter in a way
+                    # meta_data['creation_time'] = creation_time
+                    if not 'creation_time' in meta_data or meta_data['creation_time'] == None:
+                        meta_data['creation_time'] = str(dt.datetime.now())
                     img = np.asarray(img).view(cls)
                     img.metadata = meta_data
+                    # img.metadata.update({'creation_time':creation_time})
         else:
             # custom image creation : setting the dimensions
             dims = []
@@ -392,6 +1022,8 @@ class Img(np.ndarray):  # subclass ndarray
             if bits == 32:
                 dtype = np.float32  # 32 bits
             meta_data['bits'] = bits
+            if not 'creation_time' in meta_data or meta_data['creation_time'] == None:
+                meta_data['creation_time'] = str(dt.datetime.now())
             img = np.asarray(np.zeros(tuple(dims), dtype=dtype)).view(cls)
             # array = np.squeeze(array) # TODO may be needed especially if people specify 1 instead of 0 ??? but then need remove some stuff
             # img = array
@@ -477,6 +1109,9 @@ class Img(np.ndarray):  # subclass ndarray
         for d in self.metadata['dimensions']:
             dimension_parameters[d] = self.get_dimension(d)
         return dimension_parameters
+
+    def get_dimensions_as_string(self):
+        return self.metadata['dimensions']
 
     def get_dim_idx(self, dim):
         # force dimensions compatibility (e.g. use synonyms)
@@ -570,6 +1205,11 @@ class Img(np.ndarray):  # subclass ndarray
         plt.draw()
         plt.pause(pause)
 
+    def _pad_border_xy(self, *args, **kwargs):
+        # will that work ??? --> yes that works and that is relatively simple to implement --> maybe this is the way to proceed for all functions --> MEGA TODO
+        self[...] = pad_border_xy(self, *args, **kwargs)[...]
+
+    # @deprecated --> remove all of this soon --> use pad_border_xy instead
     def setBorder(self, distance_from_border_in_px=1, color=0):
         ''' Set n pixels at the border of the image to the defined color
 
@@ -580,6 +1220,9 @@ class Img(np.ndarray):  # subclass ndarray
         color : int or tuple
             new color (default is black = 0)
         '''
+        logger.warning(
+            'NB: setBorder is deprecated and will be removed soon --> use Img._pad_border_xy or pad_border_xy instead.')
+
         if distance_from_border_in_px <= 0:
             # ignore when distance < 0
             return
@@ -942,25 +1585,40 @@ class Img(np.ndarray):  # subclass ndarray
                 # TODO add the possibility to save ROIs if needed...
                 #        Parameters 'append', 'byteorder', 'bigtiff', and 'imagej', are passed             #         to TiffWriter(). Other parameters are passed to TiffWriter.save().
                 # print(ijmetadata)
-                rois = {}
-                if ijmetadata == 'copy' and self.metadata['Overlays']:
-                    rois['Overlays'] = self.metadata['Overlays']
-                if ijmetadata == 'copy' and self.metadata['ROI']:
-                    rois['ROI'] = self.metadata['ROI']
-                if not rois:
-                    rois = None
 
-                # quick hack to force images to display as composite in IJ if they have channels -> probably needs be improved at some point
-                # try:
-                tifffile.imwrite(output_name, out, imagej=True, ijmetadata=rois,
-                                 metadata={'mode': 'composite'} if self.metadata[
-                                                                       'dimensions'] is not None and self.has_c() else {})  # small hack to keep only non RGB images as composite and self.get_dimension('c')!=3
-                # TODO at some point handle support for RGB 24-32 bits images saving as IJ compatible but skip for now
-                # nb tifffile.imwrite(os.path.join(filename0_without_ext,'tra_test_saving_24bits_0.tif'), tracked_cells_t0, imagej=True,                      metadata={}) --> saves as RGB if image RGB 3 channels
+                # working version 2021.11.2
 
-                # TODO --> some day do the saving smartly with the dimensions included see https://pypi.org/project/tifffile/
-                # imwrite('temp.tif', data, bigtiff=True, photometric='minisblack',  compression = 'deflate', planarconfig = 'separate', tile = (32, 32),    metadata = {'axes': 'TZCYX'})
-                # imwrite('temp.tif', volume, imagej=True, resolution=(1. / 2.6755, 1. / 2.6755),        metadata = {'spacing': 3.947368, 'unit': 'um', 'axes': 'ZYX'})
+                ijmeta = {}
+                if ijmetadata == 'copy':
+                    if self.metadata['Overlays']:
+                        ijmeta['Overlays'] = self.metadata['Overlays']
+                    if self.metadata['ROI']:
+                        ijmeta['ROI'] = self.metadata['ROI']
+                    # TODO add support for Luts some day --> make sure IJ luts and epyseg lust are not incompatible or define an IJ_LUTs in metadata and get it
+                    # make sure this does not create trouble
+                    if self.metadata['LUTs']:
+                        ijmeta['LUTs'] = self.metadata['LUTs']
+                if not ijmeta:
+                    ijmeta = None
+
+                # old save code with deprecated ijmetadata
+                if tifffile.__version__ < '2022.4.22':
+                    tifffile.imwrite(output_name, out, imagej=True, ijmetadata=ijmeta,metadata={'mode': 'composite'} if self.metadata['dimensions'] is not None and self.has_c() else {})  # small hack to keep only non RGB images as composite and self.get_dimension('c')!=3
+                else:
+                    # somehow this code doesn't seem to work with old tiffile but works with new one
+
+                    # fix for ijmetadata deprecation in recent tifffile
+                    ijtags = imagej_metadata_tags(ijmeta, '>') if ijmeta is not None else {}
+                    # nb can add and save lut to the metadata --> see https://stackoverflow.com/questions/50258287/how-to-specify-colormap-when-saving-tiff-stack
+
+                    # quick hack to force images to display as composite in IJ if they have channels -> probably needs be improved at some point
+                    tifffile.imwrite(output_name, out, imagej=True, metadata={'mode': 'composite'} if self.metadata['dimensions'] is not None and self.has_c() else {}, extratags=ijtags)  # small hack to keep only non RGB images as composite and self.get_dimension('c')!=3
+                    # TODO at some point handle support for RGB 24-32 bits images saving as IJ compatible but skip for now
+                    # nb tifffile.imwrite(os.path.join(filename0_without_ext,'tra_test_saving_24bits_0.tif'), tracked_cells_t0, imagej=True,                      metadata={}) --> saves as RGB if image RGB 3 channels
+
+                    # TODO --> some day do the saving smartly with the dimensions included see https://pypi.org/project/tifffile/
+                    # imwrite('temp.tif', data, bigtiff=True, photometric='minisblack',  compression = 'deflate', planarconfig = 'separate', tile = (32, 32),    metadata = {'axes': 'TZCYX'})
+                    # imwrite('temp.tif', volume, imagej=True, resolution=(1. / 2.6755, 1. / 2.6755),        metadata = {'spacing': 3.947368, 'unit': 'um', 'axes': 'ZYX'})
         else:
             if output_name.lower().endswith('.npy') or output_name.lower().endswith('.epyseg'):
                 # directly save as .npy --> the numpy default array format
@@ -1212,80 +1870,82 @@ class Img(np.ndarray):  # subclass ndarray
     def RGB_to_BRG(rgb):
         return rgb[..., [2, 0, 1]]
 
-    # TODO code that better
-    def getQimage(self):
-        '''get a qimage from ndarray
-
-        Returns
-        -------
-        qimage
-            a pyqt compatible image
-        '''
-        logger.debug('Creating a qimage from a numpy image')
-        img = self
-        dims = []
-        for d in self.metadata['dimensions']:
-            if d in ['w', 'h', 'c', 'x', 'y']:
-                dims.append(slice(None))
-            else:
-                dims.append(0)
-        img = img[tuple(dims)]
-        img = np.ndarray.copy(img)  # need copy the array
-
-        if img.dtype != np.uint8:
-            # just to remove the warning raised by img_as_ubyte
-            with warnings.catch_warnings():
-                warnings.simplefilter('ignore')
-                try:
-                    # need manual conversion of the image so that it can be read as 8 bit or alike
-                    # force image between 0 and 1 then do convert
-                    img = img_as_ubyte((img - img.min()) / (img.max() - img.min()))
-                except:
-                    print('error converting image to 8 bits')
-                    return None
-
-        bytesPerLine = img.strides[0]
-
-        if self.has_c() and self.get_dimension('c') is not None and self.get_dimension('c') != 0:
-            nb_channels = self.get_dimension('c')
-            logger.debug('Image has ' + str(nb_channels) + ' channels')
-
-            if nb_channels == 3:
-                qimage = QImage(img.data, self.get_width(), self.get_height(), bytesPerLine,
-                                QImage.Format_RGB888)
-            elif nb_channels < 3:
-                # add n dimensions
-                bgra = np.zeros((self.get_height(), self.get_width(), 3), np.uint8, 'C')
-                if img.shape[2] >= 1:
-                    bgra[..., 0] = img[..., 0]
-                if img.shape[2] >= 2:
-                    bgra[..., 1] = img[..., 1]
-                if img.shape[2] >= 3:
-                    bgra[..., 2] = img[..., 2]
-                qimage = QImage(bgra.data, self.get_width(), self.get_height(), bgra.strides[0], QImage.Format_RGB888)
-            else:
-                if nb_channels == 4:
-                    bgra = np.zeros((self.get_height(), self.get_width(), 4), np.uint8, 'C')
-                    bgra[..., 0] = img[..., 0]
-                    bgra[..., 1] = img[..., 1]
-                    bgra[..., 2] = img[..., 2]
-                    if img.shape[2] >= 4:
-                        logger.debug('using 4th numpy color channel as alpha for qimage')
-                        bgra[..., 3] = img[..., 3]
-                    else:
-                        bgra[..., 3].fill(255)
-                    qimage = QImage(bgra.data, self.get_width(), self.get_height(), bgra.strides[0],
-                                    QImage.Format_ARGB32)
-                else:
-                    # TODO
-                    logger.error("not implemented yet!!!!, too many channels")
-        else:
-            qimage = QImage(img.data, self.get_width(), self.get_height(), bytesPerLine,
-                            QImage.Format_Indexed8)
-            # required to allow creation of a qicon --> need keep
-            for i in range(256):
-                qimage.setColor(i, QColor(i, i, i).rgb())
-        return qimage
+    # TODO code that better and make a version that directly takes images
+    # assume images must be 2D or 2D + color --> see how to do that!!!
+    # buggy and deprecated --> use toQimage
+    # def getQimage(self):
+    #     '''get a qimage from ndarray
+    #
+    #     Returns
+    #     -------
+    #     qimage
+    #         a pyqt compatible image
+    #     '''
+    #     logger.debug('Creating a qimage from a numpy image')
+    #     img = self
+    #     dims = []
+    #     for d in self.metadata['dimensions']:
+    #         if d in ['w', 'h', 'c', 'x', 'y']:
+    #             dims.append(slice(None))
+    #         else:
+    #             dims.append(0)
+    #     img = img[tuple(dims)]
+    #     img = np.ndarray.copy(img)  # need copy the array
+    #
+    #     if img.dtype != np.uint8:
+    #         # just to remove the warning raised by img_as_ubyte
+    #         with warnings.catch_warnings():
+    #             warnings.simplefilter('ignore')
+    #             try:
+    #                 # need manual conversion of the image so that it can be read as 8 bit or alike
+    #                 # force image between 0 and 1 then do convert
+    #                 img = img_as_ubyte((img - img.min()) / (img.max() - img.min()))
+    #             except:
+    #                 print('error converting image to 8 bits')
+    #                 return None
+    #
+    #     bytesPerLine = img.strides[0]
+    #
+    #     if self.has_c() and self.get_dimension('c') is not None and self.get_dimension('c') != 0:
+    #         nb_channels = self.get_dimension('c')
+    #         logger.debug('Image has ' + str(nb_channels) + ' channels')
+    #
+    #         if nb_channels == 3:
+    #             qimage = QImage(img.data, self.get_width(), self.get_height(), bytesPerLine,
+    #                             QImage.Format_RGB888)
+    #         elif nb_channels < 3:
+    #             # add n dimensions
+    #             bgra = np.zeros((self.get_height(), self.get_width(), 3), np.uint8, 'C')
+    #             if img.shape[2] >= 1:
+    #                 bgra[..., 0] = img[..., 0]
+    #             if img.shape[2] >= 2:
+    #                 bgra[..., 1] = img[..., 1]
+    #             if img.shape[2] >= 3:
+    #                 bgra[..., 2] = img[..., 2]
+    #             qimage = QImage(bgra.data, self.get_width(), self.get_height(), bgra.strides[0], QImage.Format_RGB888)
+    #         else:
+    #             if nb_channels == 4:
+    #                 bgra = np.zeros((self.get_height(), self.get_width(), 4), np.uint8, 'C')
+    #                 bgra[..., 0] = img[..., 0]
+    #                 bgra[..., 1] = img[..., 1]
+    #                 bgra[..., 2] = img[..., 2]
+    #                 if img.shape[2] >= 4:
+    #                     logger.debug('using 4th numpy color channel as alpha for qimage')
+    #                     bgra[..., 3] = img[..., 3]
+    #                 else:
+    #                     bgra[..., 3].fill(255)
+    #                 qimage = QImage(bgra.data, self.get_width(), self.get_height(), bgra.strides[0],
+    #                                 QImage.Format_ARGB32)
+    #             else:
+    #                 # TODO
+    #                 logger.error("not implemented yet!!!!, too many channels")
+    #     else:
+    #         qimage = QImage(img.data, self.get_width(), self.get_height(), bytesPerLine,
+    #                         QImage.Format_Indexed8)
+    #         # required to allow creation of a qicon --> need keep
+    #         for i in range(256):
+    #             qimage.setColor(i, QColor(i, i, i).rgb())
+    #     return qimage
 
     @staticmethod
     def interpolation_free_rotation(img, angle=90):
@@ -1848,16 +2508,26 @@ class Img(np.ndarray):  # subclass ndarray
         '''
         n_rows = crop_parameters['n_rows']
         n_cols = crop_parameters['n_cols']
-        nb_tiles = crop_parameters['nb_tiles']
+        nb_tiles = crop_parameters['nb_tiles']  # nb tiles is unused --> so why do I save it --> why not removing it
+        # if I exceeded the stuff then skip things
+
+        # do I have a bug in there ???? no clue --> and how can I fix it
 
         output = []
         counter = 0
         for i in range(n_rows):
-            cols = []
-            for j in range(n_cols):
-                cols.append(tiles[counter])
-                counter += 1
-            output.append(cols)
+            try:
+                cols = []
+                for j in range(n_cols):
+                    # BUG PREVENTING HANDLING MULTIPLE OUTPUTS IS THERE --> TODO
+                    cols.append(tiles[counter])
+                    counter += 1
+                output.append(cols)
+            except:
+                # bug preventing multiple output seems to be somewhere there or in function that calls it
+                traceback.print_exc()
+                pass
+
         return output
 
     # should dynamically crop images
@@ -2065,12 +2735,15 @@ class ImageReader:
         ar = None
         overlays = None
         roi = None
+        timelapse = None
+        creation_time = None
 
         dimensions_string = ''
 
         metadata = {'w': width, 'h': height, 'c': channels, 'd': depth, 't': t_frames, 'bits': bits, 'vx': voxel_x,
                     'vy': voxel_y, 'vz': voxel_z, 'AR': ar, 'dimensions': dimensions_string, 'LUTs': luts,
-                    'times': times, 'Overlays': overlays, 'ROI': roi}  # TODO check always ok
+                    'times': times, 'Overlays': overlays, 'ROI': roi, 'timelapse': timelapse,
+                    'creation_time': creation_time}  # TODO check always ok
 
         logger.debug('loading' + str(f))
 
@@ -2090,9 +2763,19 @@ class ImageReader:
                     if 'ROI' in tif.imagej_metadata:
                         roi = tif.imagej_metadata['ROI']
                         metadata['ROI'] = roi
+                    if 'LUTs' in tif.imagej_metadata:
+                        luts = tif.imagej_metadata['LUTs']
+                        metadata['LUTs'] = luts
 
                 tif_tags = {}
                 for tag in tif.pages[0].tags.values():
+
+                    # if name == 'vx':
+                    #     width = value
+                    # elif name == 'vy':
+                    #     height = value
+                    # elif name == 'vz':
+                    #     depth = value
                     name, value = tag.name, tag.value
                     tif_tags[name] = value
                     logger.debug(''' + name + ''' + '\'' + str(value) + '\'')
@@ -2106,30 +2789,67 @@ class ImageReader:
                         else:
                             bits = value[0]
                     elif name == 'XResolution':
-                        voxel_x = value[1] / value[0]
+                        val = value[1] / value[0]
+                        if val != 1.0 or voxel_x is None:
+                            voxel_x = value[1] / value[0]
                     elif name == 'YResolution':
-                        voxel_y = value[1] / value[0]
+                        val = value[1] / value[0]
+                        if val != 1.0 or voxel_x is None:
+                            voxel_y = val
                     elif name == 'ImageDescription':
-                        lines = value.split()
-                        for l in lines:
-                            logger.debug('1'' + l + ''1')
-                            if l.startswith('channels'):
-                                _, val = l.split('=')
-                                channels = int(val)
-                            elif l.startswith('slices'):  # Z slices
-                                _, val = l.split('=')
-                                depth = int(val)
-                            elif l.startswith('frames'):  # time frames
-                                _, val = l.split('=')
-                                t_frames = int(val)
-                            elif l.startswith('spacing'):
-                                _, val = l.split('=')
-                                voxel_z = float(val)
+                        if not value.startswith('{'):
+                            # print(value)
+                            lines = value.split()
+                            # print(len(lines), lines)
+                            # print(type(value), value)
+                            #
+                            # if value.startswith('{'):
+                            #     res = json.loads(value)
+                            #     print(res)
+                            #     print(res['vx']+1)
+                            # then it is a dict and I need parse it back
+                            # if description starts with a {
+                            for l in lines:
+                                logger.debug('1'' + l + ''1')
+                                if l.startswith('channels'):
+                                    _, val = l.split('=')
+                                    channels = int(val)
+                                elif l.startswith('slices'):  # Z slices
+                                    _, val = l.split('=')
+                                    depth = int(val)
+                                elif l.startswith('frames'):  # time frames
+                                    _, val = l.split('=')
+                                    t_frames = int(val)
+                                elif l.startswith('spacing'):
+                                    _, val = l.split('=')
+                                    voxel_z = float(val)
+
+                                    # print(name, value)
+                                    # TODO if there is an ImageDescription I could parse it and get the data out of it
+                                    # ImageDescription
+                        else:
+                            # TODO improve that
+                            # metadata added is in fact epyseg metadata --> recover it
+                            epyseg_meta = json.loads(value)
+                            if 'vx' in epyseg_meta:
+                                voxel_x = epyseg_meta['vx']
+                            if 'vy' in epyseg_meta:
+                                voxel_y = epyseg_meta['vy']
+                            if 'vz' in epyseg_meta:
+                                voxel_z = epyseg_meta['vz']
+                            if 'creation_time' in epyseg_meta:
+                                creation_time = epyseg_meta['creation_time']
+                            if 'timelapse' in epyseg_meta:
+                                timelapse = epyseg_meta['timelapse']
+                            if 'times' in epyseg_meta:
+                                times = epyseg_meta['times']
+                            # TODO maybe get more metadata from epyseg --> check which meta is smart to keep and which isn't...
 
                     # read lsm
                     if isinstance(value, dict):
                         for name, value in value.items():
                             logger.debug(name + ' ' + str(value))
+                            # THE 3 BELOW ARE MY OWN TAGS --> ADD MORE AND MAYBE STICK TO OMERO FOR CONSISTENCY MAYBE BUT OK FOR NOW
                             if name == 'DimensionZ':
                                 depth = value
                             elif name == 'DimensionX':
@@ -2153,8 +2873,12 @@ class ImageReader:
                             elif name == 'ChannelColors':
                                 luts = value['Colors']
 
+        # TODO also recover my own tags maybe # TODO recode all of this properly some day because it becomes a huge mess now
+
+        # very dumb thing here is that I open the tiff file twice --> really not Smart --> change this --> I opne it here and above
         if f.lower().endswith('.tif') or f.lower().endswith('.tiff') or f.lower().endswith('.lsm'):
             image_stack = tifffile.imread(f)
+            # has more properties than that
             image = image_stack
             image = np.squeeze(image)
         elif f.lower().endswith('.czi'):
@@ -2237,7 +2961,9 @@ class ImageReader:
             height = meta_data['voxel_number_y']
             depth = meta_data['voxel_number_z']
             channels = meta_data['channel_number']
-            times = chosen.getTimeStamps()
+            times = chosen.getTimeStamps()  # shall I try getRelativeTimeStamps????
+            # print('relative times', chosen.getRelativeTimeStamps()) # marche pas peut etre sur non chosen --> still useless for lif
+            timelapse = chosen.getTimeLapse()
             t_frames = chosen.getNbFrames()
 
             # print('t_frames', t_frames)
@@ -2322,7 +3048,8 @@ class ImageReader:
 
         dimensions_string += 'hw'
 
-        if depth is not None:
+        # bug fix for images having d=1 incompatible with squeeze; need be done for every dimension by the way...
+        if depth is not None and depth > 1:
             dimensions_string = 'd' + dimensions_string
 
         if channels is None and width != image.shape[-1] and len(image.shape) > 2:
@@ -2331,7 +3058,8 @@ class ImageReader:
         if channels is not None and channels > 1:
             dimensions_string += 'c'
 
-        if t_frames is not None:
+        # bug fix for images having t=1 incompatible with squeeze; need be done for every dimension by the way...
+        if t_frames is not None and t_frames > 1:
             dimensions_string = 't' + dimensions_string
         else:
             if image.ndim > len(dimensions_string):
@@ -2351,13 +3079,17 @@ class ImageReader:
         # update metadata
         metadata.update({'w': width, 'h': height, 'c': channels, 'd': depth, 't': t_frames, 'bits': bits, 'vx': voxel_x,
                          'vy': voxel_y, 'vz': voxel_z, 'AR': ar, 'dimensions': dimensions_string, 'LUTs': luts,
-                         'times': times, 'Overlays': overlays, 'ROI': roi})
+                         'times': times, 'Overlays': overlays, 'ROI': roi, 'timelapse': timelapse,
+                         'creation_time': creation_time})
         # print(metadata)
 
         logger.debug('image params:' + str(metadata))
         logger.debug('final shape:' + str(image.shape))
 
         return metadata, image
+
+    # def _fix_dimensions1(self):
+    #     if
 
     def imageread(self, filePath):
         # TODO return other stuff here such as nb of frames ... do I need skimage to read or should I use smthg else
@@ -2374,4 +3106,63 @@ class ImageReader:
 
 
 if __name__ == '__main__':
+    if True:
+        f = '/E/Sample_images/test_IJ_metadata_n_ROIs_tifffile/IJ_input.tif'
+        f = '/E/Sample_images/test_IJ_metadata_n_ROIs_tifffile/IJ_input_2.tif'
+        f = '/E/Sample_images/test_IJ_metadata_n_ROIs_tifffile/IJ_input_noROI.tif'
+        f = '/E/Sample_images/test_IJ_metadata_n_ROIs_tifffile/IJ_input_noROI_channels_changed.tif'
+        f = '/E/Sample_images/test_IJ_metadata_n_ROIs_tifffile/IJ_input_ROIs_n_LUTs.tif'
+
+        # bug ROI is not there but why ???
+        # marche pas mais pkoi ????
+        img = Img(f)
+        print(img.shape)
+        Img(img, dimensions='dhwc').save('/E/Sample_images/test_IJ_metadata_n_ROIs_tifffile/test.tif')
+
+        import sys
+        sys.exit(0)
+
+    if True:
+        # now epyseg reads the image properly but IJ does not for the voxel size --> need hack it a bit in order to get the stuff done properly
+        img = Img('/E/Sample_images/sample_images_pyta/surface_projection/210219.lif_t000.tif')
+
+        print(img.max(), img.min())  # 1.7492598 -0.0020951158 --> ok
+        # see the RGB version of the image and maybe get that all the time
+
+        SQL_plot = Img(
+            '/E/Sample_images/sample_images_pyta/surface_projection/210219.lif_t000/tracked_cells_resized.tif')
+
+        # img = img*255 + 1 # that fixes the bug --> see how I can do it in a cleaner and generic way
+
+        composite = blend(img, SQL_plot, alpha=0.3, mask_or_forbidden_colors=0x000000)
+
+        print(img.shape)
+        print(SQL_plot.shape)
+        print(composite.shape)
+
+        print(img.dtype)
+        print(SQL_plot.dtype)
+        print(composite.dtype)
+
+        print(img.max(), img.min())  # 1.7492598 -0.0020951158
+        print(SQL_plot.max(), SQL_plot.min())  # 255 0
+        print(composite.max(), composite.min())  # 77 0
+
+        # in fact the original image should be between 0 and 255 most likely
+
+        plt.imshow(composite)
+        plt.show()
+        # plt.imshow(img)
+        # plt.show()
+
+        import sys
+
+        sys.exit(0)
+
     data = np.zeros((1024, 1024), dtype=np.uint8)
+
+    if True:
+        # now epyseg reads the image properly but IJ does not for the voxel size --> need hack it a bit in order to get the stuff done properly
+        import sys
+
+        sys.exit(0)

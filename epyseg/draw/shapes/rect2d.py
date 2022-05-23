@@ -203,6 +203,7 @@ class Rect2D(QRectF):
     def boundingRect(self, scaled=True):
         # should I return the scaled version or the orig --> think about it...
         if scaled:
+            # in fact scale only handles rotation and not scale --> the size is therefore wrong -->
             try:
                 if self.theta is not None and self.theta!=0:
                     # print('entering')
@@ -267,9 +268,22 @@ class Rect2D(QRectF):
     # def dilate(self, nb_dilation=1):
     #     self.erode(nb_erosion=-nb_dilation)
 
+
+    # hack to make column hashable to be able to add it to a dict, see https://stackoverflow.com/questions/10994229/how-to-make-an-object-properly-hashable
+    def __eq__(self, other):
+        try:
+            return hash(str(self)) == other.__hash__()
+        except:
+            return False
+
+    # hack to make column hashable to be able to add it to a dict, see https://stackoverflow.com/questions/10994229/how-to-make-an-object-properly-hashable
+    def __hash__(self):
+        return hash(str(self))
+
 if __name__ == '__main__':
     # ça marche --> voici deux examples de shapes
     test = Rect2D(0, 0, 100, 100)
+    print(test)
 
     rect = QRectF(0,0, 125,256)
     print(rect.x())
@@ -277,11 +291,15 @@ if __name__ == '__main__':
     print(rect.width())
     print(rect.height())
 
-
     rect.translate(10,20) # ça marche
     print(rect)
 
-
+    print(test)
+    test.set_to_scale(0.5) #scale is not applied to the object so its size isn't the real size
+    # pb is that if I modify this class there will be tremendous repercusion on other classes --> be careful...
+    print('scaled test',test)
+    print('scaled test',test.boundingRect())
+    print('scaled test',test.boundingRect(scaled=True))
 
     (test.x(), test.y(), test.width(), test.height())
     print(test.contains(QPointF(50, 50)))

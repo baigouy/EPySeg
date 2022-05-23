@@ -87,6 +87,8 @@ class Polygon2D(QPolygonF):
                 painter.setPen(Qt.NoPen)  # required to draw something filled without a border
             if self.fill_color is not None:
                 painter.setBrush(QBrush(QColor(self.fill_color)))
+            else:
+                painter.setBrush(Qt.NoBrush)
             polygon_to_draw = self.translated(0, 0)
             if self.scale is not None and self.scale != 1:
                 polygon_to_draw = self.__scaled()

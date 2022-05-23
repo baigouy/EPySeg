@@ -100,7 +100,7 @@ def get_seeds(cells, one_seed_per_cell=True):
     # plt.imshow(combined_gradients_ready_for_wshed)
     # plt.show()
 
-    # Img(combined_gradients_ready_for_wshed, dimensions='hw').save('/D/Sample_images/sample_images_epiguy_pyta/images_with_different_bits/predict/gradient.tif')
+    # Img(combined_gradients_ready_for_wshed, dimensions='hw').save('/E/Sample_images/sample_images_epiguy_pyta/images_with_different_bits/predict/gradient.tif')
 
     # if there are several seeds for a cell then just keep the biggest --> good idea
     # how can I do that --> maybe simply do so by counting ids for stuff and remove smallest

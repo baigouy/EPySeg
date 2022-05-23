@@ -1,9 +1,7 @@
 from PyQt5.QtCore import QRect
 from PyQt5.QtWidgets import QApplication, QGridLayout, QLabel, QSpinBox, QDialog, QDialogButtonBox, QCheckBox, QFrame
 import sys
-
-# logging
-from epyseg.tools.logger import TA_logger
+from epyseg.tools.logger import TA_logger # logging
 
 logger = TA_logger()
 

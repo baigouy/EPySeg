@@ -35,8 +35,7 @@ def segment_cells(image, __DEBUG=False, __VISUAL_DEBUG=False, stop_at_threshold_
         plt.show()
 
     if min_unconnected_object_size is not None and min_unconnected_object_size >= 1:
-        image = remove_small_objects(image.astype(np.bool), min_size=min_unconnected_object_size, connectivity=2,
-                                     in_place=True).astype(np.uint8)
+        image = remove_small_objects(image.astype(bool), min_size=min_unconnected_object_size, connectivity=2, in_place=True).astype(np.uint8)
         if __VISUAL_DEBUG and min_unconnected_object_size == 12:
             plt.imshow(image)
             plt.title('after')
@@ -62,8 +61,8 @@ if __name__ == '__main__':
     # image = Img('/D/final_folder_scoring/predict_hybrid/11-1_nuclei_1.tif')
     start = timer()
 
-    final_mask = segment_cells(image, __DEBUG=False, __VISUAL_DEBUG=False,
-                               stop_at_threshold_step=False)
+    # final_mask = segment_cells(image, __DEBUG=False, __VISUAL_DEBUG=False, stop_at_threshold_step=False)
+    final_mask = segment_cells(image, __DEBUG=False, __VISUAL_DEBUG=False, stop_at_threshold_step=False, min_unconnected_object_size=12)
 
     duration = timer() - start
     print(duration)

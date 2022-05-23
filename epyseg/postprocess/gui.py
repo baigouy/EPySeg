@@ -8,10 +8,8 @@ from PyQt5.QtWidgets import QSpinBox, QComboBox, QVBoxLayout, QLabel, QCheckBox,
 from PyQt5.QtCore import Qt, QPoint
 from PyQt5 import QtWidgets, QtCore
 import sys
-
-# logging
 from epyseg.deeplearning.docs.doc2html import markdown_file_to_html
-from epyseg.tools.logger import TA_logger
+from epyseg.tools.logger import TA_logger # logging
 
 logger = TA_logger()
 

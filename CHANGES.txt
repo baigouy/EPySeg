@@ -1,3 +1,42 @@
+25/04/2022
+-replaced np.bool and np.float by bool and float, due to a numpy change (also reported by J. Müller on Github)
+-allowed support for python 3.8
+
+25/01/2022
+-fixed a huge bug (affecting all non square images for detection of neighbors)
+
+24/08/2021
+-added a fully functional minimal version of Tissue Analyzer to EPySeg (allows for cell tracking and cell property measurement in 2D and 3D)
+
+03/05/2021
+-added support for various tracking algorithms (not public yet...)
+
+29/04/2021
+-added support for macros to ease the use of the tool on Google Colab (not public yet...)
+
+26/04/2021
+-added a minimal user interface for users that just want to use the pre-trained models (this interface is minimal and will by default use the default/most often the optimal parameters for the models). The idea is to further simplify the tool.
+
+12-16/04/2021
+-fixed several GeneratorExit errors thanks to https://stackoverflow.com/questions/46542147/elegant-way-for-breaking-a-generator-loop-generatorexit-error
+-fixed several issues with multiple input models/metagenerators (not public yet)
+-changed 'Remove border pixels' in outputs so that it now pads symmetric instead of setting pixels to black...
+-adding some mathematical morphology operations in tensorflow (not public yet) (I will mostly use that to create modules to simplify things)
+
+09/04/2021
+-started adding support for pytorch models (not public yet)
+-added support for .lst and .txt files for file inputs (for some things I wanna do, lists are the most convenient solution, as they for example allow to select a subset of files contained in a folder)
+-added support for model with several inputs (not public yet)
+-added support for removing some of the extra augmentations in predict, useful for surface projection/denoising models such as CARE (This also makes prediction faster, yet less than fully removing HQ preds entirely).
+-added option to limit tensorflow memory usage (may be useful to run tf and pytorch models in parallel or several instances of the tool at the same time)
+
+26/03/2021
+-Finalizing support for models with multiple inputs and outputs (work in progress, not public yet)
+-Preparing a series of multiple outputs CARE derivative models trained thoroughly and where modules can be exchanged/user selected
+
+25/03/2021
+-removed 'h5py' from install_requires/setup.py (as it should anyways be installed with tensorflow). This should avoid an annoying h5py version mismatch.
+
 22/03/2021
 -Reduced GUI minimal/default size so that it can better be used on computers with small screens
 

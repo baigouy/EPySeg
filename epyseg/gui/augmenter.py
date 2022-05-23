@@ -7,7 +7,7 @@ from PyQt5.QtWidgets import QApplication, QGridLayout, QComboBox, QLabel, \
 
 from epyseg.deeplearning.augmentation.generators.data import DataGenerator
 from epyseg.deeplearning.docs.doc2html import markdown_file_to_html
-from epyseg.dialogs.opensave import Open_Save_dialogs
+from epyseg.dialogs.opensave import openDirectoryDialog
 import sys
 from PyQt5 import QtCore
 
@@ -85,7 +85,7 @@ class DataAugmentationGUI(QDialog):
             self.rate_spin.setValue(default_value[2])
 
     def open_folder(self):
-        self.output_folder = Open_Save_dialogs().openDirectoryDialog(parent_window=self.parent_window)
+        self.output_folder = openDirectoryDialog(parent_window=self.parent_window)
         if self.output_folder is not None:
             self.path.setText(self.output_folder)
 

@@ -10,7 +10,7 @@ class TA_logger(object):
     WARNING = logging.WARNING
     ERROR = logging.ERROR
     CRITICAL = logging.CRITICAL
-    DEFAULT = INFO
+    DEFAULT = INFO # DEBUG # INFO
 
     loggers = {}
 

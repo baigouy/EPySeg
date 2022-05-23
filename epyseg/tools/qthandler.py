@@ -11,7 +11,7 @@ class QtHandler(logging.Handler):
     def emit(self, record):
         record = self.format(record)
         if record:
-            if record.startswith('ERROR') or record.startswith('CRITICAL'):
+            if record.startswith('ERROR') or record.startswith('CRITICAL') or record.startswith('WARNING'):
                 XStream.stderr().write('%s' % record)
             else:
                 XStream.stdout().write('%s' % record)

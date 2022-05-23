@@ -19,8 +19,7 @@ from epyseg.tools.qthandler import XStream, QtHandler
 from epyseg.gui.pyqtmarkdown import PyQT_markdown
 from epyseg.img import Img
 from PyQt5.QtWidgets import QPushButton, QWidget
-# logging
-from epyseg.tools.logger import TA_logger
+from epyseg.tools.logger import TA_logger # logging
 
 logger = TA_logger()
 
@@ -124,6 +123,7 @@ class DeepTools(QWidget):
         self.logger_console.textCursor().movePosition(QTextCursor.Left, QTextCursor.KeepAnchor, 1)
         self.logger_console.setHtml('<html>')
         self.logger_console.ensureCursorVisible()
+        self.logger_console.document().setMaximumBlockCount(1000)  # limits to a 1000 entrees
         if not DEBUG:
             XStream.stdout().messageWritten.connect(self.set_html_black)
             XStream.stderr().messageWritten.connect(self.set_html_red)

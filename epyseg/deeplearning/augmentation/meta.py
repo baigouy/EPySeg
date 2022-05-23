@@ -2,30 +2,32 @@ from matplotlib import pyplot as plt
 from epyseg.deeplearning.augmentation.generators.data import DataGenerator
 from epyseg.deeplearning.augmentation.generators.meta import MetaGenerator
 import numpy as np
-
-# logging
-from epyseg.tools.logger import TA_logger
+from epyseg.tools.logger import TA_logger # logging
 
 logger = TA_logger()
 
 
 # MINIMAL_AUGMENTATIONS = [{'type': None}, {'type': None},{'type': None}, {'type': None}, {'type': 'zoom'}, {'type': 'blur'}, {'type': 'translate'}, {'type': 'rotate'}]
 # added intensity shifts to the minimal augmentation --> should make it more robust for masking
-MINIMAL_AUGMENTATIONS = [{'type': None}, {'type': None},{'type': None}, {'type': None}, {'type': 'zoom'}, {'type': 'blur'}, {'type': 'translate'}, {'type': 'rotate'},{'type': 'random_intensity_gamma_contrast'}, {'type': 'intensity'}, {'type': 'random_intensity_gamma_contrast'}, {'type': 'intensity'}]
+# {'type': None},
 
+# I have recently modified the augmentation so that it takes into account the elastic deformation which is very good training I assume
+MINIMAL_AUGMENTATIONS = [{'type': None}, {'type': None},{'type': None},  {'type': 'zoom'}, {'type': 'blur'}, {'type': 'translate'}, {'type': 'rotate'},{'type': 'random_intensity_gamma_contrast'}, {'type': 'intensity'}, {'type': 'random_intensity_gamma_contrast'}, {'type': 'intensity'}, {'type':'elastic'}, {'type':'elastic'}]
+
+# MINIMAL_AUGMENTATIONS_WITH_ELASTIC= [{'type': None}, {'type': None},{'type': None}, {'type': 'zoom'}, {'type': 'blur'}, {'type': 'translate'}, {'type': 'rotate'},{'type': 'random_intensity_gamma_contrast'}, {'type': 'intensity'}, {'type': 'random_intensity_gamma_contrast'}, {'type': 'intensity'}, {'type':'elastic'}, {'type':'elastic'}, {'type':'elastic'}]
 
 ALL_AUGMENTATIONS_BUT_INVERT_AND_HIGH_NOISE = [{'type': None}, {'type': None}, {'type': 'zoom'}, {'type': 'blur'},
-                                               {'type': 'translate'},
+                                               {'type': 'translate'}, {'type':'elastic'},
                                                {'type': 'shear'}, {'type': 'flip'}, {'type': 'rotate'},
                                                {'type': 'low noise'}, {'type': 'high noise'}, {'type': 'stretch'}]
 
 ALL_AUGMENTATIONS_BUT_INVERT = [{'type': None}, {'type': None}, {'type': 'zoom'}, {'type': 'blur'},
-                                {'type': 'translate'},
+                                {'type': 'translate'}, {'type':'elastic'},
                                 {'type': 'shear'}, {'type': 'flip'}, {'type': 'rotate'}, {'type': 'low noise'},
                                 {'type': 'high noise'}, {'type': 'stretch'}]
 
 ALL_AUGMENTATIONS_BUT_INVERT_AND_NOISE = [{'type': None}, {'type': 'zoom'}, {'type': 'blur'},
-                                          {'type': 'translate'}, {'type': 'shear'},
+                                          {'type': 'translate'}, {'type': 'shear'}, {'type':'elastic'},
                                           {'type': 'flip'}, {'type': 'rotate'}, {'type': 'stretch'},
                                           {'type': 'rotate (interpolation free)'},
                                           {'type': 'rotate (interpolation free)'},
@@ -33,7 +35,7 @@ ALL_AUGMENTATIONS_BUT_INVERT_AND_NOISE = [{'type': None}, {'type': 'zoom'}, {'ty
 
 ALL_AUGMENTATIONS = [{'type': None}, {'type': None}, {'type': 'zoom'}, {'type': 'blur'}, {'type': 'translate'},
                      {'type': 'shear'}, {'type': 'flip'}, {'type': 'rotate'}, {'type': 'invert'}, {'type': 'low noise'},
-                     {'type': 'high noise'}, {'type': 'stretch'}]
+                     {'type': 'high noise'}, {'type': 'stretch'}, {'type':'elastic'}]
 
 ALL_AUGMENTATIONS_BUT_HIGH_NOISE = [{'type': None}, {'type': None}, {'type': 'zoom'}, {'type': 'blur'},
                                     {'type': 'translate'},
@@ -61,7 +63,7 @@ TRAINING_FOR_BEGINNING_LITTLE_INTERPOLATION =  [{'type': 'rotate (interpolation 
 
 NO_AUGMENTATION = [{'type': None}]
 
-TEST_AUGMENTATION = [{'type': 'invert'}]
+TEST_AUGMENTATION = [{'type': 'elastic'}]#[{'type': 'invert'}]
 
 SAFE_AUGMENTATIONS_FOR_SINGLE_PIXEL_WIDE = [{'type': None}, {'type': 'blur'}, {'type': 'translate'}, {'type': 'flip'}]
 
@@ -78,7 +80,8 @@ class MetaAugmenter:
                  input_channel_augmentation_rule='copy channel of interest to all channels',
                  output_channel_reduction_rule='copy channel of interest to all channels',
                  output_channel_augmentation_rule='copy channel of interest to all channels',
-                 augmentations=None, crop_parameters=None, mask_dilations=None, infinite=False,
+                 augmentations=None, treat_some_inputs_as_outputs=False,
+                 crop_parameters=None, mask_dilations=None, infinite=False,
                  default_input_tile_width=128, default_input_tile_height=128,
                  default_output_tile_width=128, default_output_tile_height=128,
                  keep_original_sizes=False,
@@ -111,6 +114,7 @@ class MetaAugmenter:
         self.output_channel_augmentation_rule = output_channel_augmentation_rule
 
         self.augmentations = augmentations
+        self.treat_some_inputs_as_outputs= treat_some_inputs_as_outputs
         self.crop_parameters = crop_parameters
         self.batch_size = batch_size
         self.batch_size_auto_adjust = batch_size_auto_adjust
@@ -154,7 +158,9 @@ class MetaAugmenter:
                                   input_channel_augmentation_rule=input_channel_augmentation_rule,
                                   output_channel_reduction_rule=output_channel_reduction_rule,
                                   output_channel_augmentation_rule=output_channel_augmentation_rule,
-                                  augmentations=augmentations, crop_parameters=crop_parameters,
+                                  augmentations=augmentations,
+                                  treat_some_inputs_as_outputs=treat_some_inputs_as_outputs,
+                                  crop_parameters=crop_parameters,
                                   mask_dilations=mask_dilations,
                                   infinite=infinite, default_input_tile_width=default_input_tile_width,
                                   default_input_tile_height=default_input_tile_height,
@@ -197,11 +203,13 @@ class MetaAugmenter:
 
             self.append(**fused)
 
+    # TODO add a way to treat input as mask and maybe ouput as input from the point of view of data aug
     def append(self, inputs=None, outputs=None, output_folder=None, input_shape=None, output_shape=None,
                input_channel_of_interest=None, output_channel_of_interest=None,
                input_channel_reduction_rule=None, input_channel_augmentation_rule=None,
                output_channel_reduction_rule=None, output_channel_augmentation_rule=None,
-               augmentations=None, crop_parameters=None, mask_dilations=None, infinite=None,
+               augmentations=None, treat_some_inputs_as_outputs=None,
+               crop_parameters=None, mask_dilations=None, infinite=None,
                default_input_tile_width=None, default_input_tile_height=None, default_output_tile_width=None,
                default_output_tile_height=None, keep_original_sizes=None, input_normalization=None,
                output_normalization=None, validation_split=None, test_split=None,
@@ -234,6 +242,7 @@ class MetaAugmenter:
                           output_channel_augmentation_rule=self._get_significant_parameter(
                               output_channel_augmentation_rule, self.output_channel_augmentation_rule),
                           augmentations=self._get_significant_parameter(augmentations, self.augmentations),
+                          treat_some_inputs_as_outputs=self._get_significant_parameter(treat_some_inputs_as_outputs, self.treat_some_inputs_as_outputs),
                           crop_parameters=self._get_significant_parameter(crop_parameters, self.crop_parameters),
                           mask_dilations=self._get_significant_parameter(mask_dilations, self.mask_dilations),
                           infinite=self._get_significant_parameter(infinite, self.infinite),
@@ -387,43 +396,63 @@ class MetaAugmenter:
                 #     yield self.angular_yielder(orig, mask, aug)
                 # yield orig, mask
                 yield out
-            except:
+            except GeneratorExit:
+                # bug fix for the GeneratorExit error, see https://stackoverflow.com/questions/46542147/elegant-way-for-breaking-a-generator-loop-generatorexit-error
+                pass
+                break
+            except Exception:
                 # failed to generate output --> continue
                 continue
 
     def _test_generator(self, skip_augment, first_run=False):
         test = MetaGenerator(self.augmenters, shuffle=False, batch_size=self.batch_size, gen_type='test')
         for out in test.generator(skip_augment, first_run):
-            # # yield out
-            # # print(len(out))
-            # #  that works check that all are there and all are possible otherwise skip
-            # # --> need ensure that width = height
-            # # need set a parameter to be sure to use it or not and need remove rotation and flip from augmentation list (or not in fact)
-            # orig, mask = out
-            # augmentations = 7
-            # if orig[0].shape[-2] != orig[0].shape[-3]:
-            #     augmentations = 3
-            # for aug in range(augmentations):
-            #     yield self.angular_yielder(orig, mask, aug)
-            # yield orig, mask
-            yield out
+            try:
+                # # yield out
+                # # print(len(out))
+                # #  that works check that all are there and all are possible otherwise skip
+                # # --> need ensure that width = height
+                # # need set a parameter to be sure to use it or not and need remove rotation and flip from augmentation list (or not in fact)
+                # orig, mask = out
+                # augmentations = 7
+                # if orig[0].shape[-2] != orig[0].shape[-3]:
+                #     augmentations = 3
+                # for aug in range(augmentations):
+                #     yield self.angular_yielder(orig, mask, aug)
+                # yield orig, mask
+                yield out
+            except GeneratorExit:
+                # bug fix for the GeneratorExit error, see https://stackoverflow.com/questions/46542147/elegant-way-for-breaking-a-generator-loop-generatorexit-error
+                pass
+                break
+            except Exception:
+                # failed to generate output --> continue
+                continue
 
     def _validation_generator(self, skip_augment, first_run=False):
         valid = MetaGenerator(self.augmenters, shuffle=self.shuffle, batch_size=self.batch_size, gen_type='valid')
         for out in valid.generator(skip_augment, first_run):
-            # # yield out
-            # # print(len(out))
-            # #  that works check that all are there and all are possible otherwise skip
-            # # --> need ensure that width = height
-            # # need set a parameter to be sure to use it or not and need remove rotation and flip from augmentation list (or not in fact)
-            # orig, mask = out
-            # augmentations = 7
-            # if orig[0].shape[-2] != orig[0].shape[-3]:
-            #     augmentations = 3
-            # for aug in range(augmentations):
-            #     yield self.angular_yielder(orig, mask, aug)
-            # yield orig, mask
-            yield out
+            try:
+                # # yield out
+                # # print(len(out))
+                # #  that works check that all are there and all are possible otherwise skip
+                # # --> need ensure that width = height
+                # # need set a parameter to be sure to use it or not and need remove rotation and flip from augmentation list (or not in fact)
+                # orig, mask = out
+                # augmentations = 7
+                # if orig[0].shape[-2] != orig[0].shape[-3]:
+                #     augmentations = 3
+                # for aug in range(augmentations):
+                #     yield self.angular_yielder(orig, mask, aug)
+                # yield orig, mask
+                yield out
+            except GeneratorExit:
+                # bug fix for the GeneratorExit error, see https://stackoverflow.com/questions/46542147/elegant-way-for-breaking-a-generator-loop-generatorexit-error
+                pass
+                break
+            except Exception:
+                # failed to generate output --> continue
+                continue
 
     def predict_generator(self):  # TODO can use datagen for now
         pass

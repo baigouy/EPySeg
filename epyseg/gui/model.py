@@ -4,8 +4,7 @@ from PyQt5.QtCore import QRect, Qt, QRectF
 from PyQt5.QtWidgets import QWidget, QApplication, QGridLayout, QScrollArea, QVBoxLayout, QGroupBox, QPushButton
 from epyseg.gui.open import OpenFileOrFolderWidget
 import sys
-# logging
-from epyseg.tools.logger import TA_logger
+from epyseg.tools.logger import TA_logger # logging
 
 logger = TA_logger()
 

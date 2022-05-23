@@ -1,3 +1,9 @@
+# TODO recode cause too complex
+
+# TODO --> clean and reimplement this properly...
+# alternatively offer commands to be added to the figure so that they fit the requirements --> is another way of doing
+
+# check if that is interesting for me https://matplotlib.org/stable/devel/MEP/MEP25.html
 # CROP IS NOT OPTIMAL BUT OK FOR NOW...
 
 # this file must be a valid svg file and/or a matplotlib figure --> TODO handle both and check that everything correct
@@ -28,14 +34,14 @@
 # https://matplotlib.org/3.2.2/gallery/subplots_axes_and_figures/gridspec_multicolumn.html#sphx-glr-gallery-subplots-axes-and-figures-gridspec-multicolumn-py
 # https://matplotlib.org/3.2.2/api/_as_gen/matplotlib.pyplot.figure.html
 # https://matplotlib.org/3.2.2/api/matplotlib_configuration_api.html#matplotlib.rcParams
+import traceback
+
 from PyQt5.QtSvg import QSvgRenderer
 
-from epyseg.draw.shapes.image2d import Image2D
 from epyseg.draw.shapes.rect2d import Rect2D
 from epyseg.draw.shapes.txt2d import TAText2D
 from epyseg.img import Img
-from PyQt5.QtCore import QRectF, QSizeF, QByteArray, Qt
-import matplotlib as mpl
+from PyQt5.QtCore import QRectF
 import base64
 from PIL import Image
 import matplotlib.pyplot as plt
@@ -85,6 +91,7 @@ class VectorGraphics2D(Rect2D):  # Image2D # Rect2D
         self.__crop_right = None
         self.__crop_top = None
         self.__crop_bottom = None
+        self.must_update_figure_on_first_paint = False
 
         # first argument should be fig
         # if args:
@@ -147,6 +154,9 @@ class VectorGraphics2D(Rect2D):  # Image2D # Rect2D
         return self.figure
 
     def setFigure(self, figure):
+
+        self.must_update_figure_on_first_paint = False
+
         # TODO load the raw image there so that it can be drawn easily
         # self.figure = figure
         if figure is not None and isinstance(figure, plt.Figure):
@@ -214,12 +224,16 @@ class VectorGraphics2D(Rect2D):  # Image2D # Rect2D
             self.figure = None
             self.isSet = False
 
+
     def getAxes(self):
         if self.figure is not None:
             return self.figure.axes
         return None
 
-    # @return the block incompressible width
+
+# somehow I need it --> keep it for now !!!
+# WHY should I have that ???
+#     @return the block incompressible width
     def getIncompressibleWidth(self):
         extra_space = 0  # can add some if boxes around to add text
         return extra_space
@@ -305,9 +319,31 @@ class VectorGraphics2D(Rect2D):  # Image2D # Rect2D
             return tuple(i / inch for i in tupl)
 
     def draw(self, painter, draw=True):
+        # TODO check if this is really what I want at least it seems better than what I was doing before!!!
+        if self.must_update_figure_on_first_paint:
+            try:
+                if self.figure is not None:
+                    cm_width = 0.02646 * self.width()
+                    cm_height = 0.02646 * self.height()
+                    self.figure.set_size_inches(self.cm2inch(cm_width * self.scale, cm_height * self.scale))  # need do a px to
+                    self.setFigure(self.figure)
+            except:
+                traceback.print_exc()
+            self.must_update_figure_on_first_paint = False
+
         if draw:
             painter.save()
         painter.setOpacity(self.opacity)
+
+        # may also work --> is that the best solution ????
+        # painter.scale(0.3, 0.3)
+
+        # new addition but probably not ok
+        painter.scale(self.scale, self.scale)  # size is ok but position sucks --> how can I fix that
+        # --> ok except for the coords --> fix that
+
+
+
         if draw and self.renderer is not None:
             # if self.img is not None:
             #     qsource = QRectF(0,0,self.img.get_width(), self.img.get_height())
@@ -324,10 +360,14 @@ class VectorGraphics2D(Rect2D):  # Image2D # Rect2D
             # --> vraiment presque ça
             # does not really work
             neo = QRectF(self)
+
+            # neo*=self.scale
             # neo.setX(self.x()-10)
             # neo.setY(self.y()-10)
             # neo.setHeight(self.height()+30)
             # neo.setWidth(self.width()+30)
+
+            # print(neo)
 
             # nb this will create a shear if one dim is not cropped as the other --> really not great in fact maybe deactivate for now ???? or compute AR and adapt it
             # TODO just warn that it's buggy and should not be used for SVG files only, ok for other stuff though
@@ -358,8 +398,14 @@ class VectorGraphics2D(Rect2D):  # Image2D # Rect2D
             # maybe do masque d'ecretage in illustrator or inkscape https://linuxgraphic.org/forums/viewtopic.php?f=6&t=6437
             # TODO KEEP IT PROBABLY ALSO CREATES A ZOOM THAT WILL MESS WITH THE FONTS AND LINE SIZE...
             painter.setClipRect(self)  # , Qt::ClipOperation operation = Qt::ReplaceClip , operation=Qt.ReplaceClip
+            # neo.setX(self.x())
+            # neo.setY(self.y())
+
+
+            # print('neo vs self',neo, self) # probably a bug here too
 
             self.renderer.render(painter, neo)  # the stuff is a qrectf so that should work
+            # self.sequence_scene.render(painter, target=neo, source=self)
 
             painter.restore()
             # self.renderer.setViewBox(viewbox)
@@ -404,7 +450,7 @@ class VectorGraphics2D(Rect2D):  # Image2D # Rect2D
 
     # create a Fig with divide
     def __truediv__(self, other):
-        from deprecated_demos.ezfig_tests.col import col  # KEEP Really required to avoid circular imports
+        from epyseg.draw.widgets.col import col  # KEEP Really required to avoid circular imports
         return col(self, other)
 
     # Force the montage width to equal 'width_in_px'
@@ -416,20 +462,38 @@ class VectorGraphics2D(Rect2D):  # Image2D # Rect2D
         self.setWidth(width_in_px)
         self.setHeight(self.height() * ratio)
 
+        self.scale = width_in_px / pure_image_width
+
+        # nb this is what makes everythong so slow --> skip that and do it only when necessary
         if self.figure is not None:
             # need recompute the graph and update it with the new size --> convert in pixels
             cm_width = 0.02646 * width_in_px
             cm_height = 0.02646 * self.height()
+
+            self.must_update_figure_on_first_paint = True
+            # MEGA TODO maybe set a boolean saying that the fig needs be updated on plot, then set it to false when this is done... --> set the figure so that it fits the image
+            # see how I can do that ???
+
+
             # print('cm', cm_width, cm_height)
             # print('cm', cm_width, cm_height)
             # print(self.figure)
             # print('abs')
             # print('inches', self.cm2inch(cm_width,cm_height)) # bug is here
             # print('ibs')
-            self.figure.set_size_inches(self.cm2inch(cm_width, cm_height))  # need do a px to inch or to cm --> TODO
+            # self.figure.set_size_inches(self.cm2inch(cm_width, cm_height))  # need do a px to inch or to cm --> TODO
+
+            # MEGA ULTIMATE TODO freshly inactivated because too slow --> need do it in a smart way only in the end --> this is really the slow part and need only be done on save or export --> see how to do that anyways it does not make sense to have this here
+            # self.figure.set_size_inches(self.cm2inch(cm_width*self.scale, cm_height*self.scale))  # need do a px to inch or to cm --> TODO
+
+
             # print(self.figure.get_size_inches())
             # print('size before', self) # --> size ok after not ok --> bug in conversion somewhere
-            self.setFigure(self.figure)
+
+            # MEGA ULTIMATE TODO freshly inactivated because too slow --> need do it in a smart way only in the end --> this is really the slow part and need only be done on save or export --> see how to do that anyways it does not make sense to have this here
+            # self.setFigure(self.figure)
+
+
             # print('changing size')
             # print('inches after', self.figure.get_size_inches())
             # print('size after', self)
@@ -439,19 +503,32 @@ class VectorGraphics2D(Rect2D):  # Image2D # Rect2D
         self.setHeight(height_in_px)
         ratio = height_in_px / pure_image_height
         self.setWidth(self.width() * ratio)
+        # TODO implement that
+        self.scale = height_in_px / pure_image_height
 
         if self.figure is not None:
+
+            # MEGA TODO maybe set a boolean saying that the fig needs be updated on plot, then set it to false when this is done...
+
             # the lines below cause a bug I guess it's because it's an image object and not a qrect object anymore and so width has pb --> calls a function
             cm_width = 0.02646 * self.width()
             cm_height = 0.02646 * height_in_px
+            self.must_update_figure_on_first_paint = True
+
             # print('cm', cm_width, cm_height)
             # print(self.figure)
             # print('oubs')
             # print(self.cm2inch(cm_width, cm_height))
             # print('ebs')
-            self.figure.set_size_inches(self.cm2inch(cm_width, cm_height))  # need do a px to inch or to cm --> TODO
+            # self.figure.set_size_inches(self.cm2inch(cm_width, cm_height))  # need do a px to inch or to cm --> TODO
+
+            # MEGA ULTIMATE TODO freshly inactivated because too slow --> need do it in a smart way only in the end --> this is really the slow part and need only be done on save or export --> see how to do that anyways it does not make sense to have this here
+            # self.figure.set_size_inches(self.cm2inch(cm_width*self.scale, cm_height*self.scale))  # need do a px to inch or to cm --> TODO
+
             # print(self.figure.get_size_inches())
-            self.setFigure(self.figure)
+
+            # MEGA ULTIMATE TODO freshly inactivated because too slow --> need do it in a smart way only in the end --> this is really the slow part and need only be done on save or export --> see how to do that anyways it does not make sense to have this here
+            # self.setFigure(self.figure)
 
     # No clue how to do that --> ignore...
     def crop(self, left=None, right=None, top=None, bottom=None, all=None):
@@ -522,5 +599,7 @@ if __name__ == '__main__':
 
     test.setToWidth(512)
     print(test.boundingRect())
+    # --> ok
+    # how can I think the scale to that ???
 
-    test2 = VectorGraphics2D('/D/Sample_images/sample_images_svg/cartman.svg', x=12, y=0, width=100, height=100)
+    test2 = VectorGraphics2D('/E/Sample_images/sample_images_svg/cartman.svg', x=12, y=0, width=100, height=100)

@@ -1,9 +1,9 @@
 import os
 
-from tensorflow.python.keras.callbacks import ReduceLROnPlateau
-
+from epyseg.deeplearning import zoo # epyseg model zoo
 from epyseg.postprocess.filtermask import simpleFilter
 from epyseg.postprocess.refine_v2 import RefineMaskUsingSeeds
+from epyseg.tools.early_stopper_class import early_stop
 
 os.environ['SM_FRAMEWORK'] = 'tf.keras'  # set env var for changing the segmentation_model framework
 import traceback
@@ -23,8 +23,9 @@ from epyseg.deeplearning.callbacks.stop import myStopCallback
 from segmentation_models.metrics import *
 from segmentation_models.losses import *
 from skimage import exposure
-# logging
-from epyseg.tools.logger import TA_logger
+from epyseg.tools.logger import TA_logger # logging
+from tensorflow.python.keras.callbacks import ReduceLROnPlateau
+import gc
 
 logger = TA_logger()
 
@@ -41,171 +42,157 @@ class EZDeepLearning:
     # TODO below are the pretrained models for 2D epithelia segmentation if None --> no pretrained model exist # maybe sort them by efficiency ???
     # for each model do provide all the necessary parameters: 'model' 'model_weights' 'architecture' 'backbone' 'activation' 'classes' 'input_width' 'input_height' 'input_channels'
 
-    pretrained_models_2D_epithelia = {
-        'Unet-vgg19-sigmoid': None,
-        'Unet-vgg16-sigmoid': None,
-        'Unet-seresnext50-sigmoid': None,
-        'Unet-seresnext101-sigmoid': None,
-        'Unet-seresnet50-sigmoid': None,
-        'Unet-seresnet34-sigmoid': None,
-        'Unet-seresnet18-sigmoid': None,
-        'Unet-seresnet152-sigmoid': None,
-        'Unet-seresnet101-sigmoid': None,
-        'Unet-senet154-sigmoid': None,
-        'Unet-resnext50-sigmoid': None,
-        'Unet-resnext101-sigmoid': None,
-        'Unet-resnet50-sigmoid': None,
-        'Unet-resnet34-sigmoid': None,
-        'Unet-resnet18-sigmoid': None,
-        'Unet-resnet152-sigmoid': None,
-        'Unet-resnet101-sigmoid': None,
-        'Unet-mobilenetv2-sigmoid': None,
-        'Unet-mobilenet-sigmoid': None,
-        'Unet-inceptionv3-sigmoid': None,
-        'Unet-inceptionresnetv2-sigmoid': None,
-        'Unet-efficientnetb7-sigmoid': None,
-        'Unet-efficientnetb6-sigmoid': None,
-        'Unet-efficientnetb5-sigmoid': None,
-        'Unet-efficientnetb4-sigmoid': None,
-        'Unet-efficientnetb3-sigmoid': None,
-        'Unet-efficientnetb2-sigmoid': None,
-        'Unet-efficientnetb1-sigmoid': None,
-        'Unet-efficientnetb0-sigmoid': None,
-        'Unet-densenet201-sigmoid': None,
-        'Unet-densenet169-sigmoid': None,
-        'Unet-densenet121-sigmoid': None,
-        'PSPNet-vgg19-sigmoid': None,
-        'PSPNet-vgg16-sigmoid': None,
-        'PSPNet-seresnext50-sigmoid': None,
-        'PSPNet-seresnext101-sigmoid': None,
-        'PSPNet-seresnet50-sigmoid': None,
-        'PSPNet-seresnet34-sigmoid': None,
-        'PSPNet-seresnet18-sigmoid': None,
-        'PSPNet-seresnet152-sigmoid': None,
-        'PSPNet-seresnet101-sigmoid': None,
-        'PSPNet-senet154-sigmoid': None,
-        'PSPNet-resnext50-sigmoid': None,
-        'PSPNet-resnext101-sigmoid': None,
-        'PSPNet-resnet50-sigmoid': None,
-        'PSPNet-resnet34-sigmoid': None,
-        'PSPNet-resnet18-sigmoid': None,
-        'PSPNet-resnet152-sigmoid': None,
-        'PSPNet-resnet101-sigmoid': None,
-        'PSPNet-mobilenetv2-sigmoid': None,
-        'PSPNet-mobilenet-sigmoid': None,
-        'PSPNet-inceptionv3-sigmoid': None,
-        'PSPNet-inceptionresnetv2-sigmoid': None,
-        'PSPNet-efficientnetb7-sigmoid': None,
-        'PSPNet-efficientnetb6-sigmoid': None,
-        'PSPNet-efficientnetb5-sigmoid': None,
-        'PSPNet-efficientnetb4-sigmoid': None,
-        'PSPNet-efficientnetb3-sigmoid': None,
-        'PSPNet-efficientnetb2-sigmoid': None,
-        'PSPNet-efficientnetb1-sigmoid': None,
-        'PSPNet-efficientnetb0-sigmoid': None,
-        'PSPNet-densenet201-sigmoid': None,
-        'PSPNet-densenet169-sigmoid': None,
-        'PSPNet-densenet121-sigmoid': None,
-        'FPN-vgg19-sigmoid': None,
-        'FPN-vgg16-sigmoid': None,
-        'FPN-seresnext50-sigmoid': None,
-        'FPN-seresnext101-sigmoid': None,
-        'FPN-seresnet50-sigmoid': None,
-        'FPN-seresnet34-sigmoid': None,
-        'FPN-seresnet18-sigmoid': None,
-        'FPN-seresnet152-sigmoid': None,
-        'FPN-seresnet101-sigmoid': None,
-        'FPN-senet154-sigmoid': None,
-        'FPN-resnext50-sigmoid': None,
-        'FPN-resnext101-sigmoid': None,
-        'FPN-resnet50-sigmoid': None,
-        'FPN-resnet34-sigmoid': None,
-        'FPN-resnet18-sigmoid': None,
-        'FPN-resnet152-sigmoid': None,
-        'FPN-resnet101-sigmoid': None,
-        'FPN-mobilenetv2-sigmoid': None,
-        'FPN-mobilenet-sigmoid': None,
-        'FPN-inceptionv3-sigmoid': None,
-        'FPN-inceptionresnetv2-sigmoid': None,
-        'FPN-efficientnetb7-sigmoid': None,
-        'FPN-efficientnetb6-sigmoid': None,
-        'FPN-efficientnetb5-sigmoid': None,
-        'FPN-efficientnetb4-sigmoid': None,
-        'FPN-efficientnetb3-sigmoid': None,
-        'FPN-efficientnetb2-sigmoid': None,
-        'FPN-efficientnetb1-sigmoid': None,
-        'FPN-efficientnetb0-sigmoid': None,
-        'FPN-densenet201-sigmoid': None,
-        'FPN-densenet169-sigmoid': None,
-        'FPN-densenet121-sigmoid': None,
-        'Linknet-vgg19-sigmoid': None,
-        'Linknet-vgg16-sigmoid': {'url': 'https://gitlab.com/baigouy/models/raw/master/model_linknet-vgg16_shells.h5',
-                                  # TODO change this
-                                  'md5': '266ca9acd9d7a4fe74a473e17952fb6c',
-                                  'model': None,
-                                  'model_weights': None,
-                                  'architecture': 'Linknet',
-                                  'backbone': 'vgg16',
-                                  'activation': 'sigmoid',
-                                  'classes': 7,
-                                  'input_width': None,
-                                  'input_height': None,
-                                  'input_channels': 1,
-                                  'version':1},
-        'Linknet-vgg16-sigmoid-v2': {'url': 'https://gitlab.com/baigouy/models/raw/master/model_linknet-vgg16_shells_v2.h5',
-                                  'md5': '98c8a51f3365e77c07a4f9e95669c259',
-                                  'model': None,
-                                  'model_weights': None,
-                                  'architecture': 'Linknet',
-                                  'backbone': 'vgg16',
-                                  'activation': 'sigmoid',
-                                  'classes': 7,
-                                  'input_width': None,
-                                  'input_height': None,
-                                  'input_channels': 1,
-                                  'version': 1},
-        'Linknet-seresnext50-sigmoid': None,
-        # 'https://github.com/baigouy/models/raw/master/model_Linknet-seresnext101.h5'
-        'Linknet-seresnext101-sigmoid': {
-            'url': 'https://gitlab.com/baigouy/models/raw/master/model_Linknet-seresnext101.h5',
-            'md5': '209f3bf53f3e2f5aaeef62d517e8b8d8',
-            'model': None,
-            'model_weights': None,
+
+    pretrained_models = {
+        # favourite model first
+        'Linknet-vgg16-sigmoid-v2': {
+        # 'EPySeg v2': {
+            'url': 'https://gitlab.com/baigouy/models/raw/master/model_linknet-vgg16_shells_v2.h5',
+            'input_dims': '2D',
+            'md5': '98c8a51f3365e77c07a4f9e95669c259',
+            # 'model': None,
+            # 'model_weights': None,
             'architecture': 'Linknet',
-            'backbone': 'seresnext101',
+            'backbone': 'vgg16',
             'activation': 'sigmoid',
-            'classes': 1,
+            'classes': 7,
             'input_width': None,
             'input_height': None,
-            'input_channels': 1},
-        'Linknet-seresnet50-sigmoid': None,
-        'Linknet-seresnet34-sigmoid': None,
-        'Linknet-seresnet18-sigmoid': None,
-        'Linknet-seresnet152-sigmoid': None,
-        'Linknet-seresnet101-sigmoid': None,
-        'Linknet-senet154-sigmoid': None,
-        'Linknet-resnext50-sigmoid': None,
-        'Linknet-resnext101-sigmoid': None,
-        'Linknet-resnet50-sigmoid': None,
-        'Linknet-resnet34-sigmoid': None,
-        'Linknet-resnet18-sigmoid': None,
-        'Linknet-resnet152-sigmoid': None,
-        'Linknet-resnet101-sigmoid': None,
-        'Linknet-mobilenetv2-sigmoid': None,
-        'Linknet-mobilenet-sigmoid': None,
-        'Linknet-inceptionv3-sigmoid': None,
-        'Linknet-inceptionresnetv2-sigmoid': None,
-        'Linknet-efficientnetb7-sigmoid': None,
-        'Linknet-efficientnetb6-sigmoid': None,
-        'Linknet-efficientnetb5-sigmoid': None,
-        'Linknet-efficientnetb4-sigmoid': None,
-        'Linknet-efficientnetb3-sigmoid': None,
-        'Linknet-efficientnetb2-sigmoid': None,
-        'Linknet-efficientnetb1-sigmoid': None,
-        'Linknet-efficientnetb0-sigmoid': None,
-        'Linknet-densenet201-sigmoid': None,
-        'Linknet-densenet169-sigmoid': None,
-        'Linknet-densenet121-sigmoid': None}
+            'input_channels': 1,
+            'version': 2
+        },
+        'Linknet-vgg16-sigmoid': {
+        # 'EPySeg v1': {
+            'url': 'https://gitlab.com/baigouy/models/raw/master/model_linknet-vgg16_shells.h5',
+            'md5': '266ca9acd9d7a4fe74a473e17952fb6c',
+            'input_dims':'2D',
+            # 'model': None,
+            # 'model_weights': None,
+            'architecture': 'Linknet',
+            'backbone': 'vgg16',
+            'activation': 'sigmoid',
+            'classes': 7,
+            'input_width': None,
+            'input_height': None,
+            'input_channels': 1,
+            'version': 1
+        },
+        # not as good as the two others...
+        # 'https://github.com/baigouy/models/raw/master/model_Linknet-seresnext101.h5'
+        # 'Linknet-seresnext101-sigmoid': {
+        #     'url': 'https://gitlab.com/baigouy/models/raw/master/model_Linknet-seresnext101.h5',
+        #     'input_dims': '2D',
+        #     'md5': '209f3bf53f3e2f5aaeef62d517e8b8d8',
+        #     # 'model': None,
+        #     # 'model_weights': None,
+        #     'architecture': 'Linknet',
+        #     'backbone': 'seresnext101',
+        #     'activation': 'sigmoid',
+        #     'classes': 1,
+        #     'input_width': None,
+        #     'input_height': None,
+        #     'input_channels': 1},
+        # TODO finalize that some day
+        # 'CARE': {
+        #     'url': 'TODO',
+        #     'input_dims': '3D',
+        #     'md5': 'TODO',
+        #     'model': 'CARE.json', # here we put the model zoo name (if it is present in the model zoo then ignore the rest cause it would be useless)
+        # },
+        # 'CARE_SEG': {
+        #     'url': 'TODO',
+        #     'input_dims': '3D',
+        #     'md5': 'TODO',
+        #     'model': 'CARE_SEG.json',
+        #     # here we put the model zoo name (if it is present in the model zoo then ignore the rest cause it would be useless)
+        # },
+        # 'CARE_GUIDED': {
+        #     'url': 'TODO',
+        #     'md5': 'TODO',
+        #     'model': 'CARE_GUIDED.json',
+        #     # here we put the model zoo name (if it is present in the model zoo then ignore the rest cause it would be useless)
+        # },
+        # 'CARE_PLUS_HEIGHT_MAP': {
+        #     'url': 'TODO',
+        #     'input_dims': '3D',
+        #     'md5': 'TODO',
+        #     'model': '.json', #TODO
+        #     # here we put the model zoo name (if it is present in the model zoo then ignore the rest cause it would be useless)
+        # },
+        # 'SURFACE_PROJECTION_NO_RESTORATION': {
+        #     'url': 'TODO',
+        #     'input_dims': '3D',
+        #     'md5': 'TODO',
+        #     'model': '.json',  # TODO
+        #     # here we put the model zoo name (if it is present in the model zoo then ignore the rest cause it would be useless)
+        # },
+        # 'SURFACE_PROJECTION': { # SURFACE PROJECTION MODULE OF THE CARE MODEL
+        #     'url': 'file:///home/aigouy/mon_prog/Python/epyseg_pkg/personal/pyTA/GUI/tsts/surface_projection_model_weights_1.h5', # keep to test can put a local path 'file:///home/aigouy/mon_prog/Python/epyseg_pkg/personal/pyTA/GUI/tsts/surface_projection_model_weights_1.h5'
+        #     'input_dims': '3D',
+        #     'md5': 'ef8b904da9d44e7196fd3efb832ec74a',
+        #     'model': 'surface_projection_model.json',  # TODO
+        #     # here we put the model zoo name (if it is present in the model zoo then ignore the rest cause it would be useless)
+        # },
+        # this seems to be the best compromise so far --> maybe set this by default and see which denoiser I will couple it to...
+        'SURFACE_PROJECTION_2': { # SURFACE PROJECTION MODULE OF THE CARE MODEL
+            'url': 'https://gitlab.com/baigouy/models/raw/master/surface_projection_model_weights_0.h5', # keep to test can put a local path 'file:///home/aigouy/mon_prog/Python/epyseg_pkg/personal/pyTA/GUI/tsts/surface_projection_model_weights_0.h5'
+            'input_dims': '3D',
+            'md5': '6dd8692c2158390e492ed752ee363695',
+            'model': 'surface_projection_model.json',  # TODO
+            # here we put the model zoo name (if it is present in the model zoo then ignore the rest cause it would be useless)
+        },
+        'SURFACE_PROJECTION_3': { # SURFACE PROJECTION MODULE OF THE CARESEG MODEL --> yes it's only at the denoiser level that I made changes
+            'url': 'https://gitlab.com/baigouy/models/raw/master/surface_projection_model_weights_2.h5', # keep to test can put a local path 'file:///home/aigouy/mon_prog/Python/epyseg_pkg/personal/pyTA/GUI/tsts/surface_projection_model_weights_2.h5'
+            'input_dims': '3D',
+            'md5': '61f1ce15005a7138b5c2a11bae9cc5ed',
+            'model': 'surface_projection_model.json',  # TODO# is that correct for CARESEG ???
+            # here we put the model zoo name (if it is present in the model zoo then ignore the rest cause it would be useless)
+        },
+        'SURFACE_PROJECTION_4': { # SURFACE PROJECTION MODULE OF THE CARESEG MODEL --> yes it's only at the denoiser level that I made changes
+            'url': 'https://gitlab.com/baigouy/models/raw/master/surface_projection_model_weights_3.h5', # keep to test can put a local path 'file:///home/aigouy/mon_prog/Python/epyseg_pkg/personal/pyTA/GUI/tsts/surface_projection_model_weights_3.h5'
+            'input_dims': '3D',
+            'md5': '5f778acb48e2895a490716a42fae4996',
+            'model': 'surface_projection_model.json',  # TODO# is that correct for CARESEG ???
+            # here we put the model zoo name (if it is present in the model zoo then ignore the rest cause it would be useless)
+        },
+        'SURFACE_PROJECTION_5': {
+            # SURFACE PROJECTION MODULE OF THE CARESEG MODEL --> yes it's only at the denoiser level that I made changes
+            'url': 'https://gitlab.com/baigouy/models/raw/master/surface_projection_model_weights_5.h5',
+            # 'url': 'file:///home/aigouy/mon_prog/Python/epyseg_pkg/personal/pyTA/GUI/tsts/surface_projection_model_weights_5.h5',
+            # keep to test can put a local path 'file:///home/aigouy/mon_prog/Python/epyseg_pkg/personal/pyTA/GUI/tsts/surface_projection_model_weights_3.h5'
+            'input_dims': '3D',
+            'md5': '3000266e665aa46f6c8eac83fe3e5649',
+            'model': 'surface_projection_model.json',  # TODO# is that correct for CARESEG ???
+            # here we put the model zoo name (if it is present in the model zoo then ignore the rest cause it would be useless)
+        },
+        'SURFACE_PROJECTION_6': {
+            # SURFACE PROJECTION MODULE OF THE CARESEG MODEL --> yes it's only at the denoiser level that I made changes
+            'url': 'https://gitlab.com/baigouy/models/raw/master/surface_projection_model_weights_6.h5',
+            # 'url': 'file:///home/aigouy/mon_prog/Python/epyseg_pkg/personal/pyTA/GUI/tsts/surface_projection_model_weights_6.h5',
+            # keep to test can put a local path 'file:///home/aigouy/mon_prog/Python/epyseg_pkg/personal/pyTA/GUI/tsts/surface_projection_model_weights_3.h5'
+            'input_dims': '3D',
+            'md5': '7d86782c52bf65221b6041c8b7e5ef21',
+            'model': 'surface_projection_model.json',  # TODO# is that correct for CARESEG ???
+            # here we put the model zoo name (if it is present in the model zoo then ignore the rest cause it would be useless)
+        },
+        # '2D_DENOISER': { # ORIGINAL DENOISER MODULE OF THE CARE MODEL
+        #     'url': 'file:///home/aigouy/mon_prog/Python/epyseg_pkg/personal/pyTA/GUI/tsts/2D_denoiser_model_weights_1.h5',
+        #     'input_dims': '2D',
+        #     'md5': 'TODO',
+        #     'model': '2D_denoiser_model.json',  # TODO
+        #     # here we put the model zoo name (if it is present in the model zoo then ignore the rest cause it would be useless)
+        # },
+        '2D_DENOISEG': { # HACKED DENOISER MODULE BASED ON THE CARE DENOISER
+            'url': 'https://gitlab.com/baigouy/models/raw/master/2D_denoiseg_model_weights_0.h5',# keep to test can put a local path 'file:///home/aigouy/mon_prog/Python/epyseg_pkg/personal/pyTA/GUI/tsts/2D_denoiseg_model_weights_0.h5'
+            'input_dims': '2D',
+            'md5': '1f39a8e9e450d1b9747fdd28c2f5a5eb',
+            'model': '2D_denoiseg_model.json',  # TODO
+            # here we put the model zoo name (if it is present in the model zoo then ignore the rest cause it would be useless)
+        },
+
+
+        # TODO should I add others and maybe retrain
+    }
 
     # https://www.tensorflow.org/api_docs/python/tf/keras/metrics
     # TODO add smlosses iou... also add shortcuts
@@ -247,7 +234,9 @@ class EZDeepLearning:
     last_layer_activation = ['sigmoid', 'softmax', 'linear', 'relu', 'elu', 'tanh', 'selu', 'softplus', 'softsign',
                              'hard_sigmoid', 'exponential', 'None']
 
-    def __init__(self, use_cpu=False):  # TODO handle backbone and type
+    # stop_threads = False
+
+    def __init__(self, use_cpu=False, tf_memory_limit=None):  # TODO handle backbone and type
         '''class init
 
         Parameters
@@ -256,6 +245,9 @@ class EZDeepLearning:
             if set to True tf will use CPU (slow) instead of GPU
 
         '''
+
+
+
 
         # use_cpu = True # can be used to test a tf model easily using the CPU while the GPU is running.
 
@@ -270,34 +262,96 @@ class EZDeepLearning:
         # gpu_options = tf.GPUOptions(allow_growth=True)
         # session = tf.InteractiveSession(config=tf.ConfigProto(gpu_options=gpu_options))
 
-        try:
-            physical_devices = tf.config.list_physical_devices('GPU')
-        except:
-            # dirty hack for tf2.0 support for mac OS X anaconda
-            physical_devices = tf.config.experimental.list_physical_devices('GPU')
-        for physical_device in physical_devices:
-            try:
-                tf.config.experimental.set_memory_growth(physical_device, True)
-            except:
-                # Invalid device or cannot modify.
-                pass
+        # physical_devices = None
+        # try:
+        #     physical_devices = tf.config.list_physical_devices('GPU')
+        # except:
+        #     # dirty hack for tf2.0 support for mac OS X anaconda
+        #     try:
+        #         physical_devices = tf.config.experimental.list_physical_devices('GPU')
+        #     except:
+        #         pass
+        # # is this still needed --> yes it is still mandatory or I get a weird bug...
+        # # for physical_device in physical_devices:
+        # #     try:
+        # #         tf.config.experimental.set_memory_growth(physical_device, True)
+        # #     except:
+        # #         # Invalid device or cannot modify.
+        # #         pass
+        #
+        # # the line below allow for limiting tf allocated memory which allows me to run pytorch in parallel --> set this
+        #
+        # # that seems to work
+        # if physical_devices:
+        #     for physical_device in physical_devices:
+        #         try:
+        #             # unfortynately there is no way in tf to know the available GPU memory
+        #             tf.config.experimental.set_virtual_device_configuration(physical_device, [
+        #                 tf.config.experimental.VirtualDeviceConfiguration(memory_limit=100000)]) # 100Gigs --> no card has this now --> smarter would be to limit to the minimum EPySeg needs but not so easy TODO for training... probably 4 Gigs is enough for most of the things I am doing
+        #             # tf.config.experimental.set_virtual_device_configuration(physical_devices[0], [
+        #             #     tf.config.experimental.VirtualDeviceConfiguration(memory_limit=25000)]) # can be set higher than the max... and can be set dynamically --> good --> put this as an option so that I can reduce it
+        #
+        #         except RuntimeError as e:
+        #             print(e)
+        self._allow_memory_growth()
+        self.set_memory_limit(tf_memory_limit)
 
+        # nb I could also use this trick to perform several training in parallel on the same card
         self.stop_cbk = None
         self.saver_cbk = None
         self.model = None
 
+    def get_GPUs(self):
+        physical_devices = None
+        try:
+            physical_devices = tf.config.list_physical_devices('GPU')
+        except:
+            # dirty hack for tf2.0 support for mac OS X anaconda
+            try:
+                physical_devices = tf.config.experimental.list_physical_devices('GPU')
+            except:
+                pass
+        return physical_devices
+
+    def _allow_memory_growth(self):
+        physical_devices = self.get_GPUs()
+        if physical_devices:
+            for physical_device in physical_devices:
+                try:
+                    tf.config.experimental.set_memory_growth(physical_device, True)
+                except:
+                    # Invalid device or cannot modify.
+                    pass
+
+    # nb can be done only once! need restart otherwise
+    def set_memory_limit(self, limit=None):
+        if limit is None:
+            return
+        physical_devices = self.get_GPUs()
+        if physical_devices:
+            logger.debug('Setting max GPU memory to '+str(limit))
+            for physical_device in physical_devices:
+                try:
+                    # unfortunately there is no way in tf to know the available GPU memory...
+                    tf.config.experimental.set_virtual_device_configuration(physical_device, [
+                        tf.config.experimental.VirtualDeviceConfiguration(memory_limit=limit)]) # 100Gigs --> no card has this now --> smarter would be to limit to the minimum EPySeg needs but not so easy TODO for training... probably 4 Gigs is enough for most of the things I am doing
+                    # tf.config.experimental.set_virtual_device_configuration(physical_devices[0], [
+                    #     tf.config.experimental.VirtualDeviceConfiguration(memory_limit=25000)]) # can be set higher than the max... and can be set dynamically --> good --> put this as an option so that I can reduce it
+                except RuntimeError as e:
+                    print(e)
+
     def get_available_pretrained_models(self):
 
         available_pretrained_models = []
-        for pretrained_model in self.pretrained_models_2D_epithelia.keys():
-            if self.pretrained_models_2D_epithelia[pretrained_model] is not None:
+        for pretrained_model in self.pretrained_models.keys():
+            if self.pretrained_models[pretrained_model] is not None:
                 available_pretrained_models.append(pretrained_model)
         return available_pretrained_models
 
     # encoder_weights=None,
     def load_or_build(self, model=None, model_weights=None, architecture=None, backbone=None,
                       classes=1, activation='sigmoid', input_width=None, input_height=None, input_channels=1,
-                      pretraining=None, **kawrgs):
+                      pretraining=None, **kwargs):
         encoder_weights = None  # TODO maybe some day connect imagenet pretraining in sm model
         '''loads an existing model or builds a new one
 
@@ -355,6 +409,11 @@ class EZDeepLearning:
             logger.warning('the ' + str(
                 backbone) + ' model uses a lot of memory and time save (first epoch), please be patient')
 
+        # convert url to pretraining (very dirty and hacky make use of proper keywords directly in my models)
+        # if kwargs is not None:
+            # if 'url' in kwargs and pretraining is None:
+            #     pretraining = kwargs['url']
+
         self.model = None
 
         if model is None and architecture is not None:
@@ -391,8 +450,8 @@ class EZDeepLearning:
                             'file:'):  # if not an url --> try load it or use file directly
                         # model
 
-                        if pretraining in self.pretrained_models_2D_epithelia:
-                            model_parameters = self.pretrained_models_2D_epithelia[pretraining]
+                        if pretraining in self.pretrained_models:
+                            model_parameters = self.pretrained_models[pretraining]
                             if 'md5' in model_parameters:
                                 file_hash = model_parameters['md5']
                             else:
@@ -510,6 +569,30 @@ class EZDeepLearning:
         if self.saver_cbk is not None:
             self.saver_cbk.stop_me = True
 
+    def load_pre_trained_model(self, model, skip_comile=True):
+        try:
+            import importlib.resources as pkg_resources
+        except ImportError:
+            # Try backported to PY<37 `importlib_resources`.
+            import importlib_resources as pkg_resources
+
+
+        try:
+            with pkg_resources.path(zoo, model) as p:
+                package_path = str(p)
+                # print('oubsi',package_path)
+
+                if os.path.exists(package_path):
+                    logger.debug('loading model from zoo: '+package_path)
+                    # print('loading model from zoo: '+package_path)
+                    model = self.load_model(model=package_path, skip_comile=skip_comile)
+                    return model
+                else:
+                    logger.error('model not found '+str(model))
+        except:
+            traceback.print_exc()
+
+
     def load_model(self, model=None, skip_comile=False):
         '''loads a model
 
@@ -532,7 +615,8 @@ class EZDeepLearning:
                           'f1_score': f1_score, 'f2_score': f2_score, 'precision': precision,
                           'recall': recall, 'jaccard_loss': jaccard_loss, 'dice_loss': dice_loss,
                           'binary_focal_loss': binary_focal_loss, 'categorical_focal_loss': categorical_focal_loss,
-                          'binary_crossentropy': binary_crossentropy, 'categorical_crossentropy': categorical_crossentropy,
+                          'binary_crossentropy': binary_crossentropy,
+                          'categorical_crossentropy': categorical_crossentropy,
                           'bce_dice_loss': bce_dice_loss, 'bce_jaccard_loss': bce_jaccard_loss,
                           'cce_dice_loss': cce_dice_loss, 'cce_jaccard_loss': cce_jaccard_loss,
                           'binary_focal_dice_loss': binary_focal_dice_loss,
@@ -542,11 +626,58 @@ class EZDeepLearning:
                           'binary_focal_plus_jaccard_loss': binary_focal_jaccard_loss,
                           'categorical_focal_dice_loss': categorical_focal_dice_loss,
                           'categorical_focal_jaccard_loss': categorical_focal_jaccard_loss,
-                          'binary_crossentropy_plus_jaccard_loss': bce_jaccard_loss
+                          'binary_crossentropy_plus_jaccard_loss': bce_jaccard_loss,
+                          'tf': tf, # smart especially if model uses tf in lambdas
                           }
 
         if model is not None:
-            if not model.lower().endswith('.json'):
+            # TODO maybe first check wether model is in the db because if it is then try to load it
+            # will need download and alike
+            if model in self.pretrained_models:
+                # new way to load the models --> maybe some day do the same with other pretrained models because it is cleaner
+                model_parameters = self.pretrained_models[model]
+                model_path = model_parameters['model']
+                url = None
+                try:
+                    url = model_parameters['url']
+                except:
+                    pass
+                hash = None
+                try:
+                    hash = model_parameters['md5']
+                except:
+                    pass
+
+                # then try to load the weights too --> just duplicate the code before
+                # sqdsqdsq
+                # if model does not exist --> look for it in the model zoo
+                # good idea in fact
+                try:
+                    model = self.load_pre_trained_model(model_path)
+                    # try load weights
+                    # model is there --> now try to add the weights
+                    if url is not None:
+                        # get model name
+                        name = os.path.basename(url)
+                        # print(name)
+                        # print(hash)
+                        # if the name exists then can do things
+                        try:
+                            model_weights = self.get_file(name, url, file_hash=hash, cache_subdir='epyseg')
+                            # print(model_weights) # path to the model weights file  # --> really cool all works it seems
+                            # just need load the weights and I'm done
+                            self.load_weights(model_weights, model=model)
+                            logger.info('successfully loaded pretrained model weights')
+                        except:
+                            traceback.print_exc()
+                            logger.error('failed loading model weights')
+
+                    return model
+                except:
+                    # failed to load the model
+                    traceback.print_exc()
+                    return None
+            elif not model.lower().endswith('.json'):
                 # load non JSON models
                 if skip_comile:
                     try:
@@ -567,7 +698,8 @@ class EZDeepLearning:
                         traceback.print_exc()
                         logger.error('failed loading model, retrying with compile=False')
                         try:
-                            model_binary = tf.keras.models.load_model(model, custom_objects=custom_objects, compile=False)
+                            model_binary = tf.keras.models.load_model(model, custom_objects=custom_objects,
+                                                                      compile=False)
                             return model_binary
                         except:
                             # failed to load the model
@@ -575,18 +707,24 @@ class EZDeepLearning:
                             logger.error('Failed loading model')
                             return None
             else:
-                # load model from a JSON file
-                with open(model, 'r') as f:
-                    jsonString = f.read()
-                try:
-                    model_binary = tf.keras.models.model_from_json(jsonString,
-                                                                   custom_objects=custom_objects)
-                    return model_binary
-                except:
-                    # failed to load the model
-                    traceback.print_exc()
-                    logger.error('failed loading model')
-                    return None
+                # if not os.path.exists(model):
+
+
+                # print('in here', model, model in self.pretrained_models)
+
+
+                    # load model from a JSON file
+                    with open(model, 'r') as f:
+                        jsonString = f.read()
+                    try:
+                        model_binary = tf.keras.models.model_from_json(jsonString,
+                                                                       custom_objects=custom_objects)
+                        return model_binary
+                    except:
+                        # failed to load the model
+                        traceback.print_exc()
+                        logger.error('failed loading model')
+                        return None
         # failed to load the model
         return None
 
@@ -658,16 +796,33 @@ class EZDeepLearning:
 
         self.model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
 
+
+    # --> pb this is irreversible this way --> needs a fix --> would need backup values otherwise --> need think about it
     def force_use_cpu(self):
         '''Force tensorflow to use the CPU instead of GPU even if available
 
         '''
         # https://stackoverflow.com/questions/40690598/can-keras-with-tensorflow-backend-be-forced-to-use-cpu-or-gpu-at-will
         import os
+        #
+        # try:
+        #     print('os.environ["CUDA_DEVICE_ORDER"]',os.environ["CUDA_DEVICE_ORDER"])
+        # except:
+        #     print('no entry')
+        #     pass
+        # try:
+        #     print('os.environ["CUDA_VISIBLE_DEVICES"]',os.environ["CUDA_VISIBLE_DEVICES"])
+        # except:
+        #     print('no entry')
         os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"  # see issue #152
         os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
-    def load_weights(self, weights):
+        # if hasattr(os, 'unsetenv'):
+        # os.unsetenv("CUDA_DEVICE_ORDER")
+        # os.unsetenv("CUDA_VISIBLE_DEVICES")
+
+
+    def load_weights(self, weights, model=None):
         '''Loads model weights
 
         Parameters
@@ -676,14 +831,18 @@ class EZDeepLearning:
             path to model weights
 
         '''
+
+        if model is None:
+            model = self.model
+
         if weights is not None:
             try:
                 logger.info("Loading weights ' " + str(weights) + "'")
-                self.model.load_weights(weights)
+                model.load_weights(weights)
             except:
                 try:
                     logger.error("Error --> try loading weights by name, i.e. model and weights don't match ???")
-                    self.model.load_weights(weights, by_name=True)
+                    model.load_weights(weights, by_name=True)
                 except:
                     logger.error("Definitely failed loading weights, there is no match between weights and model!!!")
 
@@ -917,10 +1076,14 @@ class EZDeepLearning:
                                           **kwargs)
         return predict_generator
 
+
+
+    # TODO add a loop with train_on_batch mode
     # TODO check how I can save the settings in a smart way ????
     def train(self, metagenerator, progress_callback=None, output_folder_for_models=None, keep_n_best=5,
               steps_per_epoch=-1, epochs=100,
-              batch_size_auto_adjust=False, upon_train_completion_load='last', lr=None, reduce_lr_on_plateau=None, patience=10,  **kwargs):
+              batch_size_auto_adjust=False, upon_train_completion_load='last', lr=None, reduce_lr_on_plateau=None,
+              patience=10, use_train_on_batch=False,**kwargs):
         '''train the model
 
         Parameters
@@ -968,13 +1131,26 @@ class EZDeepLearning:
         #     import sys
         #     sys.exit(0)
 
+
+        # MEGA TODO implement smthg like that NB I GUESS I NEED NOT USE INFINITE IN THIS CASE (In fact I still need it...) --> SEE HOW TO DO THAT THEN
+        # if not use_train_on_batch:
+        # else:
+        #     epoch_num = 0
+        #     while epoch_num < epochs:
+        #         while iter_num < step_epoch:
+        #             x, y = generator.next()
+        #             loss_history += self.model..train_on_batch(x, y)
+        #             iter_num += 1
+        #         epoch_num += 1
+
+
         if lr is not None:
             self.set_learning_rate(lr)
 
         try:
             validation_data = metagenerator.validation_generator(infinite=True)
             validation_steps = metagenerator.get_validation_length(first_run=True)  # use this to generate data
-            if reduce_lr_on_plateau is None:
+            if reduce_lr_on_plateau is None: # ISN T THIS THE OPPOSITE OF WHAT I WANT --> TODO CHECK SOON
                 validation_freq = 5  # checks on validation data every 5 steps # TODO set this as a parameter
             else:
                 validation_freq = 1
@@ -1015,9 +1191,11 @@ class EZDeepLearning:
                     logger.info('Reduce learning rate on plateau is enabled.')
                     monitor = "val_loss"
                     if validation_steps == 0:
-                        monitor='loss'
-                    logger.info('Reduce learning rate is monitoring "'+monitor+'"')
-                    self.reduce_lr = ReduceLROnPlateau(monitor=monitor, factor=reduce_lr_on_plateau, patience=patience, verbose=1, cooldown=1)
+                        monitor = 'loss'
+                    logger.info('Reduce learning rate is monitoring "' + monitor + '"')
+
+                    self.reduce_lr = ReduceLROnPlateau(monitor=monitor, factor=reduce_lr_on_plateau, patience=patience,
+                                                       verbose=1, cooldown=1)
                     # https://stackoverflow.com/questions/51889378/how-to-use-keras-reducelronplateau
                     callbacks.append(self.reduce_lr)
                 else:
@@ -1029,7 +1207,11 @@ class EZDeepLearning:
                 #         initial_lr=tf.keras.backend.eval(self.model.optimizer.lr))
                 #     callbacks.append(reduce_learning_rate) # TODO not great --> change that soon
 
+
+
+
                 if validation_steps != 0:
+                    # nb in fact that would probably make sense to use fit_generator in all cases --> can I restore the old code ??
                     if tf.__version__ <= "2.0.0":
                         # hack for tf 2.0.0 support for mac osX (weird bug in tf.keras somewhere)
                         # https://github.com/tensorflow/tensorflow/issues/31231#issuecomment-586630019
@@ -1062,6 +1244,7 @@ class EZDeepLearning:
                                                 steps_per_epoch=run_steps_per_epoch, epochs=epochs,
                                                 callbacks=callbacks,
                                                 verbose=1)
+
             except:
                 traceback.print_exc()
                 if batch_size_auto_adjust:
@@ -1069,7 +1252,7 @@ class EZDeepLearning:
                     if validation_steps != 0:
                         validation_steps = metagenerator.get_validation_length()
                     if steps_per_epoch == -1:
-                        run_steps_per_epoch = metagenerator.get_train_length() # need recompute how many steps there will be because of the batch size reduction by 2
+                        run_steps_per_epoch = metagenerator.get_train_length()  # need recompute how many steps there will be because of the batch size reduction by 2
                 else:
                     traceback.print_exc()
                     # if user does not want batch size to be adjusted --> quit loop
@@ -1100,6 +1283,7 @@ class EZDeepLearning:
                     logger.error('Failed to load best model upon training completion')
         self.clear_mem()
 
+    # it obviously doesn't work I should just delete the whole object
     def clear_mem(self):
         '''attempt to clear mem on oom TODO test that it really works
 
@@ -1112,8 +1296,10 @@ class EZDeepLearning:
         except:
             traceback.print_exc()
 
+    # hq_pred_options --> if all use px deteriorating augs otherwise just use the other --> TODO add this to the code
     def predict(self, datagenerator, output_shapes, progress_callback=None, batch_size=1, predict_output_folder=None,
-                hq_predictions='mean', post_process_algorithm=None, append_this_to_save_name='', **kwargs):
+                hq_predictions='mean', post_process_algorithm=None, append_this_to_save_name='', hq_pred_options='all',
+                **kwargs):
         '''run the model
 
         Parameters
@@ -1131,7 +1317,10 @@ class EZDeepLearning:
 
         '''
 
+        # print('passed _output_shape for control', output_shapes)
+
         logger.debug('hq_predictions mode' + str(hq_predictions))
+        logger.debug('hq_pred_options mode' + str(hq_pred_options))
         predict_generator = datagenerator.predict_generator()
 
         # bckup_predict_output_folder = predict_output_folder
@@ -1142,11 +1331,18 @@ class EZDeepLearning:
         if predict_output_folder is None:
             predict_output_folder = ''
 
+        multiple_output = False
+        if isinstance(output_shapes, list):
+            if len(output_shapes) > 1:
+                multiple_output = True
+                predict_output_folder = os.path.join(predict_output_folder, 'output_#$#$#')
+
         self.stop_cbk = myStopCallback()
 
         for i, (files, crop_parameters) in enumerate(predict_generator):
-
             try:
+                if early_stop.stop == True:
+                    return
                 if progress_callback is not None:
                     progress_callback.emit((i / len(datagenerator.predict_inputs[0])) * 100)
                 else:
@@ -1158,6 +1354,14 @@ class EZDeepLearning:
             # do I need to do that ??? probably not...
             if self.stop_cbk.stop_me:
                 return
+
+            # try:
+            # global stop_threads
+            # if stop_threads:
+            #     print('stop_threads', stop_threads)
+            #     return
+            # except:
+            #     pass
 
             # we will use this file name to generate the outputname if needed
             filename0 = datagenerator._get_from(datagenerator.predict_inputs, i)[0]
@@ -1173,11 +1377,27 @@ class EZDeepLearning:
             if TA_mode:
                 filename_to_use_to_save = TA_output_filename
 
+            # print(files[0].shape)
+            # there is a huge bug in the shape of the image... --> why ?
+
             try:
+                if self.stop_cbk.stop_me:
+                    return
+
+                    # print('early stop',early_stop.stop)
+                if early_stop.stop == True:
+                    # print('early stop')
+                    return
                 results = self.model.predict(files, verbose=1, batch_size=batch_size)
+                # tf.keras.backend.clear_session() # quick test to see if it can free up memory # marche pas du tout...
+
+                # print(type(results), len(results)) #<class 'list'> 3
+
                 if hq_predictions is not None:
+                    # TODO fix the line below to handle several outputs support --> TODO (do that in a smart way)
                     results = self.get_HQ_predictions(files, results, batch_size=batch_size,
-                                                      projection_method=hq_predictions)
+                                                      projection_method=hq_predictions, hq_pred_options=hq_pred_options)# quick test to see if it can free up memory
+                    # tf.keras.backend.clear_session()
             except:
                 traceback.print_exc()
                 logger.error('Could not predict output for image \'' + str(
@@ -1190,14 +1410,322 @@ class EZDeepLearning:
                     progress_callback.emit(100)
                 return
 
-            if isinstance(results, np.ndarray):
+            if isinstance(results, np.ndarray):  # convert to list if single output
                 results = [results]
 
-            for j in range(len(crop_parameters)):
-                ordered_tiles = Img.linear_to_2D_tiles(results[j], crop_parameters[j])
-                output_shape = output_shapes[j]
+            # TODO if format is unsupported then try to get a better thing done
 
-                if len(output_shape) == 4:
+            # nb I do miss here a loop over the results to be able to save them all
+
+            # ALMOST THERE BUT STILL NEEDS A BIT OF LOVE THOUGH!!!
+
+            # the two first outputs are actually 2D images and the 3rd is 3D --> almost there in fact
+            for cur_count, result in enumerate(results):
+                # append_this_to_save_name=str(cur_count)+append_this_to_save_name
+                # print('crop parameters', len(crop_parameters))
+                for j in range(len(
+                        crop_parameters)):  # DO I REALLY NEED THIS LOOP BTW I DOUBT SO --> THINK ABOUT IT AND CHECK HOW MANY TIMES IT RUNS I BET IT ONLY RUNS ONCE BUT MAYBE KEEP IT STILL BECAUSE OK IF RUNS ONLY ONCE!!!
+                    # if j == 0:
+                    #     print('processing ', cur_count, len(result))
+                    #     print(result[j].shape)
+                    #     print(crop_parameters[j])
+                    #     # cur_output_shape = output_shapes[j] # the bug was here it was not getting the shape properly
+                    cur_output_shape = output_shapes[cur_count]
+                    #     print('cur output_shape', cur_output_shape)  # make sure it does read it properly there too
+                    #     '''
+                    #         processing  0 81
+                    #         (256, 256, 1)
+                    #         {'overlap_y': 32, 'overlap_x': 32, 'final_height': 2048, 'final_width': 2048, 'n_cols': 9, 'n_rows': 9, 'nb_tiles': 81}
+                    #         cur output_shape (None, None, None, 1)
+                    #         INFO - 2021-03-26 15:32:37,518 - deepl.py - predict - line 1332 - saving file as /E/Sample_images/sample_images_denoise_manue/210324_ON_suz_22h45_armGFP_line2/predict/210324_ON_suz_22h45_armGFP_line2.lif - Series096.tif
+                    #         processing  1 81
+                    #         (256, 256, 1)
+                    #         {'overlap_y': 32, 'overlap_x': 32, 'final_height': 2048, 'final_width': 2048, 'n_cols': 9, 'n_rows': 9, 'nb_tiles': 81}
+                    #         cur output_shape (None, None, None, 1)
+                    #         INFO - 2021-03-26 15:32:37,737 - deepl.py - predict - line 1332 - saving file as /E/Sample_images/sample_images_denoise_manue/210324_ON_suz_22h45_armGFP_line2/predict/210324_ON_suz_22h45_armGFP_line2.lif - Series096.tif
+                    #         processing  2 81
+                    #         (35, 256, 256, 1)
+                    #         {'overlap_y': 32, 'overlap_x': 32, 'final_height': 2048, 'final_width': 2048, 'n_cols': 9, 'n_rows': 9, 'nb_tiles': 81}
+                    #         cur output_shape (None, None, None, 1) # bug is here!!!
+                    #         Traceback (most recent call last):
+                    #         File "/home/aigouy/mon_prog/Python/epyseg_pkg/epyseg/worker/threaded.py", line 67, in run
+                    #         result = self.fn(*self.args, **self.kwargs)
+                    #         File "/home/aigouy/mon_prog/Python/epyseg_pkg/epyseg/epygui.py", line 1850, in _predict_using_model
+                    #         **predict_parameters)
+                    #         File "/home/aigouy/mon_prog/Python/epyseg_pkg/epyseg/deeplearning/deepl.py", line 1298, in predict
+                    #         Img(reconstructed_tile, dimensions='hwc').save(filename_to_use_to_save+append_this_to_save_name)
+                    #         File "/home/aigouy/mon_prog/Python/epyseg_pkg/epyseg/img.py", line 957, in save
+                    #         'dimensions'] is not None and self.has_c() else {})  # small hack to keep only non RGB images as composite and self.get_dimension('c')!=3
+                    #         File "/home/aigouy/.local/lib/python3.7/site-packages/tifffile/tifffile.py", line 849, in imwrite
+                    #         result = tif.write(data, shape, dtype, **kwargs)
+                    #         File "/home/aigouy/.local/lib/python3.7/site-packages/tifffile/tifffile.py", line 1618, in write
+                    #         datashape, ijrgb, metadata.get('axes', None)
+                    #         File "/home/aigouy/.local/lib/python3.7/site-packages/tifffile/tifffile.py", line 13508, in imagej_shape
+                    #         raise ValueError('ImageJ hyperstack is not a grayscale image')
+                    #         ValueError: ImageJ hyperstack is not a grayscale image
+                    #
+                    #
+                    #     '''
+
+                    # bug preventing the stuff is there
+                    # ordered_tiles = Img.linear_to_2D_tiles(result[j], crop_parameters[j])
+                    ordered_tiles = Img.linear_to_2D_tiles(result, crop_parameters[j])
+
+                    # 2D image
+                    if len(cur_output_shape) == 4:
+                        reconstructed_tile = Img.reassemble_tiles(ordered_tiles, crop_parameters[j])
+
+                        # print('post_process_algorithm', post_process_algorithm)
+                        # print(reconstructed_tile.dtype)
+                        # print(reconstructed_tile.min())
+                        # print(reconstructed_tile.max())
+                        # print(reconstructed_tile[50,50])
+
+                        # run post process directly on the image if available
+                        if cur_output_shape[-1] != 7 and (post_process_algorithm is not None and (
+                                isinstance(post_process_algorithm, str) and not (
+                                'imply' in post_process_algorithm or 'first' in post_process_algorithm))):
+                            logger.error(
+                                'Model is not compatible with epyseg and cannot be optimized, so the desired post processing cannot be applied, sorry...')
+
+                        if isinstance(post_process_algorithm,
+                                      str) and 'imply' in post_process_algorithm:  # or cur_output_shape[-1]!=7 # bug why did I put that ??? # if model is incompatible
+                            # simply binarise all
+                            reconstructed_tile = simpleFilter(Img(reconstructed_tile, dimensions='hwc'), **kwargs)
+                            # print('oubsi 1')
+                            Img(reconstructed_tile, dimensions='hwc').save(self.hack_name_for_multiple_outputs_models(
+                                filename_to_use_to_save + append_this_to_save_name, multiple_output, TA_mode,
+                                cur_count))
+                            del reconstructed_tile
+                        elif post_process_algorithm is not None:
+                            try:
+                                logger.info('post processing/refining mask, please wait...')
+                                # print('post_process_algorithm', post_process_algorithm)
+                                reconstructed_tile = self.run_post_process(Img(reconstructed_tile, dimensions='hwc'),
+                                                                           post_process_algorithm,
+                                                                           progress_callback=progress_callback,
+                                                                           **kwargs)
+                                if 'epyseg_raw_predict.tif' in filename_to_use_to_save:
+                                    filename_to_use_to_save = filename_to_use_to_save.replace('epyseg_raw_predict.tif',
+                                                                                              'handCorrection.tif')
+                                # print('oubsi 2')
+
+                                # print('bug her"',reconstructed_tile.shape)  # most likely not 2D
+
+                                # Img(reconstructed_tile, dimensions='hw').save(filename_to_use_to_save)
+                                Img(reconstructed_tile).save(self.hack_name_for_multiple_outputs_models(
+                                    filename_to_use_to_save + append_this_to_save_name, multiple_output, TA_mode,
+                                    cur_count))  # TODO check if that fixes bugs
+                                del reconstructed_tile
+                            except:
+                                logger.error('running post processing/refine mask failed')
+                                traceback.print_exc()
+                        else:
+                            # import tifffile
+                            # tifffile.imwrite('/home/aigouy/Bureau/201104_armGFP_different_lines_tila/predict/test_direct_save.tif', reconstructed_tile, imagej=True)
+                            # print('oubsi 3')
+                            # print(filename_to_use_to_save+append_this_to_save_name+str(cur_count)+".tif") # the two first are correct
+                            Img(reconstructed_tile, dimensions='hwc').save(self.hack_name_for_multiple_outputs_models(
+                                filename_to_use_to_save + append_this_to_save_name, multiple_output, TA_mode,
+                                cur_count))  # +str(cur_count)+".tif"
+                            del reconstructed_tile
+                    else:
+                        # 3D image
+                        reconstructed_tile = Img.reassemble_tiles(ordered_tiles, crop_parameters[j], three_d=True)
+                        # run post process directly on the image if available
+                        if cur_output_shape[-1] != 7 and (post_process_algorithm is not None or (
+                                isinstance(post_process_algorithm, str) and 'imply' in post_process_algorithm)):
+                            logger.error(
+                                'Model is not compatible with epyseg and cannot be optimized, so it will simply be thresholded according to selected options, sorry...')
+                        if isinstance(post_process_algorithm,
+                                      str) and 'imply' in post_process_algorithm:  # or cur_output_shape[-1]!=7 --> there was a bug here ...
+                            # simply binarise all
+                            # nb that will NOT WORK TODO FIX BUT OK FOR NOW
+                            # reconstructed_tile = simpleFilter(Img(reconstructed_tile, dimensions='dhwc'), **kwargs)
+                            logger.error('not supported yet please threshold outside the software')
+                            Img(reconstructed_tile, dimensions='dhwc').save(self.hack_name_for_multiple_outputs_models(
+                                filename_to_use_to_save + append_this_to_save_name, multiple_output, TA_mode,
+                                cur_count))
+                            del reconstructed_tile
+                        elif post_process_algorithm is not None:
+                            try:
+                                logger.info('post processing/refining mask, please wait...')
+                                reconstructed_tile = self.run_post_process(Img(reconstructed_tile, dimensions='dhwc'),
+                                                                           post_process_algorithm,
+                                                                           progress_callback=progress_callback,
+                                                                           **kwargs)
+                                if 'epyseg_raw_predict.tif' in filename_to_use_to_save:
+                                    filename_to_use_to_save = filename_to_use_to_save.replace('epyseg_raw_predict.tif',
+                                                                                              'handCorrection.tif')  # nb java TA does not support 3D masks yet --> maybe do that specifically for the python version
+                                Img(reconstructed_tile, dimensions='dhw').save(
+                                    self.hack_name_for_multiple_outputs_models(
+                                        filename_to_use_to_save + append_this_to_save_name, multiple_output, TA_mode,
+                                        cur_count))
+                                del reconstructed_tile
+                            except:
+                                logger.error('running post processing/refine mask failed')
+                                traceback.print_exc()
+                        else:
+                            Img(reconstructed_tile, dimensions='dhwc').save(self.hack_name_for_multiple_outputs_models(
+                                filename_to_use_to_save + append_this_to_save_name, multiple_output, TA_mode,
+                                cur_count))
+                            del reconstructed_tile
+                    logger.info('saving file as ' + str(
+                        self.hack_name_for_multiple_outputs_models(filename_to_use_to_save + append_this_to_save_name,
+                                                                   multiple_output, TA_mode,
+                                                                   cur_count)))  # du coup c'est faux
+            del results
+            gc.collect() # try to force free memory to avoid oom errors
+        try:
+            if progress_callback is not None:
+                progress_callback.emit(100)
+            else:
+                print(str(100) + '%')
+        except:
+            pass
+
+    # not sure I gain anything from that, maybe a bit of control
+    # in fact I really need a predict gen even with a single image because the image needs be tiled
+    # nb this assumes the predict gen contains only one file
+    def predict_single(self, single_image_predict_generator, output_shapes, progress_callback=None, cur_progress=None, batch_size=1,
+                       hq_predictions='mean', post_process_algorithm=None, hq_pred_options='all',
+                       **kwargs):
+
+        results=None
+        # multiple_output = False
+        # if isinstance(output_shapes, list):
+        #     if len(output_shapes) > 1:
+        #         multiple_output = True
+
+        self.stop_cbk = myStopCallback()
+
+
+        if progress_callback is not None and cur_progress is not None:
+            progress_callback.emit(cur_progress)
+        # for i, (files, crop_parameters) in enumerate(predict_generator):
+        #
+        #     try:
+        #         if progress_callback is not None:
+        #             progress_callback.emit((i / len(datagenerator.predict_inputs[0])) * 100)
+        #         else:
+        #             print(str((i / len(datagenerator.predict_inputs[0])) * 100) + '%')
+        #     except:
+        #         pass
+
+        # allow early stop
+        # do I need to do that ??? probably not...
+        if self.stop_cbk.stop_me:
+            return
+
+        # global stop_threads
+        # if stop_threads:
+        #
+        #     print('stop_threads', stop_threads)
+        #     return
+
+        # we will use this file name to generate the outputname if needed
+
+
+        # print(files[0].shape)
+        # there is a huge bug in the shape of the image... --> why ?
+
+        ########### hack to make it work on a single image --> TODO --> do that in a smarter way some day
+        # if isinstance(single_image_predict_generator, np.ndarray):
+        #     image = single_image_predict_generator
+        #     crop_parameters = None
+        # else:
+        ############ end hack
+        image,crop_parameters = next(single_image_predict_generator)
+
+        try:
+            results = self.model.predict(image, verbose=1, batch_size=batch_size)
+            # tf.keras.backend.clear_session() # quick test to see if it can free up memory # marche pas du tout...
+
+            # print(type(results), len(results)) #<class 'list'> 3
+
+            if hq_predictions is not None:
+                # TODO fix the line below to handle several outputs support --> TODO (do that in a smart way)
+                results = self.get_HQ_predictions(image, results, batch_size=batch_size,
+                                                  projection_method=hq_predictions, hq_pred_options=hq_pred_options)# quick test to see if it can free up memory
+            ######## code for complex support of single images
+            # if crop_parameters is None:
+            #     return results
+            ########## end code for single images
+            # tf.keras.backend.clear_session()
+        except:
+            traceback.print_exc()
+            logger.error('Could not predict output for cur image')
+
+        if results is None:
+            logger.warning('Prediction interrupted or failed. Stopping...')
+            # if progress_callback is not None:
+            #     progress_callback.emit(100)
+            return
+
+        if isinstance(results, np.ndarray):  # convert to list if single output
+            results = [results]
+
+        # TODO if format is unsupported then try to get a better thing done
+
+        # nb I do miss here a loop over the results to be able to save them all
+
+        # ALMOST THERE BUT STILL NEEDS A BIT OF LOVE THOUGH!!!
+
+        # the two first outputs are actually 2D images and the 3rd is 3D --> almost there in fact
+        final_output=[]
+        for cur_count, result in enumerate(results):
+            # append_this_to_save_name=str(cur_count)+append_this_to_save_name
+            # print('crop parameters', len(crop_parameters))
+            for j in range(len(
+                    crop_parameters)):  # DO I REALLY NEED THIS LOOP BTW I DOUBT SO --> THINK ABOUT IT AND CHECK HOW MANY TIMES IT RUNS I BET IT ONLY RUNS ONCE BUT MAYBE KEEP IT STILL BECAUSE OK IF RUNS ONLY ONCE!!!
+                # if j == 0:
+                #     print('processing ', cur_count, len(result))
+                #     print(result[j].shape)
+                #     print(crop_parameters[j])
+                #     # cur_output_shape = output_shapes[j] # the bug was here it was not getting the shape properly
+                cur_output_shape = output_shapes[cur_count]
+                #     print('cur output_shape', cur_output_shape)  # make sure it does read it properly there too
+                #     '''
+                #         processing  0 81
+                #         (256, 256, 1)
+                #         {'overlap_y': 32, 'overlap_x': 32, 'final_height': 2048, 'final_width': 2048, 'n_cols': 9, 'n_rows': 9, 'nb_tiles': 81}
+                #         cur output_shape (None, None, None, 1)
+                #         INFO - 2021-03-26 15:32:37,518 - deepl.py - predict - line 1332 - saving file as /E/Sample_images/sample_images_denoise_manue/210324_ON_suz_22h45_armGFP_line2/predict/210324_ON_suz_22h45_armGFP_line2.lif - Series096.tif
+                #         processing  1 81
+                #         (256, 256, 1)
+                #         {'overlap_y': 32, 'overlap_x': 32, 'final_height': 2048, 'final_width': 2048, 'n_cols': 9, 'n_rows': 9, 'nb_tiles': 81}
+                #         cur output_shape (None, None, None, 1)
+                #         INFO - 2021-03-26 15:32:37,737 - deepl.py - predict - line 1332 - saving file as /E/Sample_images/sample_images_denoise_manue/210324_ON_suz_22h45_armGFP_line2/predict/210324_ON_suz_22h45_armGFP_line2.lif - Series096.tif
+                #         processing  2 81
+                #         (35, 256, 256, 1)
+                #         {'overlap_y': 32, 'overlap_x': 32, 'final_height': 2048, 'final_width': 2048, 'n_cols': 9, 'n_rows': 9, 'nb_tiles': 81}
+                #         cur output_shape (None, None, None, 1) # bug is here!!!
+                #         Traceback (most recent call last):
+                #         File "/home/aigouy/mon_prog/Python/epyseg_pkg/epyseg/worker/threaded.py", line 67, in run
+                #         result = self.fn(*self.args, **self.kwargs)
+                #         File "/home/aigouy/mon_prog/Python/epyseg_pkg/epyseg/epygui.py", line 1850, in _predict_using_model
+                #         **predict_parameters)
+                #         File "/home/aigouy/mon_prog/Python/epyseg_pkg/epyseg/deeplearning/deepl.py", line 1298, in predict
+                #         Img(reconstructed_tile, dimensions='hwc').save(filename_to_use_to_save+append_this_to_save_name)
+                #         File "/home/aigouy/mon_prog/Python/epyseg_pkg/epyseg/img.py", line 957, in save
+                #         'dimensions'] is not None and self.has_c() else {})  # small hack to keep only non RGB images as composite and self.get_dimension('c')!=3
+                #         File "/home/aigouy/.local/lib/python3.7/site-packages/tifffile/tifffile.py", line 849, in imwrite
+                #         result = tif.write(data, shape, dtype, **kwargs)
+                #         File "/home/aigouy/.local/lib/python3.7/site-packages/tifffile/tifffile.py", line 1618, in write
+                #         datashape, ijrgb, metadata.get('axes', None)
+                #         File "/home/aigouy/.local/lib/python3.7/site-packages/tifffile/tifffile.py", line 13508, in imagej_shape
+                #         raise ValueError('ImageJ hyperstack is not a grayscale image')
+                #         ValueError: ImageJ hyperstack is not a grayscale image
+                #
+                #
+                #     '''
+
+                # bug preventing the stuff is there
+                # ordered_tiles = Img.linear_to_2D_tiles(result[j], crop_parameters[j])
+                ordered_tiles = Img.linear_to_2D_tiles(result, crop_parameters[j])
+
+                # 2D image
+                if len(cur_output_shape) == 4:
                     reconstructed_tile = Img.reassemble_tiles(ordered_tiles, crop_parameters[j])
 
                     # print('post_process_algorithm', post_process_algorithm)
@@ -1207,32 +1735,45 @@ class EZDeepLearning:
                     # print(reconstructed_tile[50,50])
 
                     # run post process directly on the image if available
-                    if output_shape[-1]!=7 and (post_process_algorithm is not None and (isinstance(post_process_algorithm, str) and not ('imply' in post_process_algorithm or 'first' in post_process_algorithm))):
-                        logger.error('Model is not compatible with epyseg and cannot be optimized, so the desired post processing cannot be applied, sorry...')
+                    if cur_output_shape[-1] != 7 and (post_process_algorithm is not None and (
+                            isinstance(post_process_algorithm, str) and not (
+                            'imply' in post_process_algorithm or 'first' in post_process_algorithm))):
+                        logger.error(
+                            'Model is not compatible with epyseg and cannot be optimized, so the desired post processing cannot be applied, sorry...')
 
-                    if isinstance(post_process_algorithm, str) and 'imply' in post_process_algorithm: #  or output_shape[-1]!=7 # bug why did I put that ??? # if model is incompatible
+                    if isinstance(post_process_algorithm,
+                                  str) and 'imply' in post_process_algorithm:  # or cur_output_shape[-1]!=7 # bug why did I put that ??? # if model is incompatible
                         # simply binarise all
                         reconstructed_tile = simpleFilter(Img(reconstructed_tile, dimensions='hwc'), **kwargs)
                         # print('oubsi 1')
-                        Img(reconstructed_tile, dimensions='hwc').save(filename_to_use_to_save+append_this_to_save_name)
-                        del reconstructed_tile
+                        # Img(reconstructed_tile, dimensions='hwc').save(self.hack_name_for_multiple_outputs_models(
+                        #     filename_to_use_to_save + append_this_to_save_name, multiple_output, TA_mode,
+                        #     cur_count))
+                        # del reconstructed_tile
+                        # return reconstructed_tile
+                        final_output.append(reconstructed_tile)
                     elif post_process_algorithm is not None:
                         try:
                             logger.info('post processing/refining mask, please wait...')
                             # print('post_process_algorithm', post_process_algorithm)
                             reconstructed_tile = self.run_post_process(Img(reconstructed_tile, dimensions='hwc'),
                                                                        post_process_algorithm,
-                                                                       progress_callback=progress_callback, **kwargs)
-                            if 'epyseg_raw_predict.tif' in filename_to_use_to_save:
-                                filename_to_use_to_save = filename_to_use_to_save.replace('epyseg_raw_predict.tif',
-                                                                                          'handCorrection.tif')
+                                                                       progress_callback=progress_callback,
+                                                                       **kwargs)
+                            # if 'epyseg_raw_predict.tif' in filename_to_use_to_save:
+                            #     filename_to_use_to_save = filename_to_use_to_save.replace('epyseg_raw_predict.tif',
+                            #                                                               'handCorrection.tif')
                             # print('oubsi 2')
 
                             # print('bug her"',reconstructed_tile.shape)  # most likely not 2D
 
                             # Img(reconstructed_tile, dimensions='hw').save(filename_to_use_to_save)
-                            Img(reconstructed_tile).save(filename_to_use_to_save+append_this_to_save_name)  # TODO check if that fixes bugs
-                            del reconstructed_tile
+                            # Img(reconstructed_tile).save(self.hack_name_for_multiple_outputs_models(
+                            #     filename_to_use_to_save + append_this_to_save_name, multiple_output, TA_mode,
+                            #     cur_count))  # TODO check if that fixes bugs
+                            # del reconstructed_tile
+                            # return reconstructed_tile
+                            final_output.append(reconstructed_tile)
                         except:
                             logger.error('running post processing/refine mask failed')
                             traceback.print_exc()
@@ -1240,48 +1781,165 @@ class EZDeepLearning:
                         # import tifffile
                         # tifffile.imwrite('/home/aigouy/Bureau/201104_armGFP_different_lines_tila/predict/test_direct_save.tif', reconstructed_tile, imagej=True)
                         # print('oubsi 3')
-                        Img(reconstructed_tile, dimensions='hwc').save(filename_to_use_to_save+append_this_to_save_name)
-                        del reconstructed_tile
+                        # print(filename_to_use_to_save+append_this_to_save_name+str(cur_count)+".tif") # the two first are correct
+                        # Img(reconstructed_tile, dimensions='hwc').save(self.hack_name_for_multiple_outputs_models(
+                        #     filename_to_use_to_save + append_this_to_save_name, multiple_output, TA_mode,
+                        #     cur_count))  # +str(cur_count)+".tif"
+                        # del reconstructed_tile
+                        # return reconstructed_tile
+                        final_output.append(reconstructed_tile)
                 else:
+                    # 3D image
                     reconstructed_tile = Img.reassemble_tiles(ordered_tiles, crop_parameters[j], three_d=True)
                     # run post process directly on the image if available
-                    if output_shape[-1] != 7 and (post_process_algorithm is not None or (
+                    if cur_output_shape[-1] != 7 and (post_process_algorithm is not None or (
                             isinstance(post_process_algorithm, str) and 'imply' in post_process_algorithm)):
                         logger.error(
                             'Model is not compatible with epyseg and cannot be optimized, so it will simply be thresholded according to selected options, sorry...')
-                    if isinstance(post_process_algorithm, str) and 'imply' in post_process_algorithm: #or output_shape[-1]!=7 --> there was a bug here ...
+                    if isinstance(post_process_algorithm,
+                                  str) and 'imply' in post_process_algorithm:  # or cur_output_shape[-1]!=7 --> there was a bug here ...
                         # simply binarise all
                         # nb that will NOT WORK TODO FIX BUT OK FOR NOW
                         # reconstructed_tile = simpleFilter(Img(reconstructed_tile, dimensions='dhwc'), **kwargs)
                         logger.error('not supported yet please threshold outside the software')
-                        Img(reconstructed_tile, dimensions='dhwc').save(filename_to_use_to_save+append_this_to_save_name)
-                        del reconstructed_tile
+                        # Img(reconstructed_tile, dimensions='dhwc').save(self.hack_name_for_multiple_outputs_models(
+                        #     filename_to_use_to_save + append_this_to_save_name, multiple_output, TA_mode,
+                        #     cur_count))
+                        # del reconstructed_tile
+                        # return reconstructed_tile
+                        final_output.append(reconstructed_tile)
                     elif post_process_algorithm is not None:
                         try:
                             logger.info('post processing/refining mask, please wait...')
                             reconstructed_tile = self.run_post_process(Img(reconstructed_tile, dimensions='dhwc'),
                                                                        post_process_algorithm,
-                                                                       progress_callback=progress_callback, **kwargs)
-                            if 'epyseg_raw_predict.tif' in filename_to_use_to_save:
-                                filename_to_use_to_save = filename_to_use_to_save.replace('epyseg_raw_predict.tif',
-                                                                                          'handCorrection.tif')  # nb java TA does not support 3D masks yet --> maybe do that specifically for the python version
-                            Img(reconstructed_tile, dimensions='dhw').save(filename_to_use_to_save+append_this_to_save_name)
-                            del reconstructed_tile
+                                                                       progress_callback=progress_callback,
+                                                                       **kwargs)
+                            # if 'epyseg_raw_predict.tif' in filename_to_use_to_save:
+                            #     filename_to_use_to_save = filename_to_use_to_save.replace('epyseg_raw_predict.tif',
+                            #                                                               'handCorrection.tif')  # nb java TA does not support 3D masks yet --> maybe do that specifically for the python version
+                            # Img(reconstructed_tile, dimensions='dhw').save(
+                            #     self.hack_name_for_multiple_outputs_models(
+                            #         filename_to_use_to_save + append_this_to_save_name, multiple_output, TA_mode,
+                            #         cur_count))
+                            # return reconstructed_tile
+                            final_output.append(reconstructed_tile)
                         except:
                             logger.error('running post processing/refine mask failed')
                             traceback.print_exc()
                     else:
-                        Img(reconstructed_tile, dimensions='dhwc').save(filename_to_use_to_save+append_this_to_save_name)
-                        del reconstructed_tile
-                logger.info('saving file as ' + str(filename_to_use_to_save))
-            del results
-        try:
-            if progress_callback is not None:
-                progress_callback.emit(100)
+                        # Img(reconstructed_tile, dimensions='dhwc').save(self.hack_name_for_multiple_outputs_models(
+                        #     filename_to_use_to_save + append_this_to_save_name, multiple_output, TA_mode,
+                        #     cur_count))
+                        # del reconstructed_tile
+                        # return reconstructed_tile
+                        final_output.append(reconstructed_tile)
+                # logger.info('saving file as ' + str(
+                #     self.hack_name_for_multiple_outputs_models(filename_to_use_to_save + append_this_to_save_name,
+                #                                                multiple_output, TA_mode,
+                #                                                cur_count)))  # du coup c'est faux
+        return final_output
+
+
+    # TODO add tqdm prog bar
+    # that may work --> should I try with a small sample
+    def step_by_step_training(self, datagenerator, output_shapes, progress_callback=None, batch_size=1, **kwargs):
+
+        # maybe compare the predict gen vs the datagen to see where I do the fusion between consecutive images and do prevent that but keep the rest of the stuff --> should be easy TODO
+        # --> maybe simplest is to rely on datagen instead but keep the same random logic as for the train gen --> TODO --> probably not that hard...
+        # try models with different inputs too
+
+
+        # TODO do check this /home/aigouy/mon_prog/Python/epyseg_pkg/personal/train_deepl.py --> ok
+
+        # This is the code based on datagen --> it is also very easy to use --> I should allow models to generate things with different batch size and no batch mix (I could still split the patch --> probably need a few lines of code)
+        # try to do that --> in a way that is the simplest model I can do
+
+
+        # for orig, mask in augmenter.train_generator(False, True):
+        #     print('inside loop')
+        #     # print('out', len(orig), len(mask))
+        #     # print(orig[0].shape, mask[0].shape)
+        #     if True:
+        #         # the generator ignore exit and runs one more time
+        #         print('in')
+        #         # just save two images for a test
+        #
+        #         # why is that called another time ????
+        #         print(type(orig[0]))
+
+        # def get_train_length(self, first_run=False):
+        #     # need run the train algo once with real tiled data to get the counts
+        #     train_generator = self._train_generator(skip_augment=True, first_run=first_run)
+        #     nb_batches = 0
+        #     for _, _ in train_generator:
+        #         nb_batches += 1
+        #     return nb_batches
+
+
+        # also training is easy here because it is just trained one image after the other --> should I just change the code of the train gen so that it does that ??? --> maybe requires a code change
+        # In Fact I could also simply rely on the data gen --> loop on them one by one --> pb is if I do that I would not have shuffling which most likely helps in learning
+
+
+        train_generator = datagenerator.train_generator(infinite=True) # do not need it to be infinite but just need a reset at the end of the stuff ???
+        validation_data = datagenerator.validation_generator(infinite=True) # could do validation after n steps --> also very easy TODO --> and could easily save data during training...
+
+
+
+        # since images are passed one by one --> I could easily crop them manually --> simpler TODO
+
+
+        self.stop_cbk = myStopCallback()
+
+        epochs = 3
+        step_per_epoch = 5
+
+        # should I rely on datagen instead --> in a way that maybe smarter but then I just need to get the stuff and also assume
+        # think about it but I'm almost there
+        # I just need to get the optimizer and the loss and so on --> TODO
+        # could loop over datagenerators randomly --> make sure not to mix samples from different images --> TODO --> but should not be too hard
+
+        # init loss
+        loss_history = 0
+
+        # check what the training generator generates
+        # can I also do the tiling in tf directly ??? --> maybe
+        for i in range(epochs):
+            # for j, x, y in enumerate(train_generator):
+            for j in range(step_per_epoch):
+                x,y = train_generator.next() # will that work ??? --> maybe
+                loss_history += self.model.train_on_batch(x,y) # NB THERE IS SAMPLE WEIGHT --> MAYBE I COULD MAKE SENSE OF THIS TOO TO HANDLE THE DATASETS THAT ARE POORLY REPRESENTED!!!
+            print("EPOCH {} FINISHED".format(i + 1))
+
+        # while epoch_num < epochs2:
+        #   while iter_num < step_epoch:
+        #     x,y = next_batch_train(iter_num)
+        #     loss_history += model2.train_on_batch(x,y)
+        #
+        #     iter_num += 1
+        #
+        #   print("EPOCH {} FINISHED".format(epoch_num + 1))
+        #   epoch_num += 1
+        #   iter_num = 0 # reset counter
+
+
+    # en fait faudrait le faire dès le départ...
+    # sauver le nom au depart avec un truc magique à remplacer ici
+    def hack_name_for_multiple_outputs_models(self, input_name, multi_output_model, TA_mode, current_output):
+        if not multi_output_model:
+            return input_name
+        else:
+            # replace the predict folder or the extension
+            # filename_to_use_to_save = input_name.replace('epyseg_raw_predict.tif',
+            #                                                               'handCorrection.tif')
+            if 'output_#$#$#' in input_name:
+                filename_to_use_to_save = input_name.replace('#$#$#', str(current_output))
             else:
-                print(str(100) + '%')
-        except:
-            pass
+                # append text just before the extension
+                # --> get filename without the ext
+                filename0_without_ext, file_extension = os.path.splitext(input_name)
+                filename_to_use_to_save = filename0_without_ext + '_output_' + str(current_output) + file_extension
+            return filename_to_use_to_save
 
     def run_post_process(self, image_to_process, post_process_algorithm, progress_callback=None, **kwargs):
         # do I really need that ???
@@ -1324,9 +1982,11 @@ class EZDeepLearning:
         # else:
         #     return method(input=image_to_process, **kwargs, progress_callback=progress_callback)
 
+    # nb if it is a list then I need handle it as such...
     # TODO add median as avg_method
     def get_HQ_predictions(self, files, results, batch_size=1,
-                           projection_method='mean'):  # 'max' #'mean' # max_mean # do max for flips and mean for increase contrast
+                           projection_method='mean',
+                           hq_pred_options='all'):  # 'max' #'mean' # max_mean # do max for flips and mean for increase contrast
         DEBUG = False  # True
         path = '/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/output_models/test_spliiting_augs'
         counter = 1
@@ -1347,7 +2007,11 @@ class EZDeepLearning:
         # rotate all in the folder
         # TODO allow for multiple inputs and outputs --> not so easy cause need several loops
 
-        if self.stop_cbk.stop_me:
+        if self.stop_cbk is not None and self.stop_cbk.stop_me:
+            return
+
+        if early_stop.stop == True:
+            # print('early stop')
             return
 
         # check if we can rotate by 90 degrees (i.e. if image has same w and height)
@@ -1378,7 +2042,8 @@ class EZDeepLearning:
                     Img(result, dimensions='dhwc').save(
                         os.path.join(os.path.splitext(path)[0], '0-' + str(idx) + '.tif'))
                 if projection_method == 'max':
-                    results[idx] = np.maximum(results[idx], result)  # restore original rotation angle
+                    results[idx] = np.maximum(results[idx],
+                                              result)  # restore original rotation angle # est/ce que ça marche en fait je sais pas --> je peux tenter
                 elif projection_method == 'mean':
                     results[idx] += result
             if projection_method == 'mean':
@@ -1511,127 +2176,143 @@ class EZDeepLearning:
             counter += 1
         del results2
 
-        # TODO add now some contrast/intensity augmentations
-        try:
-            no_negative_values = True
-            for file in files:
-                if file.min() < 0:
-                    no_negative_values = False
-                    break
+        # made px deteriorating augs optional
+        skip_deteriorting_augs = False
+        if hq_pred_options is not None:
+            if isinstance(hq_pred_options, str):
+                if not 'all' in hq_pred_options.lower():
+                    skip_deteriorting_augs = True
 
-            # TODO check if works with 3D and with multi channels
-
-            if no_negative_values:
-                # increase contrast 1
-                files2 = []
+        if not skip_deteriorting_augs:
+            logger.debug('Applying pixel deteriorating augs')
+            # TODO add now some contrast/intensity augmentations
+            try:
+                no_negative_values = True
                 for file in files:
-                    v_min, v_max = np.percentile(file, (0.9, 98))
-                    files2.append(exposure.rescale_intensity(file, in_range=(v_min, v_max)))
-                results2 = self.model.predict(files2, verbose=1, batch_size=batch_size)
-                if self.stop_cbk.stop_me:
-                    return
-                del files2
-                for idx, result in enumerate(results2):
-                    if DEBUG:
-                        Img(result, dimensions='dhwc').save(
-                            os.path.join(os.path.splitext(path)[0], '7-' + str(idx) + '.tif'))
-                    if projection_method == 'max':
-                        results[idx] = np.maximum(results[idx], result)
-                    elif projection_method == 'mean':
-                        results[idx] += result
-                if projection_method == 'mean':
-                    counter += 1
-                del results2
+                    if file.min() < 0:
+                        no_negative_values = False
+                        break
 
-                # increase contrast 2
-                files2 = []
-                for file in files:
-                    v_min, v_max = np.percentile(file, (5, 95))
-                    files2.append(exposure.rescale_intensity(file, in_range=(v_min, v_max)))
-                results2 = self.model.predict(files2, verbose=1, batch_size=batch_size)
-                if self.stop_cbk.stop_me:
-                    return
-                del files2
-                for idx, result in enumerate(results2):
-                    if DEBUG:
-                        Img(result, dimensions='dhwc').save(
-                            os.path.join(os.path.splitext(path)[0], '8-' + str(idx) + '.tif'))
-                    if projection_method == 'max':
-                        results[idx] = np.maximum(results[idx], result)
-                    elif projection_method == 'mean':
-                        results[idx] += result
-                if projection_method == 'mean':
-                    counter += 1
-                del results2
+                # TODO check if works with 3D and with multi channels
+                if no_negative_values:
+                    # increase contrast 1
+                    files2 = []
+                    for file in files:
+                        v_min, v_max = np.percentile(file, (0.9, 98))
+                        files2.append(exposure.rescale_intensity(file, in_range=(v_min, v_max)))
+                    results2 = self.model.predict(files2, verbose=1, batch_size=batch_size)
+                    if self.stop_cbk.stop_me:
+                        return
+                    del files2
+                    for idx, result in enumerate(results2):
+                        if DEBUG:
+                            Img(result, dimensions='dhwc').save(
+                                os.path.join(os.path.splitext(path)[0], '7-' + str(idx) + '.tif'))
+                        if projection_method == 'max':
+                            results[idx] = np.maximum(results[idx], result)
+                        elif projection_method == 'mean':
+                            results[idx] += result
+                    if projection_method == 'mean':
+                        counter += 1
+                    del results2
 
-                # change gamma 2
-                files2 = []
-                for file in files:
-                    files2.append(exposure.adjust_gamma(file, gamma=0.8, gain=0.9))
-                results2 = self.model.predict(files2, verbose=1, batch_size=batch_size)
-                if self.stop_cbk.stop_me:
-                    return
-                del files2
-                for idx, result in enumerate(results2):
-                    if DEBUG:
-                        Img(result, dimensions='dhwc').save(
-                            os.path.join(os.path.splitext(path)[0], '10-' + str(idx) + '.tif'))
-                    if projection_method == 'max':
-                        results[idx] = np.maximum(results[idx], result)
-                    elif projection_method == 'mean':
-                        results[idx] += result
-                if projection_method == 'mean':
-                    counter += 1
-                del results2
+                    # increase contrast 2
+                    files2 = []
+                    for file in files:
+                        v_min, v_max = np.percentile(file, (5, 95))
+                        files2.append(exposure.rescale_intensity(file, in_range=(v_min, v_max)))
+                    results2 = self.model.predict(files2, verbose=1, batch_size=batch_size)
+                    if self.stop_cbk.stop_me:
+                        return
+                    del files2
+                    for idx, result in enumerate(results2):
+                        if DEBUG:
+                            Img(result, dimensions='dhwc').save(
+                                os.path.join(os.path.splitext(path)[0], '8-' + str(idx) + '.tif'))
+                        if projection_method == 'max':
+                            results[idx] = np.maximum(results[idx], result)
+                        elif projection_method == 'mean':
+                            results[idx] += result
+                    if projection_method == 'mean':
+                        counter += 1
+                    del results2
 
-                # adjust_log
-                files2 = []
-                for file in files:
-                    files2.append(exposure.adjust_log(file))
-                results2 = self.model.predict(files2, verbose=1, batch_size=batch_size)
-                if self.stop_cbk.stop_me:
-                    return
-                del files2
-                for idx, result in enumerate(results2):
-                    if DEBUG:
-                        Img(result, dimensions='dhwc').save(
-                            os.path.join(os.path.splitext(path)[0], '11-' + str(idx) + '.tif'))
-                    if projection_method == 'max':
-                        results[idx] = np.maximum(results[idx], result)
-                    elif projection_method == 'mean':
-                        results[idx] += result
-                if projection_method == 'mean':
-                    counter += 1
-                del results2
+                    # change gamma 2
+                    files2 = []
+                    for file in files:
+                        files2.append(exposure.adjust_gamma(file, gamma=0.8, gain=0.9))
+                    results2 = self.model.predict(files2, verbose=1, batch_size=batch_size)
+                    if self.stop_cbk.stop_me:
+                        return
+                    del files2
+                    for idx, result in enumerate(results2):
+                        if DEBUG:
+                            Img(result, dimensions='dhwc').save(
+                                os.path.join(os.path.splitext(path)[0], '10-' + str(idx) + '.tif'))
+                        if projection_method == 'max':
+                            results[idx] = np.maximum(results[idx], result)
+                        elif projection_method == 'mean':
+                            results[idx] += result
+                    if projection_method == 'mean':
+                        counter += 1
+                    del results2
 
-                # adjust_sigmoid 1
-                files2 = []
-                for file in files:
-                    files2.append(exposure.adjust_sigmoid(file, gain=5))
-                results2 = self.model.predict(files2, verbose=1, batch_size=batch_size)
-                if self.stop_cbk.stop_me:
-                    return
-                del files2
-                for idx, result in enumerate(results2):
-                    if DEBUG:
-                        Img(result, dimensions='dhwc').save(
-                            os.path.join(os.path.splitext(path)[0], '12-' + str(idx) + '.tif'))
-                    if projection_method == 'max':
-                        results[idx] = np.maximum(results[idx], result)
-                    elif projection_method == 'mean':
-                        results[idx] += result
-                if projection_method == 'mean':
-                    counter += 1
-                del results2
-            else:
-                logger.warning(
-                    'Suboptimal HQ predictions. You see this warning because your input image contains negative values, therefore some of the data augmentation cannot be performed.')
+                    # adjust_log
+                    files2 = []
+                    for file in files:
+                        files2.append(exposure.adjust_log(file))
+                    results2 = self.model.predict(files2, verbose=1, batch_size=batch_size)
+                    if self.stop_cbk.stop_me:
+                        return
+                    del files2
+                    for idx, result in enumerate(results2):
+                        if DEBUG:
+                            Img(result, dimensions='dhwc').save(
+                                os.path.join(os.path.splitext(path)[0], '11-' + str(idx) + '.tif'))
+                        if projection_method == 'max':
+                            results[idx] = np.maximum(results[idx], result)
+                        elif projection_method == 'mean':
+                            results[idx] += result
+                    if projection_method == 'mean':
+                        counter += 1
+                    del results2
 
-        except:
-            traceback.print_exc()
+                    # adjust_sigmoid 1
+                    files2 = []
+                    for file in files:
+                        files2.append(exposure.adjust_sigmoid(file, gain=5))
+                    results2 = self.model.predict(files2, verbose=1, batch_size=batch_size)
+                    if self.stop_cbk.stop_me:
+                        return
+                    del files2
+                    for idx, result in enumerate(results2):
+                        if DEBUG:
+                            Img(result, dimensions='dhwc').save(
+                                os.path.join(os.path.splitext(path)[0], '12-' + str(idx) + '.tif'))
+                        if projection_method == 'max':
+                            results[idx] = np.maximum(results[idx], result)
+                        elif projection_method == 'mean':
+                            results[idx] += result
+                    if projection_method == 'mean':
+                        counter += 1
+                    del results2
+                else:
+                    logger.warning(
+                        'Suboptimal HQ predictions. You see this warning because your input image contains negative values, therefore some of the data augmentation cannot be performed.')
 
+            except:
+                traceback.print_exc()
+        else:
+            logger.debug('Skipping pixel deteriorating augs')
+
+        # TODO test if ok...
+        # QUICK FIX FOR SUPPORT OF MULTIPLE OUTPUTS MODELS/that seems to work but need check it more thoroughly
         if projection_method == 'mean':
-            results /= counter
+            if not isinstance(results, list):
+                results /= counter
+            else:
+                for iii, r in enumerate(results):
+                    results[iii] = results[iii] / counter
 
         return results
 
@@ -1647,6 +2328,9 @@ class EZDeepLearning:
             name = model._name
         model_json = model.to_json(indent=4)
         with open(name + ".json", "w") as json_file:
+
+            # print(name + ".json")
+
             json_file.write(model_json)
         # serialize weights to HDF5
         # self.model.save_weights("unet_membrane.hdf5")
@@ -1769,8 +2453,19 @@ class EZDeepLearning:
             traceback.print_exc()
             logger.error('Could not change learning rate, sorry...')
 
+
 if __name__ == '__main__':
     deepTA = EZDeepLearning()
+
+    if True:
+        import sys
+
+        deepTA.load_or_build(model='CARE_GUIDED.json')
+
+        sys.exit(0)
+
+
+
     deepTA.load_or_build(architecture='Unet', backbone='vgg19', activation='sigmoid', classes=1)
     # deepTA.load_or_build(model='/path/to/model.h5')
     deepTA.get_loaded_model_params()

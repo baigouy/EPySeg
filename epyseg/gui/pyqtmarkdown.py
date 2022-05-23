@@ -1,4 +1,4 @@
-# pip install PyQtWebEngine or  'PyQtWebEngine==5.13.0'  + 'PyQt5==5.13.0'
+# pip install PyQtWebEngine or  'PyQtWebEngine==5.13.0'  + 'PyQt5==5.13.0' # version need be in sync with pyt otherwise there is a bug
 from markdown import markdown  # nb not all markdown is supported, but it's not so bad...
 from PyQt5.QtWebEngineWidgets import QWebEngineView
 from PyQt5.QtWidgets import QVBoxLayout, QTabWidget
@@ -46,9 +46,11 @@ class PyQT_markdown(QWidget):
 if __name__ == '__main__':
     import sys
 
+    # nothing is displayed --> WHY
+
     app = QApplication(sys.argv)
     w = PyQT_markdown()
     w.show()
-    w.set_markdown_from_file("../../docs/test.md")
-    w.set_markdown_from_file("../../docs/test.md")
+    w.set_markdown_from_file("../deeplearning/docs/getting_started.md")
+    w.set_markdown_from_file("../deeplearning/docs/getting_started2.md")
     sys.exit(app.exec_())

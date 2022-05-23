@@ -1,7 +1,9 @@
 import traceback
 import logging
+from itertools import zip_longest
 from epyseg.deeplearning.docs.doc2html import markdown_file_to_html, browse_tip
 from epyseg.gui.defineROI import DefineROI
+from epyseg.utils.loadlist import loadlist
 from epyseg.postprocess.gui import PostProcessGUI
 from epyseg.uitools.blinker import Blinker
 from PyQt5.QtWidgets import QDialog, QDialogButtonBox, QPushButton, QToolTip, QHBoxLayout
@@ -15,15 +17,14 @@ from PyQt5.QtWidgets import QSpinBox, QComboBox, QVBoxLayout, QLabel, QCheckBox,
 from PyQt5.QtCore import Qt, QPoint
 from epyseg.img import Img
 import sys
-import os
 import json
-
-# logging
-from epyseg.tools.logger import TA_logger
+import os
+from epyseg.gui.multi_inputs_img import Multiple_inputs
+from epyseg.tools.logger import TA_logger # logging
 
 logger = TA_logger()
 
-
+# TODO set a min size for this stuff so that size fits in smaller windows
 class image_input_settings(QDialog):
 
     def __init__(self, parent_window=None, show_channel_nb_change_rules=False, show_overlap=False, show_input=False,
@@ -36,6 +37,7 @@ class image_input_settings(QDialog):
 
         super().__init__(parent=parent_window)
 
+        self.parent_window = parent_window
         self.first_image = None
         self.first_mask = None
         self.show_overlap = show_overlap
@@ -73,6 +75,7 @@ class image_input_settings(QDialog):
 
         # TODO put this in the GUI
 
+        # I need to store this in a scroll inside the group so that models with several inputs can be opened
         self.group_input_dataset = QGroupBox(label_input, objectName=objectName + 'group_input_dataset')
         self.group_input_dataset.setEnabled(True)
 
@@ -82,14 +85,22 @@ class image_input_settings(QDialog):
         group_input_dataset_layout.setColumnStretch(1, 2)
         group_input_dataset_layout.setHorizontalSpacing(3)
         group_input_dataset_layout.setVerticalSpacing(3)
-        OpenFileOrFolderWidget.finalize_text_change = self.check_input
+
         # changed to isfile to allow single file or folder loading
         # marche pas car pas folder
-        self.open_input_button = OpenFileOrFolderWidget(parent_window=self, add_timer_to_changetext=True,
-                                                        show_ok_or_not_icon=True,  # label_text=label_input,
-                                                        show_size=True,
-                                                        tip_text='Drag and drop a single file or folder here',
-                                                        objectName=objectName + 'open_input_button')
+
+        # In fact I need to add or remove from this group depending on the nb of inputs
+        # OpenFileOrFolderWidget.finalize_text_change = self.check_input
+        # self.open_input_button = OpenFileOrFolderWidget(parent_window=self, add_timer_to_changetext=True,
+        #                                                 show_ok_or_not_icon=True,  # label_text=label_input,
+        #                                                 show_size=True,
+        #                                                 tip_text='Drag and drop a single file or folder here',
+        #                                                 objectName=objectName + 'open_input_button')
+        # slowly adding support for multiple input/output models
+        # same as before override the tool finalize changes
+        # Multiple_inputs.finalize_text_change = self.check_input # how can I pass that
+        self.open_input_button = Multiple_inputs(parent_window=self.parent_window, finalize_text_change_method_overrider=self.check_input,  nb_of_inputs=1 if self.model_inputs is None else len(self.model_inputs)) # TODO improve things some day
+        # self.open_input_button = Multiple_inputs(parent_window=self.parent_window, nb_of_inputs=1 if self.model_inputs is None else len(self.model_inputs)) # TODO improve things some day
 
         # help_ico = QIcon.fromTheme('help-contents')
         self.help_button_input_dataset = QPushButton('?', None)
@@ -403,11 +414,11 @@ class image_input_settings(QDialog):
         self.auto_output.setChecked(True)
 
         # ask user where models should be saved
-        OpenFileOrFolderWidget.finalize_text_change = self.check_custom_dir
+        # OpenFileOrFolderWidget.finalize_text_change = self.check_custom_dir
         self.output_predictions_to = OpenFileOrFolderWidget(parent_window=self, label_text='Output predictions to',
                                                             add_timer_to_changetext=True, show_ok_or_not_icon=True,
                                                             tip_text='Drag and drop a folder here',
-                                                            objectName=objectName + 'output_predictions_to')
+                                                            objectName=objectName + 'output_predictions_to', finalize_text_change_method_overrider=self.check_custom_dir)
         self.output_predictions_to.setEnabled(False)
         # help for output predictions
         self.help_button_output_predictions = QPushButton('?', None)
@@ -435,6 +446,10 @@ class image_input_settings(QDialog):
         self.hq_pred = QCheckBox('High Quality predictions (up to 12 times slower but better raw predictions)',
                                  objectName=objectName + 'hq_pred')
         self.hq_pred.setChecked(True)
+        # allow keeping only pixel preserving augs --> it is optional
+        self.hq_pred_options = QComboBox(objectName='hq_pred_options')
+        self.hq_pred_options.addItem('Use all augs (pixel preserving + deteriorating) (Recommended for segmentation)') # NB 'all' is the magic keyword any other option/string would only keep pixel preserving augs
+        self.hq_pred_options.addItem('Only use pixel preserving augs (Recommended for CARE-like models/surface extraction)')
         # help HQ pred
         self.help_button_hq_pred = QPushButton('?', None)
         self.help_button_hq_pred.setMaximumWidth(bt_width * 2)
@@ -474,7 +489,6 @@ class image_input_settings(QDialog):
         self.raw_output.setChecked(True)
 
         # OUTPUT panel
-
         self.group_output_dataset = QGroupBox('Ground truth/Segmented dataset',
                                               objectName=objectName + 'group_output_dataset')
         self.group_output_dataset.setEnabled(True)
@@ -485,13 +499,17 @@ class image_input_settings(QDialog):
         group_input_dataset_layout.setColumnStretch(1, 2)
         group_output_dataset_layout.setHorizontalSpacing(3)
         group_output_dataset_layout.setVerticalSpacing(3)
-        OpenFileOrFolderWidget.finalize_text_change = self.check_labels
-        self.open_labels_button = OpenFileOrFolderWidget(parent_window=self, add_timer_to_changetext=True,
-                                                         show_ok_or_not_icon=True,
-                                                         # label_text='Ground truth/Segmented dataset',
-                                                         show_size=True,
-                                                         tip_text='Drag and drop a single file or folder here',
-                                                         objectName=objectName + 'open_labels_button')
+
+        # previous code before support of multiple inputs and outputs models
+        # OpenFileOrFolderWidget.finalize_text_change = self.check_labels
+        # self.open_labels_button = OpenFileOrFolderWidget(parent_window=self, add_timer_to_changetext=True,
+        #                                                  show_ok_or_not_icon=True,
+        #                                                  # label_text='Ground truth/Segmented dataset',
+        #                                                  show_size=True,
+        #                                                  tip_text='Drag and drop a single file or folder here',
+        #                                                  objectName=objectName + 'open_labels_button')
+        # Multiple_inputs.finalize_text_change = self.check_labels
+        self.open_labels_button = Multiple_inputs(parent_window=self, finalize_text_change_method_overrider=self.check_labels, nb_of_inputs=1 if self.model_outputs is None else len(self.model_outputs) )
 
         self.help_button_output_dataset = QPushButton('?', None)
         self.help_button_output_dataset.setMaximumWidth(bt_width * 2)
@@ -529,7 +547,7 @@ class image_input_settings(QDialog):
         times_label = QLabel('times')
 
         remove_output_border_pixels_label = QLabel('Remove border pixels')
-        self.remove_output_border_pixels = QSpinBox(objectName=objectName + 'nb_mask_dilations')
+        self.remove_output_border_pixels = QSpinBox(objectName=objectName + 'remove_output_border_pixels')
         self.remove_output_border_pixels.setSingleStep(1)
         self.remove_output_border_pixels.setRange(0, 100)
         self.remove_output_border_pixels.setValue(0)
@@ -763,7 +781,8 @@ class image_input_settings(QDialog):
             small_hlayout2.setColumnStretch(0, 98)
             small_hlayout2.setColumnStretch(1, 2)
             small_hlayout2.addWidget(self.hq_pred, 0, 0)
-            small_hlayout2.addWidget(self.help_button_hq_pred, 0, 1)
+            small_hlayout2.addWidget(self.hq_pred_options,0,1)
+            small_hlayout2.addWidget(self.help_button_hq_pred, 0, 2)
             input_v_layout.addLayout(small_hlayout2)
 
         if self.show_predict_output:
@@ -815,6 +834,9 @@ class image_input_settings(QDialog):
             self.buttons.accepted.connect(self.check_n_accept)
             self.buttons.rejected.connect(self.reject)
             self.layout().addWidget(self.buttons)
+
+    # def set_nb_of_inputs(self, nb_items=1):
+    #     self.open_input_button.set_nb_of_items(nb_items=nb_items)
 
     def _change_pre_processing(self):
         self.store_mask_on_drive_to_gain_speed.setEnabled(self.generate_default_epyseg_output_from_mask.isChecked())
@@ -882,9 +904,16 @@ class image_input_settings(QDialog):
 
     def set_model_inputs(self, model_inputs):
         self.model_inputs = model_inputs
+        # update nb of inputs there
+        if model_inputs is not None:
+            self.open_input_button.set_nb_of_items(nb_items=len(model_inputs))
 
     def set_model_outputs(self, model_outputs):
         self.model_outputs = model_outputs
+        # update nb of outputs there
+        if model_outputs is not None:
+            self.open_labels_button.set_nb_of_items(nb_items=len(model_outputs))
+
 
     # TODO modify that so that in any case it does show the image
     def check_n_set_input_channel_selection_necessity(self):
@@ -1071,9 +1100,19 @@ class image_input_settings(QDialog):
             self.image_cropper_UI.set_image(self.first_image)
 
     def check_labels(self):
+        # print('in check_labels')
         txt = self.open_labels_button.text()
-        if txt is not None and '*' in txt:
-            if not self.allow_wild_cards_in_path:
+
+        # print('textx ds qd qsd qs dq sdqsd222', txt)
+
+        # quick n dirty hack to add support for .lst and .txt files for input
+        file_list = None
+        if txt is not None and (txt.lower().endswith('.lst') or txt.lower().endswith('.txt')):
+            # open images specified in the list --> easy in fact (NB could even have parameters in the list such as channel or alike, think about that for future dev)
+            file_list = loadlist(txt)
+
+        if (txt is not None and '*' in txt) or file_list is not None:
+            if (not self.allow_wild_cards_in_path and '*' in txt) and file_list is None:
                 self.first_mask = None
                 self.open_labels_button.set_icon_ok(False)
                 self.nb_outputs = 0
@@ -1081,9 +1120,10 @@ class image_input_settings(QDialog):
                     'wild cards not allowed in names (to avoid overwrite of files with same names). Please provide a path to a folder instead...')
                 return
 
-            file_list = self.open_labels_button.get_list_using_glob()
+            if '*' in txt and file_list is None:
+                file_list = self.open_labels_button.get_list_using_glob()
+
             if file_list is not None and file_list:
-                import os
                 self.first_mask, can_read = self._can_read_file(file_list[0], self.output_channel_of_interest)
                 self.check_n_set_output_channel_selection_necessity()
                 if self.is_output_channel_selection_necessary:
@@ -1103,7 +1143,7 @@ class image_input_settings(QDialog):
                 self.nb_outputs = 0
 
         elif txt is not None:
-            import os
+            # import os
             file_list = DataGenerator.get_list_of_images(self.open_labels_button.text())
             if file_list:
                 self.first_mask, can_read = self._can_read_file(file_list[0], self.output_channel_of_interest)
@@ -1151,9 +1191,26 @@ class image_input_settings(QDialog):
                 self.output_predictions_to.path.setText('')
 
     def check_input(self):
+        # print('in check_input')
+
         txt = self.open_input_button.text()
-        if txt is not None and '*' in txt:
-            if not self.allow_wild_cards_in_path:
+
+        # print('textx ds qd qsd qs dq sdqsd',txt )
+
+        # quick n dirty hack to add support for .lst and .txt files for input
+        file_list = None
+        if txt is not None and (txt.lower().endswith('.lst') or txt.lower().endswith('.txt')):
+            # open images specified in the list --> easy in fact (NB could even have parameters in the list such as channel or alike, think about that for future dev)
+            file_list = loadlist(txt)
+            if self.auto_output.isChecked():
+                # get parent dir to save in it
+                self.output_predictions_to.path.setText(os.path.join(os.path.abspath(os.path.join(txt, '..')), 'predict/'))
+
+        # if txt is not None and ('*' in txt or file_list is not None):
+        #     if not self.allow_wild_cards_in_path and file_list is None:
+        # print(txt, txt is not None and '*' in txt, self.allow_wild_cards_in_path)
+        if (txt is not None and '*' in txt) or file_list is not None:
+            if (not self.allow_wild_cards_in_path and '*' in txt) and file_list is None:
                 self.first_image = None
                 self.open_input_button.set_icon_ok(False)
                 self.nb_inputs = 0
@@ -1165,10 +1222,14 @@ class image_input_settings(QDialog):
                     self.output_predictions_to.path.setText('')
                     self.output_predictions_to.set_icon_ok(False)
                 return
+            # print('*' in txt and file_list is None)
+            if '*' in txt and file_list is None:
+                # print('within list')
+                file_list = self.open_input_button.get_list_using_glob()
+            # set output folder to smthg useful
+            # print('file_list',file_list)
 
-            file_list = self.open_input_button.get_list_using_glob()
             if file_list is not None and file_list:
-                import os
                 self.first_image, can_read = self._can_read_file(file_list[0], self.input_channel_of_interest)
                 self.check_n_set_input_channel_selection_necessity()
 
@@ -1198,7 +1259,7 @@ class image_input_settings(QDialog):
                     self.open_labels_button.set_icon_ok(False)
                     self.nb_outputs = 0
         elif txt is not None:
-            import os
+            # import os
             file_list = DataGenerator.get_list_of_images(txt)
             if file_list:
                 if os.path.isdir(txt):
@@ -1247,7 +1308,7 @@ class image_input_settings(QDialog):
 
     def _can_read_mask(self, path):
         # TODO replace all +'/'+ by path join
-        import os
+        # import os
         mask_path = os.path.join(os.path.splitext(path)[0], 'handCorrection.png')
         if os.path.isfile(mask_path):
             if self._can_read_file(path, self.output_channel_of_interest):
@@ -1296,6 +1357,7 @@ class image_input_settings(QDialog):
         return output_channel_of_interest
 
     def get_parameters_directly(self, blink_on_error=False):
+        # print('in')
         data = {}
 
         input_channel_of_interest = self.get_input_channel_of_interest()
@@ -1362,6 +1424,8 @@ class image_input_settings(QDialog):
                 self.output_predictions_to.text() if not self.ta_output_style.isChecked() else 'TA_mode'
         # if old method is selected then use avg or other
         data['hq_predictions'] = None if not self.hq_pred.isChecked() else 'mean'
+        # added support for removing pixel deteriorating augs --> recommended for CARE-like models
+        data['hq_pred_options'] = self.hq_pred_options.currentText()
         if not self.input_mode_only:
             if self.show_output:
                 data['outputs'] = self.get_outputs()
@@ -1381,7 +1445,7 @@ class image_input_settings(QDialog):
                             # TODO modify code to add support for multiple inputs
                             list_input = DataGenerator.get_list_of_images(data['inputs'][0])
                             list_output = DataGenerator.get_list_of_images(data['outputs'][0])
-                            from itertools import zip_longest
+
                             correspondence = dict(zip_longest((list_input), (list_output)))
                             logger.error('Actual file correspondence is:')
                             for inp, out in correspondence.items():
@@ -1454,11 +1518,13 @@ class image_input_settings(QDialog):
 
     def get_inputs(self):
         # TODO implement the possibility yo have several inputs
-        return [self.open_input_button.text()]
+        # return [self.open_input_button.text()]
+        return self.open_input_button.get_items()
 
     def get_outputs(self):
         # TODO implement the possibility yo have several outputs
-        return [self.open_labels_button.text()]
+        # return [self.open_labels_button.text()]
+        return self.open_labels_button.get_items()
 
     def get_parameters(self):
         return json.dumps(self.get_parameters_directly())
@@ -1547,8 +1613,12 @@ class image_input_settings(QDialog):
 
 if __name__ == '__main__':
     # just for a test
+
+    input_shape = [(None, None, 1), (None, None, 1), (None, None, 1)]
+
     app = QApplication(sys.argv)
     augment, ok = image_input_settings.getDataAndParameters(parent_window=None,
+                                                            model_inputs=input_shape,
                                                             show_normalization=True,
                                                             show_preview=True,
                                                             show_predict_output=True,
@@ -1560,7 +1630,53 @@ if __name__ == '__main__':
                                                             show_HQ_settings=True,
                                                             show_run_post_process=True,
                                                             allow_bg_subtraction=True,
+                                                            allow_wild_cards_in_path=True,
                                                             objectName='demo')
-
     print(augment, ok)
+
+    # debug minicell
+    #.getDataAndParameters
+    # input = image_input_settings(show_input=True,
+    #                      show_channel_nb_change_rules=True,
+    #                      show_normalization=False,
+    #                      show_tiling=False,
+    #                      show_overlap=False,
+    #                      show_predict_output=True,
+    #                      input_mode_only=True,
+    #                      show_preview=True,
+    #                      show_HQ_settings=True,
+    #                      show_run_post_process=False,
+    #                      allow_bg_subtraction=False,
+    #                      show_preprocessing=False,
+    #                      objectName='set_custom_predict_parameters_mini_GUI')
+    # print(input.get_parameters_directly())
+
+    # all the data
+    # {"inputs": [null, null, null], "invert_image": false, "input_bg_subtraction": null, "default_input_tile_width": 256,
+    #  "default_input_tile_height": 256, "tile_width_overlap": 32, "tile_height_overlap": 32,
+    #  "input_channel_reduction_rule": "copy the COI to all available channels",
+    #  "input_channel_augmentation_rule": "copy the COI to all channels", "input_channel_of_interest": null,
+    #  "input_normalization": {"method": "Rescaling (min-max normalization)", "individual_channels": true,
+    #                          "range": "[0, 1]", "clip": false},
+    #  "clip_by_frequency": {"lower_cutoff": null, "upper_cutoff": null, "channel_mode": true},
+    #  "predict_output_folder": null, "hq_predictions": "mean",
+    #  "hq_pred_options": "Use all augs (pixel preserving + deteriorating) (Recommended for segmentation)",
+    #  "outputs": [null], "remove_n_border_mask_pixels": 0, "mask_dilations": 0, "default_output_tile_width": 256,
+    #  "default_output_tile_height": 256, "output_channel_reduction_rule": "copy the COI to all available channels",
+    #  "output_channel_augmentation_rule": "copy the COI to all channels", "output_channel_of_interest": null,
+    #  "output_normalization": {"method": "Rescaling (min-max normalization)", "individual_channels": true,
+    #                           "range": "[0, 1]", "clip": false},
+    #  "post_process_algorithm": "default (slow/robust) (epyseg pre-trained model only!)", "filter": null,
+    #  "threshold": null}
+    # False
+
+    # in the
+    # next
+    # {'inputs': ['/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series016.png'],
+    #  'input_channel_reduction_rule': 'copy the COI to all available channels',
+    #  'input_channel_augmentation_rule': 'copy the COI to all channels', 'input_channel_of_interest': 1,
+    #  'predict_output_folder': '/E/Sample_images/sample_images_PA/trash_test_mem/mini/predict/',
+    #  'hq_predictions': 'mean',
+    #  'hq_pred_options': 'Use all augs (pixel preserving + deteriorating) (Recommended for segmentation)'}
+
     sys.exit(0)

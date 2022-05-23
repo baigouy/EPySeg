@@ -10,8 +10,7 @@ from epyseg.draw.shapes.point2d import Point2D
 from epyseg.draw.shapes.polyline2d import PolyLine2D
 from epyseg.draw.shapes.image2d import Image2D
 from PyQt5.QtCore import QPointF, QRectF
-# logging
-from epyseg.tools.logger import TA_logger
+from epyseg.tools.logger import TA_logger # logging
 logger = TA_logger()
 
 class VectorialDrawPane:
@@ -103,6 +102,7 @@ class VectorialDrawPane:
         if sel is not None:
             painter.drawRect(sel)
         painter.restore()
+        # painter.end() # probably a good idea ????
 
     def group_contains(self, x, y):
         # checks if master rect for group contains click
@@ -195,7 +195,7 @@ class VectorialDrawPane:
                     # this closes the freehand shape
                     self.currently_drawn_shape.add(self.lastPoint, self.firstPoint)
                 # should not erase the shape if it's a polyline or a polygon by the way
-                if not isinstance(self.currently_drawn_shape, PolyLine2D) and not isinstance(self.currently_drawn_shape, Polygon2D):
+                if isinstance(self.currently_drawn_shape, Freehand2D) or (not isinstance(self.currently_drawn_shape, PolyLine2D) and not isinstance(self.currently_drawn_shape, Polygon2D)):
                     self.shapes.append(self.currently_drawn_shape)
                     self.currently_drawn_shape = None
 

@@ -1,5 +1,5 @@
 import setuptools
-from epyseg.epygui import __MAJOR__, __MINOR__, __MICRO__, __AUTHOR__, __VERSION__, __NAME__, __EMAIL__
+from epyseg.epygui import __AUTHOR__, __VERSION__, __EMAIL__
 
 with open('README.md', 'r') as fh:
     long_description = fh.read()
@@ -13,7 +13,7 @@ setuptools.setup(
     long_description=long_description,
     long_description_content_type='text/markdown',
     url='https://github.com/baigouy/EPySeg',
-    package_data={'': ['*.md']}, # include all .md files
+    package_data={'': ['*.md','*.json']}, # include all .md files and json models from the model zoo
     license='BSD',
     include_package_data=True,
     packages=setuptools.find_packages(),
@@ -27,8 +27,8 @@ setuptools.setup(
     install_requires=[
         # "tensorflow>=2.0.0",  # to allow for mac OS X conda support #shall I put 2.3 now
         # "tensorflow-gpu>=2.0.0;platform_system!='Darwin'",
-        "tensorflow>=2.3.0",  # to allow for mac OS X conda support #shall I put 2.3 now
-        "tensorflow-gpu>=2.3.0;platform_system!='Darwin'",
+        "tensorflow>=2.3.1",  # TODO should I add ;platform_system=='Darwin' ? --> try it # to allow for mac OS X conda support #shall I put 2.3 now # current collab version is 2.8
+        # "tensorflow-gpu>=2.3.1;platform_system!='Darwin'", # tensorflow-gpu==2.3.1 # do I still need to exclude macOS??? --> pb is old macs maybe # apparently this line is useless now and there is no point in having it because tensorflow uses the gpu by default if it's there and properly congigured !
         "segmentation-models==1.0.1",
         # "tensorflow-gpu>=2.0.0", # not required ? # make sure it does not install on OS X to prevent crash if does not exist
         "czifile",
@@ -38,24 +38,34 @@ setuptools.setup(
         "numpy",
         "numpydoc",
         "Pillow",
-        "PyQt5",
-        "PyQtWebEngine",
+        "PyQt5", # PyQt5==5.15.4    PyQt5-Qt5==5.15.2 # check versions are ok!!!
+        "PyQtWebEngine", #PyQtWebEngine==5.15.4 PyQtWebEngine-Qt5==5.15.2
         "read-lif",
-        "scikit-image",
-        "scipy",
-        "tifffile",
+        "scikit-image>=0.18.1", #scikit-image==0.18.1
+        "scipy", # scipy==1.6.3
+        "tifffile", #tifffile==2021.11.2 # ok bug is now fixed --> can keep all the versions of tifffile! # NB apparently there is a bug with the latest version for saving as imageJ (with metadata) --> I may need fix the version to 2021.11.2 # but try it
         "tqdm",
         "natsort",
         "numexpr",
-        "urllib3" # for model download
+        "urllib3", # for model download
+        "qtawesome", # for the TA icons
+        "pandas", #pandas==0.24.2n
+        "numba", #numba==0.48.0
+        "elasticdeform", # a library to further increase the range of data aug
+        "roifile", # for support of IJ ROIs soon
+        # "sympy" # TODO add this if I finally use it in EZF
+        # six==1.15.0
     ],
     # extras_require = {
     #     'all':  ["tensorflow-gpu>=2.0.0"]
     # },
-    python_requires='>=3.6, <=3.8' # tensorflow is now supported by python 3.8
+    python_requires='>=3.6, <3.9' # tensorflow is now supported by python 3.9 --> could put < 3.10 but then I would have to change tf version to 2.5 and I haven't tested it (see https://www.tensorflow.org/install/pip?hl=fr) --> should try that first --> check the colba version to see if that works or not !!!
+    # NB colab uses tf 2.8.0 by default (date = 16/02/22) (https://colab.research.google.com/notebooks/tensorflow_version.ipynb#scrollTo=-XbfkU7BeziQ) --> see if my tool works with that then update
+    # python version on colab is 3.7.12 --> therefore it is really worth keeping it that way (import sys  sys.version)
 )
 
-# pip3 freeze
+# pip3 freeze # the versions have changed --> try with a fresh install just to see if that works
+
 # TODO add svg libs ???
 # my versions in case that's needed some day
 # should I add keras for seg models ???

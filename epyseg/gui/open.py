@@ -1,9 +1,11 @@
-from PyQt5.QtCore import QSize
+import traceback
+from timeit import default_timer as time
+from PyQt5.QtCore import QSize, QTimer
 from natsort import natsorted
 import glob
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QPushButton, QWidget, QLineEdit, QApplication, QGridLayout, QStyle, QLabel
-from epyseg.dialogs.opensave import Open_Save_dialogs
+from epyseg.dialogs.opensave import openFileNameDialog, openDirectoryDialog
 import sys
 import os
 
@@ -26,12 +28,18 @@ class QLineEditDND(QLineEdit):
     def dropEvent(self, e):
         if e.mimeData().hasUrls():
             self.setText(e.mimeData().urls()[0].toLocalFile())
+        # TODO URGENT I guess I should activate the lines below
+        #     e.accept()
+        # else:
+        #     e.ignore()
 
 class OpenFileOrFolderWidget(QWidget):
 
     def __init__(self, parent_window=None, add_timer_to_changetext=False, show_ok_or_not_icon=False, label_text=None,
-                 is_file=False, extensions="All Files (*);;", show_size=False, tip_text=None, objectName=''):
+                 is_file=False, extensions="All Files (*);;", show_size=False, tip_text=None, objectName='',finalize_text_change_method_overrider=None):
         super().__init__(parent=parent_window)
+        # print('changed method',finalize_text_change_method_overrider)
+        self.finalize_text_change_method_overrider = finalize_text_change_method_overrider
         self.ok_ico = self.style().standardIcon(QStyle.SP_DialogYesButton).pixmap(QSize(12, 12))
         self.not_ok_ico = self.style().standardIcon(QStyle.SP_DialogNoButton).pixmap(QSize(12, 12))
         self.show_ok_or_not_icon = show_ok_or_not_icon
@@ -43,6 +51,7 @@ class OpenFileOrFolderWidget(QWidget):
         # self.is_file_or_folder = is_file_or_folder
         self.extensions = extensions
         self.show_size = show_size
+        self.time_of_last_change = None
         self.initUI(objectName)
 
     def initUI(self, objectName):
@@ -77,11 +86,14 @@ class OpenFileOrFolderWidget(QWidget):
         self.path = QLineEditDND('', self, tip_text=self.tip_text, objectName=objectName)
 
         if self.add_timer_to_changetext:
-            from PyQt5.QtCore import QSize, QTimer
-            timer = QTimer()
-            timer.setSingleShot(True)
-            self.path.textChanged.connect(lambda: timer.start(600))
-            timer.timeout.connect(self.finalize_text_change)
+
+            qtimer = QTimer()
+            qtimer.setSingleShot(True)
+            # self.path.textChanged.connect(lambda: qtimer.start(600))
+            self.path.textChanged.connect(lambda x: qtimer.start(600)) # somehow my weird bug is here and only in some conditions
+            # # Is there a better way TODO that ????
+            # timer.timeout.connect(self._text_changed)
+            qtimer.timeout.connect(self.finalize_text_change)
         self.path.setDragEnabled(True)
 
         open_ico = QIcon.fromTheme("folder-open")
@@ -116,23 +128,35 @@ class OpenFileOrFolderWidget(QWidget):
 
     def open_folder(self):
         if os.path.isdir(self.path.text()):
-            self.output_file_or_folder = Open_Save_dialogs().openDirectoryDialog(parent_window=self.parent_window)
+            self.output_file_or_folder = openDirectoryDialog(parent_window=self.parent_window)
         else:
-            self.output_file_or_folder = Open_Save_dialogs().openDirectoryDialog(parent_window=self.parent_window,
+            self.output_file_or_folder = openDirectoryDialog(parent_window=self.parent_window,
                                                                                  path=self.path.text())
         if self.output_file_or_folder is not None:
             self.path.setText(self.output_file_or_folder)
 
     def open_file(self):
         if os.path.isfile(self.path.text()):
-            self.output_file_or_folder = Open_Save_dialogs().openFileNameDialog(parent_window=self.parent_window,
+            self.output_file_or_folder = openFileNameDialog(parent_window=self.parent_window,
                                                                                 extensions=self.extensions)
         else:
-            self.output_file_or_folder = Open_Save_dialogs().openFileNameDialog(parent_window=self.parent_window,
+            self.output_file_or_folder = openFileNameDialog(parent_window=self.parent_window,
                                                                                 extensions=self.extensions,
                                                                                 path=self.path.text())
         if self.output_file_or_folder is not None:
             self.path.setText(self.output_file_or_folder)
+
+    def set_time_of_last_change(self):
+        self.time_of_last_change = time()
+        # print('I have been changed', self.time_of_last_change, self) # to debug
+
+    def get_time_of_last_change(self):
+        return  self.time_of_last_change
+
+    # def _text_changed(self):
+    #     # this stores the time of last change --> can easily determine when the object was last changed
+    #     self.set_time_of_last_change()
+    #     # self.finalize_text_change()
 
     def text(self):
         if self.path.text().strip() == '':
@@ -140,7 +164,22 @@ class OpenFileOrFolderWidget(QWidget):
         return self.path.text()
 
     def finalize_text_change(self):
-        print('in', self.path.text())
+            # print('finalize_text_change_method_overrider',self.finalize_text_change_method_overrider)
+        # try:
+            self.set_time_of_last_change()
+            if self.finalize_text_change_method_overrider is not None:
+                # print('calling neo finalizer')
+                # if an overriding method was defined --> use it otherwise use default
+                self.finalize_text_change_method_overrider()
+            else:
+                #
+                print('in', self.path.text())
+                # pass
+        # except:
+        #     # traceback.print_stack()
+        #     traceback.print_exc()
+        #     pass
+        # pass
 
     def set_icon_ok(self, ok):
         if not self.show_ok_or_not_icon:
@@ -164,6 +203,10 @@ class OpenFileOrFolderWidget(QWidget):
 if __name__ == '__main__':
     # just for a test
     app = QApplication(sys.argv)
-    ex = OpenFileOrFolderWidget(parent_window=None)
+
+    def new_method():
+        print('tutu')
+
+    ex = OpenFileOrFolderWidget(parent_window=None, add_timer_to_changetext=True, finalize_text_change_method_overrider=new_method)
     ex.show()
     app.exec_()

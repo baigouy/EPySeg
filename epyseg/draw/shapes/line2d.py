@@ -265,3 +265,5 @@ if __name__ == '__main__':
     p2 = test2.p2()
     print(p2.x(), p2.y())
     print(test2.arrow)
+
+    # TODO add preview as an image to gain time --> TODO

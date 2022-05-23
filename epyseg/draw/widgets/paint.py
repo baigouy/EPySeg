@@ -8,8 +8,8 @@ from epyseg.draw.widgets.vectorial import VectorialDrawPane
 from PyQt5.QtWidgets import qApp, QMenu, QApplication
 from PyQt5 import QtCore, QtGui
 
-# logging
-from epyseg.tools.logger import TA_logger
+from epyseg.img import toQimage
+from epyseg.tools.logger import TA_logger # logging
 
 logger = TA_logger()
 
@@ -43,7 +43,7 @@ class Createpaintwidget(QWidget):
             self.update()
             return
         else:
-            self.image = img.getQimage() # bug is here
+            self.image = toQimage(img) #.getQimage() # bug is here
 
             # self.image = QPixmap(100,200).toImage()
         width = self.image.size().width()
@@ -58,6 +58,8 @@ class Createpaintwidget(QWidget):
         self.update()
 
     def mousePressEvent(self, event):
+        if not self.hasMouseTracking():
+            return
         self.clickCount = 1
         if self.vdp.active:
             self.vdp.mousePressEvent(event)
@@ -71,6 +73,9 @@ class Createpaintwidget(QWidget):
             self.drawOnImage(event)
 
     def mouseMoveEvent(self, event):
+        if not self.hasMouseTracking():
+            return
+        # print('in mouse move', self.hasMouseTracking(), self.drawing, self.vdp.active)
         if self.statusBar:
             zoom_corrected_pos = event.pos() / self.scale
             self.statusBar.showMessage('x=' + str(zoom_corrected_pos.x()) + ' y=' + str(
@@ -122,6 +127,8 @@ class Createpaintwidget(QWidget):
         self.lastPoint = zoom_corrected_pos
 
     def mouseReleaseEvent(self, event):
+        if not self.hasMouseTracking():
+            return
         if self.vdp.active:
             self.vdp.mouseReleaseEvent(event)
             self.update()  # required to update drawing

@@ -1,51 +1,51 @@
 # align objects left right top or bottom
-
 # maybe just need methods and not even a class
 # logger
 from PyQt5.QtCore import QRectF
 
 from epyseg.draw.shapes.point2d import Point2D
 from epyseg.tools.logger import TA_logger
+import numpy as np
 
 logger = TA_logger()
 
 # TODO replace all functions by that to avoid duplicated code
 
-def setToWidth(space, width_in_px, *objects):
-    if width_in_px is None:
-        return
-    bounds = updateBoudingRect(*objects)
-    left = Point2D(bounds.topLeft())
-    incompressible_width = 0
-    for img in objects:
-        incompressible_width+=img.getIncompressibleWidth()
-    # si row doit maintenir same height until reached desired width is reached --> change its width --> doit aussi connaitre la incompressible height des objects
-    pure_image_width = (bounds.width()) - incompressible_width
-    # print(width_in_px, self.getIncompressibleWidth(), (nb_cols - 1.) * self.space )
-    width_in_px -= incompressible_width
-    ratio = width_in_px / pure_image_width
-    for img in objects:
-        img.setToWidth(img.boundingRect().width() * ratio)
-    packX(space, left, *objects)
-    # self.updateBoudingRect()
+# def setToWidth(space, width_in_px, *objects):
+#     if width_in_px is None:
+#         return
+#     bounds = updateBoudingRect(*objects)
+#     left = Point2D(bounds.topLeft())
+#     incompressible_width = 0
+#     for img in objects:
+#         incompressible_width+=img.getIncompressibleWidth()
+#     # si row doit maintenir same height until reached desired width is reached --> change its width --> doit aussi connaitre la incompressible height des objects
+#     pure_image_width = (bounds.width()) - incompressible_width
+#     # print(width_in_px, self.getIncompressibleWidth(), (nb_cols - 1.) * self.space )
+#     width_in_px -= incompressible_width
+#     ratio = width_in_px / pure_image_width
+#     for img in objects:
+#         img.setToWidth(img.boundingRect().width() * ratio)
+#     packX(space, left, *objects)
+#     # self.updateBoudingRect()
 
-def setToHeight2(space, height_in_px, *objects):
-    if height_in_px is None:
-        return
-    bounds = updateBoudingRect(*objects)
-    left = Point2D(bounds.topLeft())
-    incompressible_height = 0
-    for img in objects:
-        incompressible_height+=img.getIncompressibleHeight()
-    # si row doit maintenir same height until reached desired width is reached --> change its width --> doit aussi connaitre la incompressible height des objects
-    pure_image_height = (bounds.height()) - incompressible_height
-    # print(width_in_px, self.getIncompressibleWidth(), (nb_cols - 1.) * self.space )
-    height_in_px -= incompressible_height
-    ratio = height_in_px / pure_image_height
-    for img in objects:
-        img.setToHeight(img.boundingRect().height() * ratio)
-    packY(space, left, *objects)
-    # self.updateBoudingRect()
+# def setToHeight2(space, height_in_px, *objects):
+#     if height_in_px is None:
+#         return
+#     bounds = updateBoudingRect(*objects)
+#     left = Point2D(bounds.topLeft())
+#     incompressible_height = 0
+#     for img in objects:
+#         incompressible_height+=img.getIncompressibleHeight()
+#     # si row doit maintenir same height until reached desired width is reached --> change its width --> doit aussi connaitre la incompressible height des objects
+#     pure_image_height = (bounds.height()) - incompressible_height
+#     # print(width_in_px, self.getIncompressibleWidth(), (nb_cols - 1.) * self.space )
+#     height_in_px -= incompressible_height
+#     ratio = height_in_px / pure_image_height
+#     for img in objects:
+#         img.setToHeight(img.boundingRect().height() * ratio)
+#     packY(space, left, *objects)
+#     # self.updateBoudingRect()
 
 
 
@@ -60,6 +60,77 @@ def setToHeight(space, height_in_px, *objects):
     packX(space, left, *objects)
     # self.updateBoudingRect()
 
+def _brute_force_find_width(col1, min_h, max_h, increment, desired_height):
+    # to be faster --> find sign inversion and stop there and take closest
+    # stop on sign change in fact
+    closest = None
+    mn = 100000000
+    old_sign = None
+    break_soon = False
+
+
+    for width in np.arange(min_h, max_h, increment):
+        col1.setToWidth(width)
+        # print('bob', height, col1.width(), col1.height())
+        # in fact before that it becomes <0
+
+        if old_sign is not None:
+            if old_sign > 0 and col1.height() - desired_height < 0:
+                # print('changing sign --> stopping')
+                break_soon = True
+            elif old_sign < 0 and col1.height() - desired_height > 0:
+                # print('changing sign --> stopping')
+                break_soon = True
+
+        if old_sign is None:
+            if col1.height() - desired_height < 0:
+                old_sign = -1
+            else:
+                old_sign = 1
+        if (col1.height() - desired_height) <= mn and col1.height() - desired_height >= 0:
+            closest = (col1.width(), col1.height(), width)
+            mn = col1.height() - desired_height
+            if break_soon:
+                # print('stopping at ',height)  # stopping at  41.14420004379321 min_h, max_h 40.14420004379321 43.19553376948639 # --> a vraiment stoppé vite en fait
+                break
+
+    # print('break_soon, closest, min_h, max_h, increment',break_soon, closest, min_h, max_h, increment)
+    return closest
+
+
+def _brute_force_find_height(col1, min_h, max_h, increment, desired_width):
+        # to be faster --> find sign inversion and stop there and take closest
+        # stop on sign change in fact
+        closest = None
+        mn = 100000000
+        old_sign = None
+        break_soon = False
+        for height in np.arange(min_h, max_h, increment):
+            col1.setToHeight(height)
+            # print('bob', height, col1.width(), col1.height())
+            # in fact before that it becomes <0
+
+            if old_sign is not None:
+                if old_sign > 0 and col1.width() - desired_width < 0:
+                    # print('changing sign --> stopping')
+                    break_soon = True
+                elif old_sign < 0 and col1.width() - desired_width > 0:
+                    # print('changing sign --> stopping')
+                    break_soon = True
+
+            if old_sign is None:
+                if col1.width() - desired_width < 0:
+                    old_sign = -1
+                else:
+                    old_sign = 1
+            if (col1.width() - desired_width) <= mn and col1.width() - desired_width >= 0:
+                closest = (col1.width(), col1.height(), height)
+                mn = col1.width() - desired_width
+                if break_soon:
+                    # print('stopping at ',height)  # stopping at  41.14420004379321 min_h, max_h 40.14420004379321 43.19553376948639 # --> a vraiment stoppé vite en fait
+                    break
+        return closest
+
 def setToWidth2(space, width_in_px, *objects):
     if width_in_px is None:
         return
@@ -68,11 +139,12 @@ def setToWidth2(space, width_in_px, *objects):
     for img in objects:
         img.setToWidth(width_in_px)
     packY(space, left, *objects)
-    # self.updateBoudingRect()
+
+
 
 def updateBoudingRect(*objects):
-        bounding_rect = QRectF()
         '''updates the image bounding rect depending on content'''
+        bounding_rect = QRectF()
         x = None
         y = None
         x2 = None

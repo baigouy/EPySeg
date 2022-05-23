@@ -6,6 +6,8 @@ from epyseg.img import Img
 from epyseg.draw.shapes.rect2d import Rect2D
 import sys
 
+# in fact that is maybe already what I want!!!
+# but I may also want to draw on it with a pen --> should have everything
 
 class crop_or_preview(QWidget):
 
@@ -182,6 +184,9 @@ class crop_or_preview(QWidget):
         return {'x1': int(self.x1), 'y1': int(self.y1), 'x2': int(self.x2), 'y2': int(self.y2)}
 
 if __name__ == '__main__':
+
+    # ok in  fact that is already a great popup window --> can I further improve it ???
+
     # just for a test
     app = QApplication(sys.argv)
     ex = crop_or_preview()
@@ -192,8 +197,7 @@ if __name__ == '__main__':
     # img = Img('/home/aigouy/mon_prog/Python/data/Image11.lsm')
     # img = Img('/home/aigouy/mon_prog/Python/data/lion.jpeg')
     # img = Img('/home/aigouy/mon_prog/Python/data/epi_test.png')
-    img = Img(
-        '/home/aigouy/Bureau/201106_armGFP_49hAPF/tests_CARE_stack_foc/predict_raw_CARE_their_training_my_soft/200709_armGFP_suz_46hAPF_ON.lif - Series008.tif')
+    img = Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini10_fake_swaps/focused_Series012.png')
     ex.set_image(img)
 
     # test = QRectF(None, None, 128, 128)

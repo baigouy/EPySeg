@@ -63,7 +63,7 @@ def get_optimized_mask2(img, sauvola_mask=None, use_quick_shift=False, __VISUAL_
             Img(final_image.astype(np.uint8) * 255, dimensions='hw').save(
                 '/home/aigouy/Bureau/trash/trash4/corrected_stuff.tif')
 
-        final_image = ~remove_small_objects(~final_image.astype(np.bool), min_size=5, connectivity=1)
+        final_image = ~remove_small_objects(~final_image.astype(bool), min_size=5, connectivity=1)
         final_image = skeletonize(final_image)
 
         if __DEBUG:
@@ -102,9 +102,15 @@ def get_optimized_mask2(img, sauvola_mask=None, use_quick_shift=False, __VISUAL_
         plt.imshow(distance)
         plt.show()
 
-    local_maxi = peak_local_max(distance, indices=False,
-                                footprint=np.ones((8, 8)),
-                                labels=image)
+    # local_maxi = peak_local_max(distance, indices=False, # old code changed due to deprecation
+    #                             footprint=np.ones((8, 8)),
+    #                             labels=image)
+    tmp = peak_local_max(distance,
+                         # indices=False, #change due to deprecation:  The indices argument in skimage.feature.peak_local_max has been deprecated. Indices will always be returned. (#4752)
+                         footprint=np.ones((8, 8)),
+                         labels=image)
+    local_maxi = np.zeros_like(distance, dtype=bool)
+    local_maxi[tuple(tmp.T)] = True
 
     distance = -distance
 
@@ -349,37 +355,37 @@ if __name__ == '__main__':
     # print(image.shape)
     # print(image.has_c())
 
-    # img = Img('D:/Dropbox/mini_test.tif').astype(np.float)
-    # img = Img('D:/Dropbox/stuff_for_the_new_figure/old/predict_avg_hq_correction_ensemble_wshed/5.tif')[...,0].astype(np.float)
-    # img = Img('D:/Dropbox/stuff_for_the_new_figure/old/predict_avg_hq_correction_ensemble_wshed/122.tif')[...,0].astype(np.float)
-    # img = Img('D:/Dropbox/stuff_for_the_new_figure/old/predict_avg_hq_correction_ensemble_wshed/11.tif')[...,0].astype(np.float)
-    # img = Img('D:/Dropbox/stuff_for_the_new_figure/old/predict_avg_hq_correction_ensemble_wshed/cellpose_img22.tif')[...,0].astype(np.float)
-    # img = Img('D:/Dropbox/stuff_for_the_new_figure/old/predict_avg_hq_correction_ensemble_wshed/cellpose_img22.tif')[...,5].astype(np.float)
-    # img = Img('D:/Dropbox/stuff_for_the_new_figure/old/predict_avg_hq_correction_ensemble_wshed/cellpose_img22.tif')[...,1].astype(np.float)
-    # img = Img('D:/Dropbox/stuff_for_the_new_figure/old/predict_avg_hq_correction_ensemble_wshed/cellpose_img22.tif')[...,3].astype(np.float)
+    # img = Img('D:/Dropbox/mini_test.tif').astype(float)
+    # img = Img('D:/Dropbox/stuff_for_the_new_figure/old/predict_avg_hq_correction_ensemble_wshed/5.tif')[...,0].astype(float)
+    # img = Img('D:/Dropbox/stuff_for_the_new_figure/old/predict_avg_hq_correction_ensemble_wshed/122.tif')[...,0].astype(float)
+    # img = Img('D:/Dropbox/stuff_for_the_new_figure/old/predict_avg_hq_correction_ensemble_wshed/11.tif')[...,0].astype(float)
+    # img = Img('D:/Dropbox/stuff_for_the_new_figure/old/predict_avg_hq_correction_ensemble_wshed/cellpose_img22.tif')[...,0].astype(float)
+    # img = Img('D:/Dropbox/stuff_for_the_new_figure/old/predict_avg_hq_correction_ensemble_wshed/cellpose_img22.tif')[...,5].astype(float)
+    # img = Img('D:/Dropbox/stuff_for_the_new_figure/old/predict_avg_hq_correction_ensemble_wshed/cellpose_img22.tif')[...,1].astype(float)
+    # img = Img('D:/Dropbox/stuff_for_the_new_figure/old/predict_avg_hq_correction_ensemble_wshed/cellpose_img22.tif')[...,3].astype(float)
     # img = Img.invert(img)
-    # img = Img('D:/Dropbox/stuff_for_the_new_figure/old/predict_avg_hq_correction_ensemble_wshed/focused_Series010.tif')[...,0].astype(np.float)
-    # img = Img('D:/Dropbox/stuff_for_the_new_figure/old/predict_avg_hq_correction_ensemble_wshed/focused_Series194.tif')[...,0].astype(np.float)
-    # img = Img('D:/Dropbox/stuff_for_the_new_figure/old/predict_avg_hq_correction_ensemble_wshed/Series019.tif')[...,0].astype(np.float)
-    # img = Img('D:/Dropbox/stuff_for_the_new_figure/old/predict_avg_hq_correction_ensemble_wshed/image_plant_best-zoomed.tif')[...,0].astype(np.float)
-    # img = Img('D:/Dropbox/stuff_for_the_new_figure/old/predict_avg_hq_correction_ensemble_wshed/100708_png06.tif')[...,0].astype(np.float)
-    # img = Img('D:/Dropbox/stuff_for_the_new_figure/old/predict_avg_hq_correction_ensemble_wshed/MAX_160610_test_ocelli_ok_but_useless_cause_differs_a_lot_from_ommatidia.lif - test_visualization_head_ommatidia_32h_APF_ok_2.tif')[...,0].astype(np.float)
-    # img = Img('D:/Dropbox/stuff_for_the_new_figure/old/predict_avg_hq_correction_ensemble_wshed/proj0016.tif')[...,0].astype(np.float)
+    # img = Img('D:/Dropbox/stuff_for_the_new_figure/old/predict_avg_hq_correction_ensemble_wshed/focused_Series010.tif')[...,0].astype(float)
+    # img = Img('D:/Dropbox/stuff_for_the_new_figure/old/predict_avg_hq_correction_ensemble_wshed/focused_Series194.tif')[...,0].astype(float)
+    # img = Img('D:/Dropbox/stuff_for_the_new_figure/old/predict_avg_hq_correction_ensemble_wshed/Series019.tif')[...,0].astype(float)
+    # img = Img('D:/Dropbox/stuff_for_the_new_figure/old/predict_avg_hq_correction_ensemble_wshed/image_plant_best-zoomed.tif')[...,0].astype(float)
+    # img = Img('D:/Dropbox/stuff_for_the_new_figure/old/predict_avg_hq_correction_ensemble_wshed/100708_png06.tif')[...,0].astype(float)
+    # img = Img('D:/Dropbox/stuff_for_the_new_figure/old/predict_avg_hq_correction_ensemble_wshed/MAX_160610_test_ocelli_ok_but_useless_cause_differs_a_lot_from_ommatidia.lif - test_visualization_head_ommatidia_32h_APF_ok_2.tif')[...,0].astype(float)
+    # img = Img('D:/Dropbox/stuff_for_the_new_figure/old/predict_avg_hq_correction_ensemble_wshed/proj0016.tif')[...,0].astype(float)
 
-    # img = Img('D:/Dropbox/mini_test.tif').astype(np.float)
-    # img = Img('/D/final_folder_scoring/predict_avg_hq_correction_ensemble_wshed/5.tif')[...,0].astype(np.float)
-    # img = Img('/D/final_folder_scoring/predict_avg_hq_correction_ensemble_wshed/5.tif')[...,1].astype(np.float)
-    # img = Img('/D/final_folder_scoring/predict_avg_hq_correction_ensemble_wshed/5.tif')[...,2].astype(np.float)
-    # img = Img('/D/final_folder_scoring/predict_avg_hq_correction_ensemble_wshed/122.tif')[...,0].astype(np.float)
-    # img = Img('/D/final_folder_scoring/predict_avg_hq_correction_ensemble_wshed/11.tif')[...,0].astype(np.float)
-    # img = Img('/D/final_folder_scoring/predict_avg_hq_correction_ensemble_wshed/11.tif')[...,1].astype(np.float)
-    # img = Img('/D/final_folder_scoring/predict_avg_hq_correction_ensemble_wshed/11.tif')[...,2].astype(np.float)
-    # img = Img('/D/final_folder_scoring/predict_avg_hq_correction_ensemble_wshed/cellpose_img22.tif')[...,0].astype(np.float)
-    # img = Img('/D/final_folder_scoring/predict_avg_hq_correction_ensemble_wshed/cellpose_img22_bg_subtracted_ij.tif')[...,0].astype(np.float)
-    # img = Img('/D/final_folder_scoring/predict_avg_hq_correction_ensemble_wshed/focused_Series010.tif')[...,0].astype(np.float)
-    # img = Img('/D/final_folder_scoring/predict_avg_hq_correction_ensemble_wshed/focused_Series194.tif')[..., 0].astype(np.float)
-    # img = Img('/D/final_folder_scoring/predict_avg_hq_correction_ensemble_wshed/focused_Series194.tif')[..., 1].astype(np.float)
-    # img = Img('/D/final_folder_scoring/predict_avg_hq_correction_ensemble_wshed/focused_Series194.tif')[..., 2].astype(np.float)
+    # img = Img('D:/Dropbox/mini_test.tif').astype(float)
+    # img = Img('/D/final_folder_scoring/predict_avg_hq_correction_ensemble_wshed/5.tif')[...,0].astype(float)
+    # img = Img('/D/final_folder_scoring/predict_avg_hq_correction_ensemble_wshed/5.tif')[...,1].astype(float)
+    # img = Img('/D/final_folder_scoring/predict_avg_hq_correction_ensemble_wshed/5.tif')[...,2].astype(float)
+    # img = Img('/D/final_folder_scoring/predict_avg_hq_correction_ensemble_wshed/122.tif')[...,0].astype(float)
+    # img = Img('/D/final_folder_scoring/predict_avg_hq_correction_ensemble_wshed/11.tif')[...,0].astype(float)
+    # img = Img('/D/final_folder_scoring/predict_avg_hq_correction_ensemble_wshed/11.tif')[...,1].astype(float)
+    # img = Img('/D/final_folder_scoring/predict_avg_hq_correction_ensemble_wshed/11.tif')[...,2].astype(float)
+    # img = Img('/D/final_folder_scoring/predict_avg_hq_correction_ensemble_wshed/cellpose_img22.tif')[...,0].astype(float)
+    # img = Img('/D/final_folder_scoring/predict_avg_hq_correction_ensemble_wshed/cellpose_img22_bg_subtracted_ij.tif')[...,0].astype(float)
+    # img = Img('/D/final_folder_scoring/predict_avg_hq_correction_ensemble_wshed/focused_Series010.tif')[...,0].astype(float)
+    # img = Img('/D/final_folder_scoring/predict_avg_hq_correction_ensemble_wshed/focused_Series194.tif')[..., 0].astype(float)
+    # img = Img('/D/final_folder_scoring/predict_avg_hq_correction_ensemble_wshed/focused_Series194.tif')[..., 1].astype(float)
+    # img = Img('/D/final_folder_scoring/predict_avg_hq_correction_ensemble_wshed/focused_Series194.tif')[..., 2].astype(float)
 
     img = Img('/D/final_folder_scoring/predict/11.tif')[..., 0]
     raw_sauvola = get_optimized_mask2(img, __VISUAL_DEBUG=True, __DEBUG=True)

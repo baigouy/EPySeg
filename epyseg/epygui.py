@@ -1,43 +1,55 @@
+# from PyQt5.QtWebEngineWidgets import QWebEngineView
+# ImportError: /usr/lib/x86_64-linux-gnu/libQt5Network.so.5: undefined symbol: _ZN15QIPAddressUtils8toStringER7QStringPh, version Qt_5 --> fix is here https://stackoverflow.com/questions/37876987/cannot-import-qtwebkitwidgets-in-pyqt5
+# need set the version of QT to avoid issues too
+# or remove the help
 import os
+os.environ['SM_FRAMEWORK'] = 'tf.keras'  # set env var for changing the segmentation_model framework
+# uncomment the two lines below to force cpu
+# os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"   # see issue #152
+# os.environ["CUDA_VISIBLE_DEVICES"] = ""
 from epyseg.deeplearning.docs.doc2html import browse_tip, markdown_file_to_html
 from epyseg.gui.model import Ensemble_Models_Loader
-
-os.environ['SM_FRAMEWORK'] = 'tf.keras'  # set env var for changing the segmentation_model framework
+from epyseg.gui.mini.miniGUI_selection_dialog import minisel
 import sys
 from epyseg.worker.fake import FakeWorker
 from epyseg.uitools.blinker import Blinker
 import logging
 import traceback
-from epyseg.deeplearning.deepl import EZDeepLearning
 import json
 from epyseg.deeplearning.augmentation.meta import MetaAugmenter
 from epyseg.gui.augmenter import DataAugmentationGUI
 from PyQt5.QtWidgets import QListWidgetItem, QAbstractItemView, QSpinBox, QComboBox, QProgressBar, \
     QVBoxLayout, QHBoxLayout, QLabel, QCheckBox, QRadioButton, QButtonGroup, QGroupBox, \
     QTextBrowser, QToolTip, QDoubleSpinBox
-from PyQt5.QtCore import Qt, QThreadPool, QPoint, QRect
-from PyQt5.QtGui import QColor, QTextCharFormat, QTextCursor, QPixmap, QIcon
+from PyQt5.QtCore import Qt, QThreadPool, QPoint
+from PyQt5.QtGui import QColor, QTextCharFormat, QTextCursor
 from PyQt5.QtWidgets import QGridLayout, QListWidget, QFrame, QTabWidget
 from epyseg.gui.open import OpenFileOrFolderWidget
 from PyQt5.QtWidgets import QApplication
-from PyQt5 import QtWidgets, QtCore, QtGui
+from PyQt5 import QtWidgets, QtCore
 from epyseg.worker.threaded import Worker
 from epyseg.gui.img import image_input_settings
 from epyseg.tools.qthandler import XStream, QtHandler
 from epyseg.gui.pyqtmarkdown import PyQT_markdown
 from epyseg.img import Img
 from PyQt5.QtWidgets import QPushButton, QWidget
-# logging
-from epyseg.tools.logger import TA_logger
+from epyseg.deeplearning.deepl import EZDeepLearning
+from epyseg.tools.logger import TA_logger # logging
+
+DEBUG = False  # set to True if GUI crashes
 
 logger = TA_logger()
 
 QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)  # high DPI fix
 
-DEBUG = False  # set to True if GUI crashes
+# TODO enable that soon TODO connect CARE now and enable that --> need better training for CARE though...
+ENABLE_MINI_GUI = False # no never allow this and remove all related code
+
+
+
 __MAJOR__ = 0
 __MINOR__ = 1
-__MICRO__ = 21
+__MICRO__ = 22
 __RELEASE__ = ''  # a #b  # https://www.python.org/dev/peps/pep-0440/#public-version-identifiers --> alpha beta, ...
 __VERSION__ = ''.join([str(__MAJOR__), '.', str(__MINOR__), '.',
                        str(__MICRO__)])  # if __MICRO__ != 0 else '', __RELEASE__]) # bug here fix some day
@@ -45,12 +57,14 @@ __AUTHOR__ = 'Benoit Aigouy'
 __NAME__ = 'EPySeg'
 __EMAIL__ = 'baigouy@gmail.com'
 
+
 class EPySeg(QWidget):
     '''a deep learning GUI
 
     '''
 
     def __init__(self, parent=None):
+
         '''init for gui
 
         Parameters
@@ -61,16 +75,108 @@ class EPySeg(QWidget):
         '''
         self.currently_selected_metrics = []
         super().__init__(parent)
+
+        self.commonUI()
+
+        # self.showdialog() # ça marche --> permet de choisir une interface minimaliste
+        # image_input_settings.getDataAndParameters() # ça marche --> faire le minimal GUI like that --> much simpler
+        augment = ok = False
+        if ENABLE_MINI_GUI:
+            augment, ok = minisel.getDataAndParameters(parent_window=None)
+
+        # print(augment, ok)
+
         self.blinker = Blinker()
-        self.initUI()
+
+        self.deepTA = EZDeepLearning()  #use_cpu=True # init empty model
+        if ok and augment:
+            self.minimalUI()
+        else:
+            self.initUI()
+
         self.to_blink_after_worker_execution = None
+
+        # print(self.__qualname__)
+
         print('Need help getting started? Click the "Help" tab above\n')
-        self.deepTA = EZDeepLearning()  # init empty model
+        # self.deepTA = EZDeepLearning(use_cpu=True)  # init empty model easily set to CPU only
 
-    def initUI(self):
-        '''init ui
+    # TODO get also the pbar and the log and minimize as much as possible code duplication for predict
+    # do set the parameters of the image_input_settings smartly --> TODO see how I can do that
+    # check how I can do that --> best is to keep the same names
+    def minimalUI(self):
+        # parfait et facile --> manque juste un bouton GO
+        model_sel_label = QLabel('Pre-trained Models')
+        self.version_pretrained = QComboBox()
+        # print(self.deepTA.pretrained_models.keys())
+        self.version_pretrained.addItems(list(self.deepTA.pretrained_models.keys()))
+        # ['EPySeg V2','EPySeg V1',  'CARE', 'CARE with height map (for 3D surface area)', 'Raw surface projection (CARE without denoising module)']
+        # nb for the CARE model I could offer various denoiser and or None and could offer height map and that could also be in some sort of TA mode
+        # self.version_pretrained.currentIndexChanged.connect(lambda: print(self.version_pretrained.currentText()))  # TODO do something smarter
 
-        '''
+        # TODO make it force nb of channels if needed
+        self._set_model_inputs_and_outputs
+        # self.version_pretrained.currentIndexChanged.connect(            self._set_model_inputs_and_outputs)  # TODO do something smarter # make it get the nb of inputs or load the model maybe
+
+        # selected model
+        # model_sel.currentText()
+
+        # --> c'est bon --> presque tt ok par contre doit setter par default les parametres... --> TODO
+
+        # TODO find a trick to force some default values and find a way to always have the good text value --> not o easy...
+        # TODO NB SHOULD I CHANGE THE CAN READ AND SO ON DATA ??? --> PROBABLY NOT
+        self.set_custom_predict_parameters = image_input_settings(show_input=True,
+                                                                  show_channel_nb_change_rules=True,
+                                                                  show_normalization=False,
+                                                                  show_tiling=False,
+                                                                  show_overlap=False,
+                                                                  show_predict_output=True,
+                                                                  input_mode_only=True,
+                                                                  show_preview=True,
+                                                                  show_HQ_settings=True,
+                                                                  show_run_post_process=False,
+                                                                  allow_bg_subtraction=False,
+                                                                  show_preprocessing=False,
+                                                                  # allow_wild_cards_in_path=True,
+                                                                  objectName='set_custom_predict_parameters_mini_GUI')
+
+        # VERY DIRTY HACK --> SO FAR ALL THE MODELS ARE SINGLE CHANNEL --> set input and outputs there --> just to force channel sel
+        self.set_custom_predict_parameters.set_model_inputs([[None,None,1]])
+        self.set_custom_predict_parameters.set_model_outputs([[None, None, 1]])
+
+        layout = QGridLayout()
+        layout.setColumnStretch(0, 10)
+        layout.setColumnStretch(1, 90)
+        layout.setHorizontalSpacing(3)
+        layout.setVerticalSpacing(3)
+        layout.addWidget(model_sel_label, 0, 0)
+        layout.addWidget(self.version_pretrained, 0, 1)
+        layout.addWidget(self.set_custom_predict_parameters, 1, 0, 1, 2)
+
+        line_sep_predict = QFrame()
+        line_sep_predict.setFrameShape(QFrame.HLine)
+        line_sep_predict.setFrameShadow(QFrame.Sunken)
+
+        # launch predictions
+        self.predict = QPushButton('Go (Predict)')
+        self.predict.clicked.connect(self.predict_using_model_minimal_UI)
+
+        layout.addWidget(line_sep_predict, 2, 0, 1, 2)
+        layout.addWidget(self.predict, 3, 0, 1, 2)
+
+        self.log_and_main_layout.addLayout(layout)
+        self.log_and_main_layout.addWidget(self.help_tabs)
+
+        self.setLayout(self.log_and_main_layout)
+
+        # b = QPushButton(w)
+        # b.setText("Hello World!")
+        # b.move(50, 50)
+        # b.clicked.connect(showdialog)
+        # self.setLayout(layout)
+
+    def commonUI(self):
+        # Common parameters for minimal and full UI
         self.threading_enabled = True
         # logging
         self.logger_console = QTextBrowser(self)
@@ -78,18 +184,60 @@ class EPySeg(QWidget):
         self.logger_console.textCursor().movePosition(QTextCursor.Left, QTextCursor.KeepAnchor, 1)
         self.logger_console.setHtml('<html>')
         self.logger_console.ensureCursorVisible()
+        self.logger_console.document().setMaximumBlockCount(1000)  # limits to a 1000 entrees
         if not DEBUG:
             XStream.stdout().messageWritten.connect(self.set_html_black)
             XStream.stderr().messageWritten.connect(self.set_html_red)
-        self.handler = QtHandler()
-        self.handler.setFormatter(logging.Formatter(TA_logger.default_format))
-        # change default handler for logging
-        TA_logger.setHandler(self.handler)
+            self.handler = QtHandler()
+            self.handler.setFormatter(logging.Formatter(TA_logger.default_format))
+            # change default handler for logging
+            TA_logger.setHandler(self.handler)
+        # global system progress bar
+        self.pbar = QProgressBar(self)
+
+        # Initialize tab screen
+        self.help_tabs = QTabWidget(self)
+        self.help_tabs.setMinimumWidth(250)
+        self.log_tab = QWidget()
+        self.help_html_tab = QWidget()
+
+        self.help = PyQT_markdown()
+        #
+        # Add tabs
+        self.help_tabs.addTab(self.log_tab, 'Log')
+        self.help_tabs.addTab(self.help_html_tab, 'Help')
+
+        #
+        # creating log tab
+        self.log_tab.layout = QVBoxLayout()
+        self.log_tab.layout.setAlignment(Qt.AlignTop)
+        #
+        self.log_tab.layout.addWidget(self.logger_console)
+        # self.log_tab.layout.addWidget(self.instant_help)
+        self.log_tab.layout.addWidget(self.pbar)
+        self.log_tab.setLayout(self.log_tab.layout)
+
+        self.help_html_tab.layout = QVBoxLayout()
+        self.help_html_tab.layout.setAlignment(Qt.AlignTop)
+        self.help_html_tab.layout.setContentsMargins(0, 0, 0, 0)
+
+        self.help_html_tab.layout.addWidget(self.help)
+        self.help_html_tab.setLayout(self.help_html_tab.layout)
 
         self.threadpool = QThreadPool()
         self.threadpool.setMaxThreadCount(self.threadpool.maxThreadCount() - 1)  # spare one core for system
-        self.setWindowTitle(__NAME__ + ' v' + str(__VERSION__))
 
+        # main GUI layout
+        self.log_and_main_layout = QHBoxLayout()
+        self.log_and_main_layout.setAlignment(Qt.AlignTop)
+
+        # print(self.commonUI.__qualname__) # pas tt a fait ce que je veux mais pas loin -- >je vais y arriver
+
+    def initUI(self):
+        '''init ui
+
+        '''
+        self.setWindowTitle(__NAME__ + ' v' + str(__VERSION__))
         # Initialize tab screen
         self.tabs = QTabWidget(self)
         self.model_tab = QWidget()
@@ -129,7 +277,8 @@ class EPySeg(QWidget):
         # choice between opening an existing model, building a new model or using a pretrained model
         self.build_model_radio = QRadioButton('Build a new model', objectName='build_model_radio')
         self.load_model_radio = QRadioButton('Load an existing model', objectName='load_model_radio')
-        self.model_pretrain_on_epithelia = QRadioButton('Use a pre-trained model (2D epithelial segmentation)', objectName='model_pretrain_on_epithelia')
+        self.model_pretrain_on_epithelia = QRadioButton('Use a pre-trained model (2D epithelial segmentation)',
+                                                        objectName='model_pretrain_on_epithelia')
 
         # we add an help button
         self.help_button_models = QPushButton('?', None)
@@ -155,10 +304,11 @@ class EPySeg(QWidget):
         # if 'open an existing model' is selected then provide path to the model
         self.input_model = OpenFileOrFolderWidget(parent_window=self, is_file=True,
                                                   extensions="Supported Files (*.h5 *.H5 *.hdf5 *.HDF5 *.json *.JSON *.model);;All Files (*)",
-                                                  tip_text='Drag and drop a single model file here', objectName='input_model')
+                                                  tip_text='Drag and drop a single model file here',
+                                                  objectName='input_model')
 
         # parameters for the pretrained models
-        self.groupBox_pretrain = QGroupBox('Model',objectName='groupBox_pretrain')
+        self.groupBox_pretrain = QGroupBox('Model', objectName='groupBox_pretrain')
         self.groupBox_pretrain.setEnabled(True)
         # groupBox layout
         self.groupBox_pretrain_layout = QGridLayout()
@@ -285,7 +435,6 @@ class EPySeg(QWidget):
         # parameters for the model
         # model weights optional
         groupBox_weights = QGroupBox('Model weights (can be optional)', objectName='groupBox_weights')
-        # groupBox_weights.setToolTip('this is a test of your system')
         groupBox_weights.setEnabled(True)
 
         # groupBox layout
@@ -299,7 +448,8 @@ class EPySeg(QWidget):
         self.input_weights = OpenFileOrFolderWidget(parent_window=self, label_text='Load weights',
                                                     is_file=True,
                                                     extensions="Supported Files (*.h5 *.H5 *.hdf5 *.HDF5);;All Files (*)",
-                                                    tip_text='Drag and drop a single weight file here', objectName='input_weights')  # TODO shall i add *.model ???
+                                                    tip_text='Drag and drop a single weight file here',
+                                                    objectName='input_weights')  # TODO shall i add *.model ???
 
         self.help_button_input_weights = QPushButton('?', None)
         self.help_button_input_weights.setMaximumWidth(bt_width * 2)
@@ -360,7 +510,7 @@ class EPySeg(QWidget):
         self.train_tab.layout.setVerticalSpacing(3)
 
         # model compilation parameters
-        self.groupBox_compile = QGroupBox('Compile/recompile model',objectName='groupBox_compile')
+        self.groupBox_compile = QGroupBox('Compile/recompile model', objectName='groupBox_compile')
         self.groupBox_compile.setCheckable(True)
         self.groupBox_compile.setChecked(False)
         self.groupBox_compile.setEnabled(True)
@@ -460,7 +610,7 @@ class EPySeg(QWidget):
         # self.encoder_freeze.setChecked(False)
         # self.encoder_freeze.setEnabled(False)  # coming soon
 
-        self.groupBox_training = QGroupBox('Training parameters',objectName='groupBox_training')
+        self.groupBox_training = QGroupBox('Training parameters', objectName='groupBox_training')
         self.groupBox_training.setEnabled(True)
 
         # model compilation groupBox layout
@@ -519,7 +669,8 @@ class EPySeg(QWidget):
         self.load_best_model_upon_completion.setChecked(True)
 
         # offer reduce LR on plateau
-        self.reduce_lr_on_plateau_checkbox = QCheckBox('Reduce learning rate (lr) on plateau', objectName='reduce_lr_on_plateau_checkbox')
+        self.reduce_lr_on_plateau_checkbox = QCheckBox('Reduce learning rate (lr) on plateau',
+                                                       objectName='reduce_lr_on_plateau_checkbox')
         self.reduce_lr_on_plateau_checkbox.setChecked(False)
         self.reduce_lr_on_plateau_checkbox.stateChanged.connect(self._reduce_lr_on_plateau_changed)
 
@@ -553,7 +704,7 @@ class EPySeg(QWidget):
         self.help_button_train_parameters.clicked.connect(self.show_tip)
 
         # Tiling parameters
-        self.groupBox_tiling = QGroupBox('Tiling',objectName='groupBox_tiling')
+        self.groupBox_tiling = QGroupBox('Tiling', objectName='groupBox_tiling')
         self.groupBox_tiling.setEnabled(True)
 
         # model compilation groupBox layout
@@ -582,7 +733,7 @@ class EPySeg(QWidget):
         # TODO ALSO handle TA architecture of files --> can maybe add that all is ok if TA mode or put TA mode detected
 
         # request user for its training sets
-        self.groupBox_training_dataset = QGroupBox('Training datasets',objectName='groupBox_training_dataset')
+        self.groupBox_training_dataset = QGroupBox('Training datasets', objectName='groupBox_training_dataset')
         self.groupBox_training_dataset.setEnabled(True)
 
         # model compilation groupBox layout
@@ -610,7 +761,7 @@ class EPySeg(QWidget):
         self.help_button_dataset.clicked.connect(self.show_tip)
 
         # request user for its training sets
-        self.groupBox_data_aug = QGroupBox('Data augmentation',objectName='groupBox_data_aug')
+        self.groupBox_data_aug = QGroupBox('Data augmentation', objectName='groupBox_data_aug')
         self.groupBox_data_aug.setEnabled(True)
 
         # model compilation groupBox layout
@@ -639,7 +790,8 @@ class EPySeg(QWidget):
         self.help_button_dataaug.clicked.connect(self.show_tip)
 
         self.rotate_n_flip_independently_of_augmentation_checkbox = QCheckBox(
-            'Rotate (interpolation free) and flip randomly the augmented output', objectName='rotate_n_flip_independently_of_augmentation_checkbox')
+            'Rotate (interpolation free) and flip randomly the augmented output',
+            objectName='rotate_n_flip_independently_of_augmentation_checkbox')
         self.rotate_n_flip_independently_of_augmentation_checkbox.setChecked(
             True)  # good idea to have it checked by default I guess --> would probably increase robustness of the model
         # TODO should I apply that to the test and val data or not ??? --> think about it
@@ -709,7 +861,8 @@ class EPySeg(QWidget):
         self.train_tab.layout.addWidget(self.groupBox_tiling, 9, 0, 1, 3)
 
         # THIS IS NOT REALLY BEAUTIFUL SHOULD UNPACK STUFF BUT OK FOR NOW --> WASTE TIME MAKING IT APPEAR NICER WHEN ALL IS DONE AND I HAVE NOTHING ELSE TO DO
-        self.groupBox_input_output_normalization_method = QGroupBox('Normalization',objectName='groupBox_input_output_normalization_method')
+        self.groupBox_input_output_normalization_method = QGroupBox('Normalization',
+                                                                    objectName='groupBox_input_output_normalization_method')
         self.groupBox_input_output_normalization_method.setEnabled(True)
         groupBox_input_output_normalization_method_layout = QGridLayout()
         groupBox_input_output_normalization_method_layout.setAlignment(Qt.AlignTop)
@@ -717,7 +870,8 @@ class EPySeg(QWidget):
 
         self.input_output_normalization_method = image_input_settings(parent_window=self,
                                                                       show_normalization=True,
-                                                                      show_preview=False, objectName='input_output_normalization_method')
+                                                                      show_preview=False,
+                                                                      objectName='input_output_normalization_method')
         # help for image normalization
         # self.help_button_img_norm_train = QPushButton(help_ico, None)
         # self.help_button_img_norm_train.clicked.connect(self.show_tip)
@@ -793,6 +947,7 @@ class EPySeg(QWidget):
                                                                   show_run_post_process=True,
                                                                   allow_bg_subtraction=True,
                                                                   show_preprocessing=True,
+                                                                  # allow_wild_cards_in_path=True,
                                                                   objectName='set_custom_predict_parameters')
         # by default we set bg sub to dark
         # self.set_custom_predict_parameters.bg_removal.setCurrentIndex(2)
@@ -826,8 +981,7 @@ class EPySeg(QWidget):
         self.ensemble_tab.layout.setHorizontalSpacing(3)
         self.ensemble_tab.layout.setVerticalSpacing(3)
 
-
-        self.ensemble_models =  Ensemble_Models_Loader()
+        self.ensemble_models = Ensemble_Models_Loader()
 
         # need a plus button to add new models and put it or can put five models for now probably enough and easier to code
         # self.add_model_to_ensemble = QPushButton('+')
@@ -856,7 +1010,6 @@ class EPySeg(QWidget):
         self.ensemble_tab.layout.addWidget(self.ensemble_models, 0, 0, 1, 3)
 
         self.ensemble_tab.setLayout(self.ensemble_tab.layout)
-
 
         # post process tab # removed because redundant with predict
         # self.post_process.layout = QGridLayout()
@@ -908,89 +1061,75 @@ class EPySeg(QWidget):
         table_widget_layout.setAlignment(Qt.AlignTop)
         table_widget_layout.addWidget(self.tabs)
 
-        log_and_main_layout = QHBoxLayout()
-        log_and_main_layout.setAlignment(Qt.AlignTop)
-
         # TODO put this in a group to get the stuff
-        log_groupBox = QGroupBox('Log',objectName='log_groupBox')
+        log_groupBox = QGroupBox('Log', objectName='log_groupBox')
         log_groupBox.setEnabled(True)
 
-        help = PyQT_markdown()
         try:
             this_dir, this_filename = os.path.split(__file__)
-            help.set_markdown_from_file(os.path.join(this_dir, 'deeplearning/docs', 'getting_started2.md'),
-                                        title='getting started: predict using pre-trained network')
-            help.set_markdown_from_file(os.path.join(this_dir, 'deeplearning/docs', 'getting_started.md'),
-                                        title='getting started: build and train a custom network')
-            help.set_markdown_from_file(os.path.join(this_dir, 'deeplearning/docs', 'getting_started3.md'),
-                                        title='getting started: further train the EPySeg model on your data')
-            help.set_markdown_from_file(os.path.join(this_dir, 'deeplearning/docs', 'pretrained_model.md'),
-                                        title='Load a pre-trained model')
-            help.set_markdown_from_file(os.path.join(this_dir, 'deeplearning/docs', 'model.md'),
-                                        title='Build a model from scratch')
-            help.set_markdown_from_file(os.path.join(this_dir, 'deeplearning/docs', 'load_model.md'),
-                                        title='Load a model')
-            help.set_markdown_from_file(os.path.join(this_dir, 'deeplearning/docs', 'train.md'), title='Train')
-            help.set_markdown_from_file(os.path.join(this_dir, 'deeplearning/docs', 'predict.md'), title='Predict')
-            help.set_markdown_from_file(os.path.join(this_dir, 'deeplearning/docs', 'preprocessing.md'),
-                                        title='Training dataset parameters')
-            help.set_markdown_from_file(os.path.join(this_dir, 'deeplearning/docs', 'data_augmentation.md'),
-                                        title='Data augmentation')
-            # TODO prevent this window to be resize upon tab changes
+            # print(this_dir)
+            self.help.set_markdown_from_file(os.path.join(this_dir, 'deeplearning/docs', 'getting_started2.md'),
+                                             title='getting started: predict using pre-trained network')
+            self.help.set_markdown_from_file(os.path.join(this_dir, 'deeplearning/docs', 'getting_started.md'),
+                                             title='getting started: build and train a custom network')
+            self.help.set_markdown_from_file(os.path.join(this_dir, 'deeplearning/docs', 'getting_started3.md'),
+                                             title='getting started: further train the EPySeg model on your data')
+            self.help.set_markdown_from_file(os.path.join(this_dir, 'deeplearning/docs', 'pretrained_model.md'),
+                                             title='Load a pre-trained model')
+            self.help.set_markdown_from_file(os.path.join(this_dir, 'deeplearning/docs', 'model.md'),
+                                             title='Build a model from scratch')
+            self.help.set_markdown_from_file(os.path.join(this_dir, 'deeplearning/docs', 'load_model.md'),
+                                             title='Load a model')
+            self.help.set_markdown_from_file(os.path.join(this_dir, 'deeplearning/docs', 'train.md'), title='Train')
+            self.help.set_markdown_from_file(os.path.join(this_dir, 'deeplearning/docs', 'predict.md'), title='Predict')
+            self.help.set_markdown_from_file(os.path.join(this_dir, 'deeplearning/docs', 'preprocessing.md'),
+                                             title='Training dataset parameters')
+            self.help.set_markdown_from_file(os.path.join(this_dir, 'deeplearning/docs', 'data_augmentation.md'),
+                                             title='Data augmentation')
+            # TODO prevent this window to be resized upon tab changes
         except:
             traceback.print_exc()
 
-        # Initialize tab screen
-        self.help_tabs = QTabWidget(self)
-        self.help_tabs.setMinimumWidth(250)
-        self.log_tab = QWidget()
-        self.help_html_tab = QWidget()
+        # add GUI settings to the tabs
         self.settings_GUI = QWidget()
-
-        #make default GUI size smaller to allow better resize on small screens # quick hack for bug
-        self.tabs.setMinimumWidth(500)
-        self.tabs.setMinimumHeight(750)
-
-        # Add tabs
-        self.help_tabs.addTab(self.log_tab, 'Log')
-        self.help_tabs.addTab(self.help_html_tab, 'Help')
         self.help_tabs.addTab(self.settings_GUI, 'GUI settings')
 
-        # creating model tab
-        self.log_tab.layout = QVBoxLayout()
-        self.log_tab.layout.setAlignment(Qt.AlignTop)
-
-        # global system progress bar
-        self.pbar = QProgressBar(self)
-
-        self.log_tab.layout.addWidget(self.logger_console)
-        # self.log_tab.layout.addWidget(self.instant_help)
-        self.log_tab.layout.addWidget(self.pbar)
-        self.log_tab.setLayout(self.log_tab.layout)
-
-        self.help_html_tab.layout = QVBoxLayout()
-        self.help_html_tab.layout.setAlignment(Qt.AlignTop)
-        self.help_html_tab.layout.setContentsMargins(0, 0, 0, 0)
-        self.help_html_tab.layout.addWidget(help)
-        self.help_html_tab.setLayout(self.help_html_tab.layout)
+        # make default GUI size smaller to allow better resize on small screens # quick hack for bug
+        self.tabs.setMinimumWidth(600)
+        self.tabs.setMinimumHeight(850)
 
         self.enable_threading_check = QCheckBox('Threading enable/disable', objectName='enable_threading_check')
         self.enable_threading_check.setChecked(True)
         self.enable_threading_check.stateChanged.connect(self._set_threading)
-        self.enable_debug = QCheckBox('Debug mode', objectName='enable_debug') # should I really save this ???
+        self.enable_debug = QCheckBox('Debug mode', objectName='enable_debug')  # should I really save this ???
         self.enable_debug.setChecked(False)
         self.enable_debug.stateChanged.connect(self._enable_debug)
+        # NB changing mem must be done before hand --> do it in the GUI that will load before the EPySeg GUI -->shall I set it to a lower value by default ??? maybe or not
+        limit_memory_to_label = QLabel("Max GPU memory tensorflow should use:")
+        self.limit_memory_to = QSpinBox()
+        self.limit_memory_to.setSingleStep(1024)  # increase by 1Gig per step
+        self.limit_memory_to.setRange(2048, 100_000)  # 100_000 makes no sense (oom) but anyway
+        self.limit_memory_to.setValue(4096)
+        self.limit_memory_to.valueChanged.connect(self.change_memory_limit)
+        limit_memory_to_label2 = QLabel(
+            "NB: Memory limit must be set before loading/building a model and can only be changed once (GUI restart is required otherwise)")
+        limit_memory_to_label2.setStyleSheet('color: red')
 
         self.settings_GUI.layout = QVBoxLayout()
         self.settings_GUI.layout.setAlignment(Qt.AlignTop)
         self.settings_GUI.layout.addWidget(self.enable_threading_check)
         self.settings_GUI.layout.addWidget(self.enable_debug)
+        mem_layout = QHBoxLayout()
+        mem_layout.addWidget(limit_memory_to_label)
+        mem_layout.addWidget(self.limit_memory_to)
+        self.settings_GUI.layout.addLayout(mem_layout)
+        self.settings_GUI.layout.addWidget(limit_memory_to_label2)
         self.settings_GUI.setLayout(self.settings_GUI.layout)
 
-        log_and_main_layout.addLayout(table_widget_layout)
-        log_and_main_layout.addWidget(self.help_tabs)
+        self.log_and_main_layout.addLayout(table_widget_layout)
+        self.log_and_main_layout.addWidget(self.help_tabs)
 
-        self.setLayout(log_and_main_layout)
+        self.setLayout(self.log_and_main_layout)
 
         try:
             screen = QApplication.desktop().screenNumber(QApplication.desktop().cursor().pos())
@@ -1064,6 +1203,10 @@ class EPySeg(QWidget):
             logger.setLevel(TA_logger.DEFAULT)
             logger.debug('Debug disabled...')
 
+    def change_memory_limit(self):
+        # if self.deepTA is None
+        self.deepTA.set_memory_limit(self.limit_memory_to.value())
+
     def _set_threading(self):
         self.threading_enabled = self.enable_threading_check.isChecked()
         # disable early stop if threading not enabled otherwise do allow it
@@ -1076,6 +1219,9 @@ class EPySeg(QWidget):
         I use it to blink things in case there are errors
 
         '''
+        # print(self.sender())
+        # self._set_model_inputs_and_outputs()
+
         # reset progress upon thread complete
         self.pbar.setValue(0)
 
@@ -1130,19 +1276,30 @@ class EPySeg(QWidget):
             self.model_parameters['pretraining'] = None
         else:
             # load pretrained model
-            pretrained_model_parameters = self.deepTA.pretrained_models_2D_epithelia[
-                'Linknet-vgg16-sigmoid'] if self.version_pretrained.currentText()=='v1' else  self.deepTA.pretrained_models_2D_epithelia[
-                'Linknet-vgg16-sigmoid'+'-'+self.version_pretrained.currentText()]
-            self.model_parameters['model'] = pretrained_model_parameters['model']
-            self.model_parameters['model_weights'] = pretrained_model_parameters['model_weights']
-            self.model_parameters['architecture'] = pretrained_model_parameters['architecture']
-            self.model_parameters['backbone'] = pretrained_model_parameters['backbone']
-            self.model_parameters['activation'] = pretrained_model_parameters['activation']
-            self.model_parameters['classes'] = pretrained_model_parameters['classes']
-            self.model_parameters['input_width'] = pretrained_model_parameters['input_width']
-            self.model_parameters['input_height'] = pretrained_model_parameters['input_height']
-            self.model_parameters['input_channels'] = pretrained_model_parameters['input_channels']
-            self.model_parameters['pretraining'] = 'Linknet-vgg16-sigmoid' if self.version_pretrained.currentText()=='v1' else 'Linknet-vgg16-sigmoid'+'-'+self.version_pretrained.currentText()
+            # TODO do a more robust loading of the models now that my zoo is not limited to the classical EPySeg models
+            pretrained_model_parameters = self.deepTA.pretrained_models['Linknet-vgg16-sigmoid'] if self.version_pretrained.currentText() == 'v1' else self.deepTA.pretrained_models['Linknet-vgg16-sigmoid' + '-' + self.version_pretrained.currentText()]
+            # pretrained_model_parameters = self.deepTA.pretrained_models['EPySeg v1'] if self.version_pretrained.currentText() == 'v1' else self.deepTA.pretrained_models['EPySeg v2']
+            self.model_parameters['model'] = pretrained_model_parameters[
+                'model'] if 'model' in pretrained_model_parameters else None
+            self.model_parameters['model_weights'] = pretrained_model_parameters[
+                'model_weights'] if 'model_weights' in pretrained_model_parameters else None
+            self.model_parameters['architecture'] = pretrained_model_parameters[
+                'architecture'] if 'architecture' in pretrained_model_parameters else None
+            self.model_parameters['backbone'] = pretrained_model_parameters[
+                'backbone'] if 'backbone' in pretrained_model_parameters else None
+            self.model_parameters['activation'] = pretrained_model_parameters[
+                'activation'] if 'activation' in pretrained_model_parameters else None
+            self.model_parameters['classes'] = pretrained_model_parameters[
+                'classes'] if 'classes' in pretrained_model_parameters else None
+            self.model_parameters['input_width'] = pretrained_model_parameters[
+                'input_width'] if 'input_width' in pretrained_model_parameters else None
+            self.model_parameters['input_height'] = pretrained_model_parameters[
+                'input_height'] if 'input_height' in pretrained_model_parameters else None
+            self.model_parameters['input_channels'] = pretrained_model_parameters[
+                'input_channels'] if 'input_channels' in pretrained_model_parameters else None
+            # TODO do that more smartly if in
+            self.model_parameters[
+                'pretraining'] = 'Linknet-vgg16-sigmoid' if self.version_pretrained.currentText() == 'v1' else 'Linknet-vgg16-sigmoid' + '-' + self.version_pretrained.currentText()
             # except:
             #     traceback.print_exc()
             #     logger.error('could not load url of pretrained model, please check pretraining parameters')
@@ -1425,6 +1582,8 @@ class EPySeg(QWidget):
         worker = self._get_worker(self._load_or_build_model, model_parameters=model_parameters)
         worker.signals.result.connect(self.print_output)
         worker.signals.finished.connect(self.thread_complete)
+        # this is specific of this method I must update the nb of inputs and outputs of the model # be CAREFUL IF COPYING THIS CODE THE FOLLOWING MUST BE REMOVED
+        worker.signals.finished.connect(self._set_model_inputs_and_outputs)
         worker.signals.progress.connect(self.progress_fn)
 
         # Execute
@@ -1517,10 +1676,7 @@ class EPySeg(QWidget):
             self._enable_training(True)
             self._enable_predict(True)
 
-        self._set_model_inputs_and_outputs()
-
     def _set_model_inputs_and_outputs(self):
-        # sets model inputs/outputs in the deep learning class (used to check input/output data during training)
         try:
             inputs = self.deepTA.get_inputs_shape()
         except:
@@ -1535,6 +1691,13 @@ class EPySeg(QWidget):
             outputs = None
         self.input_output_normalization_method.set_model_outputs(outputs)
         self.set_custom_predict_parameters.set_model_outputs(outputs)
+
+        # if inputs is not None:
+        #     # KEEP developer tip: this must be run from the main thread otherwise I get QObject::setParent: Cannot set parent, new parent is in a different thread
+        #     # SOLUTION is to run on thread finish
+        #     self.set_custom_predict_parameters.set_nb_of_inputs(len(inputs)) # ça marche pas QObject::setParent: Cannot set parent, new parent is in a different thread --> je sais pas comment faire du coup
+
+        # do the same for the others
 
     def _enable_training(self, bool):
         self.tabs.setTabEnabled(1, bool)
@@ -1567,7 +1730,7 @@ class EPySeg(QWidget):
                                                                 show_preview=True,
                                                                 model_inputs=self.deepTA.get_inputs_shape(),
                                                                 model_outputs=self.deepTA.get_outputs_shape(),
-                                                                show_HQ_settings=False) # is not to be saved so no need for setting object name
+                                                                show_HQ_settings=False)  # is not to be saved so no need for setting object name
 
         if ok:
             item = QListWidgetItem(str(augment), self.list_datasets)
@@ -1777,11 +1940,72 @@ class EPySeg(QWidget):
     #         # traceback.print_exc()
     #         pass
 
-    def predict_using_model(self):
+    def predict_using_model_minimal_UI(self):
+        # maybe do that first to be sure all is ok before loading a model
+        predict_parameters = self.get_predict_parameters()
+        if predict_parameters is None:  # in case something is wrong then just reload
+            return
+
+        selected_model = self.version_pretrained.currentText()
+
+        model_parameters = None
+        pretraining=None
+
+        # NB the two line below are very hacky --> really need clean and update my own code... --> ideally the pretraining should be the url but then I have a bug
+        if selected_model in self.deepTA.pretrained_models:
+            model_parameters = self.deepTA.pretrained_models[selected_model]
+            pretraining=selected_model
+
+            # we hack further the input so that it all fits the expected
+            # print('in there further hacking',  selected_model.lower())
+            if 'linknet-vgg16-sigmoid' in selected_model.lower():
+                # print('in there further hacking2', selected_model.lower())
+                predict_parameters["default_input_tile_width"] = 256
+                predict_parameters["default_input_tile_height"] = 256
+                predict_parameters["tile_width_overlap"] = 32
+                predict_parameters["tile_height_overlap"] = 32
+                predict_parameters["default_output_tile_width"] = 256
+                predict_parameters["default_output_tile_height"] = 256
+                predict_parameters["hq_pred_options"] = "Use all augs (pixel preserving + deteriorating) (Recommended for segmentation)"
+                predict_parameters["post_process_algorithm"] = "default (slow/robust) (epyseg pre-trained model only!)"
+
+            if 'care' in selected_model.lower() or 'surface' in selected_model.lower():
+                predict_parameters["default_input_tile_width"] = 128
+                predict_parameters["default_input_tile_height"] = 128
+                predict_parameters["tile_width_overlap"] = 32
+                predict_parameters["tile_height_overlap"] = 32
+                predict_parameters["default_output_tile_width"] = 128
+                predict_parameters["default_output_tile_width"] = 128
+                predict_parameters["hq_pred_options"] = "Only use pixel preserving augs (Recommended for CARE-like models/surface extraction)"
+                predict_parameters["post_process_algorithm"] = None
+
+        # "default_input_tile_width": 256, "default_input_tile_height": 256, "tile_width_overlap": 32, "tile_height_overlap": 32,
+        # "default_output_tile_width": 256,  "default_output_tile_height": 256,
+        # "input_normalization": {"method": "Rescaling (min-max normalization)", "individual_channels": true, "range": "[0, 1]", "clip": false},
+        # "hq_pred_options": "Use all augs (pixel preserving + deteriorating) (Recommended for segmentation)",
+
+        # print('hamodel_parameters)
+        if model_parameters is not None:
+            self.deepTA.load_or_build(pretraining=pretraining, **model_parameters)
+        else:
+            self.deepTA.load_or_build(model=selected_model)
+
+        if self.deepTA.model is not None:
+            self.deepTA.model.summary(line_length=250)
+        else:
+            logger.error('Model could not be loaded, prediction aborted')
+
+        self.predict_using_model(predict_parameters=predict_parameters)
+
+    def predict_using_model(self, predict_parameters=None):
         '''run the model (get the predictions), warns upon errors
 
         '''
-        predict_parameters = self.get_predict_parameters()
+
+        if predict_parameters is None or not isinstance(predict_parameters, dict):
+            # print('redefining predict params')
+            predict_parameters = self.get_predict_parameters()
+
         try:
             logger.debug('predict_parameters' + str(predict_parameters))
         except:
@@ -1845,6 +2069,14 @@ class EPySeg(QWidget):
 
         self.deepTA.predict(predict_generator, output_shape, progress_callback=progress_callback, batch_size=1,
                             **predict_parameters)
+
+        # clearing the model or unfortunately doesn't free the memory either --> is it a bug of allow growth --> should I only allow that upon train and not predict ???
+        # self.deepTA.model = None
+        # self.deepTA.clear_mem()
+        # self.deepTA = None
+        # # ke.clear_session()
+        # import tensorflow as tf
+        # tf.keras.backend.clear_session()
 
         return "Done."
 
