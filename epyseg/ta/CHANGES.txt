@@ -1,0 +1,66 @@
+05/05/2022
+-added support for filling/erasing shape (double left/right click in drawing mode)
+
+25/01/2022
+-fixed a huge bug (affecting all non-square images for detection of neighbors)
+
+14/01/2022
+-pushed two additional surface projection model weights to gitlab
+
+12/01/2022
+-fixed a stack recursion error (not really a coding error but rather a poor coding issue, combined with a small stack limitation of the python language)
+-fixed progress bar not updating properly (due to a stupid progress calculation/parenthesis error)
+
+10/2021
+-added a new static tracking algorithm (that can run much faster than the other tracking algorithm provided the recursion is not enabled)
+-work in progress: started adding support for the great mermaid library (that performs deep learning registration). Given the difficulty to install mermaid (no pypi), I'll probably offer support for this as a colab web page ultimately.
+-fixed minor bugs
+-started adding support for graph plotting directly from within pyta
+-started adding support for virtual clones (virtual clones are very different in TA and pyTA, in pure TA they are images that may be added to a db, in pyTA they are db entries/x_y_coordinates that can be converted to images if needed)
+-started to add support for multithreading for some functions (e.g. 'Measure cell properties')
+-added support for TA elongation measure as it seems to work much better than the eccentricity measurements of skimage (it better matches elongation the way human eyes see it, mostly only the magnitude is changed, but it is changed in a meaningful way)
+
+09/2021
+-fixed error when cells had no vertices (such as isolated cell floating around or more generally a cell embedded in another)
+-added support for extracting image properties and adding them to the database (when preprocessing is made with TA)
+-renamed 3D features so that there is no overlap with 2D data, allowing to have NATURAL JOIN to work properly
+-fixed several minor bugs
+-dirty fix to force tracking when image contains only one image in the list
+-fixed several preview bugs with float images and added blending and color coding for normal images
+-added a LUT ('PACKING') for cell geometry
+-added denoiser and surface projection models to the zoo and weights on gitlab (denoiser and surface projection are 'CARE' model derivatives)
+-fixed several minor interface and function bugs
+-fixed a minor bug in the detection of vertices and bonds at the edge of the image (nb most of those vertices and edges are incorrect, but they are important for the analysis)
+-changed neighbor detecting algorithm so that it does not rely on vertices anymore, to allow for engulfed/floating cells to be better detected
+-fixed image viewing errors when image had depth=1
+-added master database plots and fixed master db creation due to case insensitivity of SQL and case sensitivity of python
+-fixed color coding issues
+-fixed a major memory leak when detecting border cells
+-added missing dialogs for measurements and surface projections
+
+08/2021
+-made a launcher for TA GUI (different from the epyseg one)
+-finalize the first version of the TA GUI
+-TA is now part of EPySeg (call it directly using python -m epyseg.ta vs python -m epyseg for epyseg)
+-added tooltips
+-added a minimal version of preview (with color coding adnd plotting from the db)
+-added support for SQLite databases
+
+07/2021
+-added support for surface projection and height map creation
+-fixed many image display bugs
+-fixed the watershed algorithm
+-added deep learning segmentation using EPySeg
+-added seeded local watershed (similar to TA)
+-added bond edition (draw/erase bonds, similar to TA)
+
+15/05/2021-04/06/2021
+-added tools to extract object Feret diameters (including at fixed direction) in 2D or 3D (3D is still a bit slow but ok for now)
+-added triangulation algo for cells and/or clones (including for concave/complex shapes) that allows when given a height map to compute surface area of cells
+-finalized measurements of 3D lengths (perimeter/feret diameter) using 2D segmentation and heightmap
+-used a modified version of CARE to generate tissue height map in order to be able to extract 3D cell measurements
+-added preliminary support for Tissue-Analyzer like SQL database generation in python
+-all these will constitute the core of the python version of Tissue Analyzer that will be released later on
+
+22/03/2021
+-coded a new version of the tracking algorithm (slow but much more powerful than that of TA), will try to design a faster verion of the algorithm later
