@@ -7,8 +7,8 @@ import platform
 
 if __name__ == '__main__':
     # mac OSX fix to test
-    if platform.system() == 'Darwin':
-        multiprocessing.set_start_method('spawn')
+    # if platform.system() == 'Darwin':
+    #     multiprocessing.set_start_method('spawn')
     # multiprocessing.set_start_method('fork')
 
     # run the deep learning GUI
