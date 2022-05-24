@@ -1,7 +1,5 @@
 # TODO allow add or remove ROIs --> create IJ compatible ROIs... --> in a way that is simpler than the crop I was proposing --> think about how to implement that
 # NB I have a bug with czi files that have channels --> need fix so that they appear as being channel last !!! --> TODO rapidly
-from imageio.plugins._tifffile import imagej_metadata_tags
-
 from epyseg.tools.logger import TA_logger  # logging
 
 logger = TA_logger()  # logging_level=TA_logger.DEBUG
@@ -1610,20 +1608,25 @@ class Img(np.ndarray):  # subclass ndarray
                 if tifffile.__version__ < '2022.4.22':
                     tifffile.imwrite(output_name, out, imagej=True, ijmetadata=ijmeta,metadata={'mode': 'composite'} if self.metadata['dimensions'] is not None and self.has_c() else {})  # small hack to keep only non RGB images as composite and self.get_dimension('c')!=3
                 else:
-                    # somehow this code doesn't seem to work with old tiffile but works with new one
+                    try:
+                        # somehow this code doesn't seem to work with old tiffile but works with new one
+                        from imageio.plugins._tifffile import imagej_metadata_tags
+                        # fix for ijmetadata deprecation in recent tifffile
+                        ijtags = imagej_metadata_tags(ijmeta, '>') if ijmeta is not None else {}
+                        # nb can add and save lut to the metadata --> see https://stackoverflow.com/questions/50258287/how-to-specify-colormap-when-saving-tiff-stack
 
-                    # fix for ijmetadata deprecation in recent tifffile
-                    ijtags = imagej_metadata_tags(ijmeta, '>') if ijmeta is not None else {}
-                    # nb can add and save lut to the metadata --> see https://stackoverflow.com/questions/50258287/how-to-specify-colormap-when-saving-tiff-stack
+                        # quick hack to force images to display as composite in IJ if they have channels -> probably needs be improved at some point
+                        tifffile.imwrite(output_name, out, imagej=True, metadata={'mode': 'composite'} if self.metadata['dimensions'] is not None and self.has_c() else {}, extratags=ijtags)  # small hack to keep only non RGB images as composite and self.get_dimension('c')!=3
+                        # TODO at some point handle support for RGB 24-32 bits images saving as IJ compatible but skip for now
+                        # nb tifffile.imwrite(os.path.join(filename0_without_ext,'tra_test_saving_24bits_0.tif'), tracked_cells_t0, imagej=True,                      metadata={}) --> saves as RGB if image RGB 3 channels
 
-                    # quick hack to force images to display as composite in IJ if they have channels -> probably needs be improved at some point
-                    tifffile.imwrite(output_name, out, imagej=True, metadata={'mode': 'composite'} if self.metadata['dimensions'] is not None and self.has_c() else {}, extratags=ijtags)  # small hack to keep only non RGB images as composite and self.get_dimension('c')!=3
-                    # TODO at some point handle support for RGB 24-32 bits images saving as IJ compatible but skip for now
-                    # nb tifffile.imwrite(os.path.join(filename0_without_ext,'tra_test_saving_24bits_0.tif'), tracked_cells_t0, imagej=True,                      metadata={}) --> saves as RGB if image RGB 3 channels
-
-                    # TODO --> some day do the saving smartly with the dimensions included see https://pypi.org/project/tifffile/
-                    # imwrite('temp.tif', data, bigtiff=True, photometric='minisblack',  compression = 'deflate', planarconfig = 'separate', tile = (32, 32),    metadata = {'axes': 'TZCYX'})
-                    # imwrite('temp.tif', volume, imagej=True, resolution=(1. / 2.6755, 1. / 2.6755),        metadata = {'spacing': 3.947368, 'unit': 'um', 'axes': 'ZYX'})
+                        # TODO --> some day do the saving smartly with the dimensions included see https://pypi.org/project/tifffile/
+                        # imwrite('temp.tif', data, bigtiff=True, photometric='minisblack',  compression = 'deflate', planarconfig = 'separate', tile = (32, 32),    metadata = {'axes': 'TZCYX'})
+                        # imwrite('temp.tif', volume, imagej=True, resolution=(1. / 2.6755, 1. / 2.6755),        metadata = {'spacing': 3.947368, 'unit': 'um', 'axes': 'ZYX'})
+                    except:
+                        traceback.print_exc()
+                        tifffile.imwrite(output_name, out, imagej=True, metadata={'mode': 'composite'} if self.metadata[
+                                                                                                              'dimensions'] is not None and self.has_c() else {})  # small hack to keep only non RGB images as composite and self.get_dimension('c')!=3
         else:
             if output_name.lower().endswith('.npy') or output_name.lower().endswith('.epyseg'):
                 # directly save as .npy --> the numpy default array format

@@ -35,7 +35,9 @@ def segment_cells(image, __DEBUG=False, __VISUAL_DEBUG=False, stop_at_threshold_
         plt.show()
 
     if min_unconnected_object_size is not None and min_unconnected_object_size >= 1:
-        image = remove_small_objects(image.astype(bool), min_size=min_unconnected_object_size, connectivity=2, in_place=True).astype(np.uint8)
+        # image = remove_small_objects(image.astype(bool), min_size=min_unconnected_object_size, connectivity=2, in_place=True).astype(np.uint8)
+        # in the future I need to shift to that line (maybe I can add out in newer version but then it will not be compatible with previous --> keep it like that for now
+        image = remove_small_objects(image.astype(bool), min_size=min_unconnected_object_size, connectivity=2).astype(np.uint8)
         if __VISUAL_DEBUG and min_unconnected_object_size == 12:
             plt.imshow(image)
             plt.title('after')
