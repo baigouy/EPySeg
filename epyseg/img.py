@@ -65,6 +65,18 @@ def elastic_deform(image, displacement=None, axis=None, order=0, zoom=None, rota
     else:
         return X_deformed
 
+def read_file_from_url(url):
+    try:
+        if isinstance(url,str):
+            if url.lower().startswith('file:'):
+                return url[7:]# trim file:// from name
+        import requests
+        resp = requests.get(url)
+        bytes = io.BytesIO(resp.content)
+        return bytes
+    except:
+        traceback.print_exc()
+        logger.error('could not load file from url '+str(url))
 
 def avg_proj(image, axis=0):
     return np.mean(image, axis=axis)
@@ -252,6 +264,17 @@ def fig_to_numpy(fig, tight=True):
 # https://docs.python.org/3/library/os.html#os.stat_result
 def get_file_creation_time(filename, return_datetime_object=False):
     fname = pathlib.Path(filename)
+    if isinstance(filename,str):
+        # cannot get creation time from web
+        if filename.lower().startswith('http') or filename.lower().startswith('file:'):
+            try:
+                from urllib.request import urlopen # should always be a part of python --> so no need to intall it and no big deal if fails
+                with urlopen(filename) as web_file:
+                    return dict(web_file.getheaders())['Last-Modified']
+            except:
+                # no big deal if it fails as I don't care about creation time of an image on the web
+                pass
+            return None
     assert fname.exists(), f'No such file: {fname}'  # check that the file exists # shall I replace with try catch to be more flexible
     mtime = dt.datetime.fromtimestamp(fname.stat().st_mtime)
     if 'indow' in platform.system():
@@ -3030,9 +3053,22 @@ class ImageReader:
 
         logger.debug('loading' + str(f))
 
+        # small hack to allow for opening web hosted images (e.g. from https://samples.fiji.sc/)
+        if isinstance(f, str):
+            if f.lower().startswith('http') or f.lower().startswith('file:'):
+                to_read = read_file_from_url(f)
+            else:
+                to_read = f
+        else:
+            to_read = f
+
+        # TODO skip metadata loading if I just wanna have the image or can I fuse this one with the next ???
         if f.lower().endswith('.tif') or f.lower().endswith('.tiff') or f.lower().endswith(
                 '.lsm'):
-            with tifffile.TiffFile(f) as tif:
+
+            # added support for url
+
+            with tifffile.TiffFile(to_read) as tif:
 
                 # TODO need handle ROIs there!!!
                 # just copy stuff
@@ -3160,7 +3196,11 @@ class ImageReader:
 
         # very dumb thing here is that I open the tiff file twice --> really not Smart --> change this --> I opne it here and above
         if f.lower().endswith('.tif') or f.lower().endswith('.tiff') or f.lower().endswith('.lsm'):
-            image_stack = tifffile.imread(f)
+            if not isinstance(to_read, str):
+                # assume url file
+                to_read.seek(0)
+
+            image_stack = tifffile.imread(to_read)
             # has more properties than that
             image = image_stack
             image = np.squeeze(image)
@@ -3392,6 +3432,17 @@ class ImageReader:
 
 
 if __name__ == '__main__':
+
+    if False:
+        # open image url
+        # img = Img('https://samples.fiji.sc/new-lenna.jpg')
+        # img = Img('file:///E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series012.png')
+        img = Img('file:///home/aigouy/Bureau/12_9.tif')
+        print(img.metadata)
+        print(img.shape)
+        import sys
+        sys.exit(0)
+
     if True:
         f = '/E/Sample_images/test_IJ_metadata_n_ROIs_tifffile/IJ_input.tif'
         f = '/E/Sample_images/test_IJ_metadata_n_ROIs_tifffile/IJ_input_2.tif'
