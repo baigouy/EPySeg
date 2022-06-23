@@ -2952,7 +2952,11 @@ class Img(np.ndarray):  # subclass ndarray
     def invert(img):
         # should take the negative of an image should always work I think but try and see if not wise making a version that handles channels # does it even make sense ??? need to think a bit about it
         max = img.max()
-        img = np.negative(img) + max
+        min = img.min()
+        if not img.dtype == bool:
+            img = np.negative(img) + max + min
+        else:
+            img = ~img
         return img
 
     @staticmethod
@@ -3430,7 +3434,6 @@ class ImageReader:
             k += 1
         return volume
 
-
 if __name__ == '__main__':
 
     if False:
@@ -3502,5 +3505,4 @@ if __name__ == '__main__':
     if True:
         # now epyseg reads the image properly but IJ does not for the voxel size --> need hack it a bit in order to get the stuff done properly
         import sys
-
         sys.exit(0)

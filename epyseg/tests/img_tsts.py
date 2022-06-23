@@ -18,7 +18,7 @@ class TestSum(unittest.TestCase):
         # self.assertEqual(tmp.get_dimensions_as_string(),'dhwc')
 
 
-    def test_negative(self):
+    def test_invert(self):
         tmp = np.asarray([[0,0],
                           [255,0]])
         # print(Img.invert(tmp))# ok
@@ -30,6 +30,19 @@ class TestSum(unittest.TestCase):
         tmp = np.asarray([[0, 0],
                           [65300, 0]])
         assert_array_equal(Img.invert(tmp), np.asarray([[65300, 65300], [0, 65300]]))
+
+        # that does not work as I want --> shall I fix it
+        tmp = np.asarray([[123,123],
+                          [65300, 123]])
+        assert_array_equal(Img.invert(tmp), np.asarray([[65300, 65300], [123, 65300]]))
+
+        tmp = np.asarray([[-123, -123],
+                          [65300, -123]])
+        assert_array_equal(Img.invert(tmp), np.asarray([[65300, 65300], [-123, 65300]]))
+
+        tmp = np.asarray([[True, True],
+                          [False, True]])
+        assert_array_equal(Img.invert(tmp), np.asarray([[False, False], [True, False]]))
 
     def test_read_image_from_the_web(self):
         # all the files below are working --> cool

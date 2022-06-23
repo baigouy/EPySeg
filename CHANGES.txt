@@ -3,6 +3,7 @@
 -I'm thinking of moving to pyqt6 soon (this will fix EPySeg's embedded help/markdown)
 -started adding unittests to make the code and development more robust (this is work in progress and will take a lot of time...)
 -added support for opening image www and/or local url (for tif related images, was already working for other types of images)
+-improved the invert function, should work as expected now (hope this did not break things, but that is unlikely)
 
 15/06/2022
 -added several new methods to the Img class (a full rewrite/reorganization would be useful some day) (e.g. save_as_tiff, one_hot_encoder, auto_scale, fill_holes, clean_blobs_below, ...)
