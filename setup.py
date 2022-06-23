@@ -43,7 +43,7 @@ setuptools.setup(
         "read-lif",
         "scikit-image>=0.18.1", #scikit-image==0.18.1
         "scipy", # scipy==1.6.3
-        "tifffile", #tifffile==2021.11.2 # ok bug is now fixed --> can keep all the versions of tifffile! # NB apparently there is a bug with the latest version for saving as imageJ (with metadata) --> I may need fix the version to 2021.11.2 # but try it
+        "tifffile>=2021.11.2", #tifffile==2021.11.2 # ok bug is now fixed --> can keep all the versions of tifffile! # NB apparently there is a bug with the latest version for saving as imageJ (with metadata) --> I may need fix the version to 2021.11.2 # but try it
         "tqdm",
         "natsort",
         "numexpr",

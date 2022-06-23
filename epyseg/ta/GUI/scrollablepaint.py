@@ -6,7 +6,8 @@ import numpy as np
 from PyQt5 import QtWidgets, QtCore, QtGui
 from PyQt5.QtCore import QSize, Qt
 from PyQt5.QtGui import QPalette, QKeySequence, QPainter
-from PyQt5.QtWidgets import QScrollArea, QVBoxLayout, QWidget, QSpinBox, QComboBox, QToolBar, QStatusBar, QLabel, QHBoxLayout
+from PyQt5.QtWidgets import QScrollArea, QVBoxLayout, QWidget, QSpinBox, QComboBox, QToolBar, QStatusBar, QLabel, \
+    QHBoxLayout, QAction
 import qtawesome as qta
 
 from epyseg.draw.shapes.freehand2d import Freehand2D
@@ -97,6 +98,10 @@ class scrollable_paint(QWidget):
         self.shrtM = QtWidgets.QShortcut("M", self)
         self.shrtM.activated.connect(self.paint.m_apply)
         self.shrtM.setContext(QtCore.Qt.ApplicationShortcut)
+
+        self.increase_contrastC = QtWidgets.QShortcut('C', self)
+        self.increase_contrastC.activated.connect(self.paint.increase_contrast)
+        self.increase_contrastC.setContext(QtCore.Qt.ApplicationShortcut)
 
         # I can connect to progeny --> makes sense and really easy --> cool
         self.enterShortcut = QtWidgets.QShortcut(QtGui.QKeySequence(QtCore.Qt.Key_Return), self)
@@ -384,7 +389,7 @@ class scrollable_paint(QWidget):
         self.tb3 = QToolBar()
 
 
-        pencil_action = QtWidgets.QAction(qta.icon('ei.pencil'), 'Pen Size', self)
+        pencil_action = QAction(qta.icon('ei.pencil'), 'Pen Size', self)
         pencil_action.setEnabled(False)
         self.tb2.addAction(pencil_action)
         # tb.addAction("sq...")
@@ -396,7 +401,7 @@ class scrollable_paint(QWidget):
         # tb.addWidget(toolButton)
 
         # fa5.save
-        save_action = QtWidgets.QAction(qta.icon('fa5.save'), 'Save mask', self)
+        save_action = QAction(qta.icon('fa5.save'), 'Save mask', self)
         save_action.triggered.connect(self.paint.save)
         self.tb2.addAction(save_action)
 
@@ -407,11 +412,11 @@ class scrollable_paint(QWidget):
         # tb.addWidget(toolButton2)
 
 
-        show_hide_mask =QtWidgets.QAction(qta.icon('fa.bullseye'), 'Show/hide mask (same as pressing "M")', self)
+        show_hide_mask =QAction(qta.icon('fa.bullseye'), 'Show/hide mask (same as pressing "M")', self)
         show_hide_mask.triggered.connect(self.paint.m_apply)
         self.tb2.addAction(show_hide_mask)
 
-        apply_drawing = QtWidgets.QAction(qta.icon('fa.check'), 'Apply drawing (same as pressing the "Enter" key)', self)
+        apply_drawing = QAction(qta.icon('fa.check'), 'Apply drawing (same as pressing the "Enter" key)', self)
         apply_drawing.triggered.connect(self.paint.apply)
         self.tb2.addAction(apply_drawing)
 
@@ -448,7 +453,7 @@ class scrollable_paint(QWidget):
         self.small_cell_size.valueChanged.connect(self.small_cell_size_changed)
 
         self.tb2.addWidget(self.small_cell_size)
-        apply_rm_small_cells = QtWidgets.QAction(qta.icon('mdi.check-underline'), 'Apply drawing and remove small cells (same as pressing "Shift+Enter")', self)
+        apply_rm_small_cells = QAction(qta.icon('mdi.check-underline'), 'Apply drawing and remove small cells (same as pressing "Shift+Enter")', self)
         apply_rm_small_cells.triggered.connect(self.paint.shift_apply)# self.paint.shift_apply
         self.tb2.addAction(apply_rm_small_cells)
 
@@ -457,7 +462,7 @@ class scrollable_paint(QWidget):
 
 
         # marche pas --> comment faire pr que ça marche...
-        local_reshed = QtWidgets.QAction(qta.icon('mdi.reload'), 'Locally seeded watershed (same as pressing "Ctrl/Cmd + M")', self)
+        local_reshed = QAction(qta.icon('mdi.reload'), 'Locally seeded watershed (same as pressing "Ctrl/Cmd + M")', self)
         local_reshed.triggered.connect(self.paint.ctrl_m_apply)# self.paint.shift_apply
         self.tb2.addAction(local_reshed)
         # hgjhghj
@@ -472,20 +477,20 @@ class scrollable_paint(QWidget):
         # toolButton9.setIcon(qta.icon('ei.zoom-out'))
         # tb.addWidget(toolButton9)
 
-        zoom_plus = QtWidgets.QAction(qta.icon('ei.zoom-in'), 'Zoom+', self)
+        zoom_plus = QAction(qta.icon('ei.zoom-in'), 'Zoom+', self)
         zoom_plus.triggered.connect(self.zoomIn)
         self.tb1.addAction(zoom_plus)
 
-        zoom_minus = QtWidgets.QAction(qta.icon('ei.zoom-out'), 'Zoom-', self)
+        zoom_minus = QAction(qta.icon('ei.zoom-out'), 'Zoom-', self)
         zoom_minus.triggered.connect(self.zoomOut)
         self.tb1.addAction(zoom_minus)
 
 
-        zoom_width_or_height = QtWidgets.QAction(qta.icon('mdi.fit-to-page-outline'), 'Alternates between best fit in width and height', self)
+        zoom_width_or_height = QAction(qta.icon('mdi.fit-to-page-outline'), 'Alternates between best fit in width and height', self)
         zoom_width_or_height.triggered.connect(self.fit_to_width_or_height)
         self.tb1.addAction(zoom_width_or_height)
 
-        zoom_0 = QtWidgets.QAction(qta.icon('ei.resize-full'), 'Reset zoom', self)
+        zoom_0 = QAction(qta.icon('ei.resize-full'), 'Reset zoom', self)
         zoom_0.triggered.connect(self.zoom_reset)
         self.tb1.addAction(zoom_0)
 
@@ -574,6 +579,8 @@ class scrollable_paint(QWidget):
         #     # logger.error("Not implemented yet TODO add support for channels in 3D viewer")
         #     # sdqdqsdsqdqsd
         #     self.loadVolume()
+        # or reimplement that for multi channels !!!
+
 
 
     # TODO maybe handle pen size change directly within the display --> can be useful by the way

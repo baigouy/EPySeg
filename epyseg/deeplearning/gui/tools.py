@@ -17,13 +17,16 @@ from PyQt5.QtWidgets import QApplication
 from PyQt5 import QtWidgets, QtCore, QtGui
 from epyseg.tools.qthandler import XStream, QtHandler
 from epyseg.gui.pyqtmarkdown import PyQT_markdown
-from epyseg.img import Img
+# from epyseg.img import Img
 from PyQt5.QtWidgets import QPushButton, QWidget
 from epyseg.tools.logger import TA_logger # logging
 
 logger = TA_logger()
 
-QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)  # high DPI fix
+from PyQt5.Qt import PYQT_VERSION_STR
+if PYQT_VERSION_STR<'6':
+    # get code ready for pyqt6 where hi dpi is enabled by default
+    QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)  # high DPI fix
 
 DEBUG = True  # set to True if GUI crashes
 __MAJOR__ = 0

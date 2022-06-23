@@ -1,3 +1,10 @@
+23/06/2022
+-fixed a big bug in predict generator (that occurred under specific conditions only and when the tile overlap was set to non 0). It caused output size width or height to differ from input width/height.
+-I'm thinking of moving to pyqt6 soon (this will fix EPySeg's embedded help/markdown)
+
+15/06/2022
+-added several new methods to the Img class (a full rewrite/reorganization would be useful some day) (e.g. save_as_tiff, one_hot_encoder, auto_scale, fill_holes, clean_blobs_below, ...)
+
 25/04/2022
 -replaced np.bool and np.float by bool and float, due to a numpy change (also reported by J. Müller on Github)
 -allowed support for python 3.8

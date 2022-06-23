@@ -190,7 +190,6 @@ class EZDeepLearning:
             # here we put the model zoo name (if it is present in the model zoo then ignore the rest cause it would be useless)
         },
 
-
         # TODO should I add others and maybe retrain
     }
 
@@ -1031,6 +1030,7 @@ class EZDeepLearning:
 
         inputs : list of strings
             path to input images/folder
+            # TODO support also directly images --> can be very useful for predict with single image
 
         default_input_tile_width : int
             default tile width when None in input shape
@@ -1475,6 +1475,8 @@ class EZDeepLearning:
                     if len(cur_output_shape) == 4:
                         reconstructed_tile = Img.reassemble_tiles(ordered_tiles, crop_parameters[j])
 
+                        # print('reconstructed_tile',reconstructed_tile.shape, crop_parameters[j])
+
                         # print('post_process_algorithm', post_process_algorithm)
                         # print(reconstructed_tile.dtype)
                         # print(reconstructed_tile.min())
@@ -1587,6 +1589,7 @@ class EZDeepLearning:
     # not sure I gain anything from that, maybe a bit of control
     # in fact I really need a predict gen even with a single image because the image needs be tiled
     # nb this assumes the predict gen contains only one file
+    # quite dirty --> recode that properly some day, also recode the main anyway
     def predict_single(self, single_image_predict_generator, output_shapes, progress_callback=None, cur_progress=None, batch_size=1,
                        hq_predictions='mean', post_process_algorithm=None, hq_pred_options='all',
                        **kwargs):
@@ -1635,7 +1638,9 @@ class EZDeepLearning:
         #     crop_parameters = None
         # else:
         ############ end hack
-        image,crop_parameters = next(single_image_predict_generator)
+        image,crop_parameters = next(single_image_predict_generator) # bug is here
+
+
 
         try:
             results = self.model.predict(image, verbose=1, batch_size=batch_size)
@@ -1724,9 +1729,13 @@ class EZDeepLearning:
                 # ordered_tiles = Img.linear_to_2D_tiles(result[j], crop_parameters[j])
                 ordered_tiles = Img.linear_to_2D_tiles(result, crop_parameters[j])
 
+
+
                 # 2D image
                 if len(cur_output_shape) == 4:
                     reconstructed_tile = Img.reassemble_tiles(ordered_tiles, crop_parameters[j])
+
+                    # print('reconstructed_tile.shape',reconstructed_tile.shape)
 
                     # print('post_process_algorithm', post_process_algorithm)
                     # print(reconstructed_tile.dtype)

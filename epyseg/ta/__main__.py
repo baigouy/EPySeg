@@ -6,10 +6,12 @@ import multiprocessing
 import platform
 
 if __name__ == '__main__':
-    # mac OSX fix to test
+    # mac OSX fix to test --> this does not work at all in my hands...
     # if platform.system() == 'Darwin':
     #     multiprocessing.set_start_method('spawn')
     # multiprocessing.set_start_method('fork')
+    # multiprocessing.freeze_support()
+    # multiprocessing.set_start_method('spawn')
 
     # run the deep learning GUI
     # code can be run from the command line using 'python -m epyseg'

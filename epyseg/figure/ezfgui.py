@@ -41,7 +41,7 @@ import traceback
 from PyQt5 import QtWidgets, QtCore, QtGui
 from PyQt5.QtGui import QColor, QTextCursor, QTextCharFormat
 from PyQt5.QtWidgets import QApplication, QStackedWidget, QWidget, QTabWidget, QScrollArea, QVBoxLayout, QPushButton, \
-    QGridLayout, QTextBrowser, QFrame, QProgressBar, QGroupBox
+    QGridLayout, QTextBrowser, QFrame, QProgressBar, QGroupBox, QAction
 import qtawesome as qta
 import logging
 import os
@@ -538,11 +538,11 @@ class EZFIG_GUI(QtWidgets.QMainWindow):
         self.setMenuBar(self.menuBar)
         # self.menuBar.addAction(self.menuMenu.menuAction())
         file_menu = self.menuBar.addMenu("File")
-        export_as_svg_action = QtWidgets.QAction("Export as svg", self)
+        export_as_svg_action = QAction("Export as svg", self)
         file_menu.addAction(export_as_svg_action)
         export_as_svg_action.triggered.connect(self.export_as_svg)
 
-        export_as_tif_action = QtWidgets.QAction("Export as... (jpg, tif, png)", self)
+        export_as_tif_action = QAction("Export as... (jpg, tif, png)", self)
         file_menu.addAction(export_as_tif_action)
         export_as_tif_action.triggered.connect(self.export_as_tif)
 

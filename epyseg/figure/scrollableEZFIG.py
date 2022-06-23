@@ -17,7 +17,7 @@
 from PyQt5 import QtWidgets, QtCore, QtGui
 from PyQt5.QtCore import QSize, Qt
 from PyQt5.QtGui import QPalette
-from PyQt5.QtWidgets import QScrollArea, QVBoxLayout, QWidget, QToolBar, QStatusBar, QHBoxLayout
+from PyQt5.QtWidgets import QScrollArea, QVBoxLayout, QWidget, QToolBar, QStatusBar, QHBoxLayout, QAction
 import qtawesome as qta
 from epyseg.draw.shapes.image2d import Image2D
 from epyseg.figure.ezfig import MyWidget
@@ -395,7 +395,7 @@ class scrollable_EZFIG(QWidget):
         self.tb2 = QToolBar()
         # self.tb3 = QToolBar()
 
-        # pencil_action = QtWidgets.QAction(qta.icon('ei.pencil'), 'Pen Size', self)
+        # pencil_action = QAction(qta.icon('ei.pencil'), 'Pen Size', self)
         # pencil_action.setEnabled(False)
         # self.tb2.addAction(pencil_action)
         # # tb.addAction("sq...")
@@ -407,7 +407,7 @@ class scrollable_EZFIG(QWidget):
         # tb.addWidget(toolButton)
 
         # fa5.save
-        save_action = QtWidgets.QAction(qta.icon('fa5.save'), 'Save mask', self)
+        save_action = QAction(qta.icon('fa5.save'), 'Save mask', self)
         save_action.triggered.connect(self.EZFIG_panel.updateBounds)
         self.tb2.addAction(save_action)
 
@@ -417,11 +417,11 @@ class scrollable_EZFIG(QWidget):
         # tb.addWidget(toolButton2)
 
         # maybe reuse that to show skeleton un peu à la illustrator --> easy to find objects lost below others
-        show_hide_mask = QtWidgets.QAction(qta.icon('fa.bullseye'), 'Show/hide mask (same as pressing "M")', self)
+        show_hide_mask = QAction(qta.icon('fa.bullseye'), 'Show/hide mask (same as pressing "M")', self)
         # show_hide_mask.triggered.connect(self.EZFIG_panel.m_apply)
         self.tb2.addAction(show_hide_mask)
 
-        apply_drawing = QtWidgets.QAction(qta.icon('fa.check'), 'Apply drawing (same as pressing the "Enter" key)',
+        apply_drawing = QAction(qta.icon('fa.check'), 'Apply drawing (same as pressing the "Enter" key)',
                                           self)
         # apply_drawing.triggered.connect(self.EZFIG_panel.apply)
         self.tb2.addAction(apply_drawing)
@@ -459,12 +459,12 @@ class scrollable_EZFIG(QWidget):
         # self.small_cell_size.valueChanged.connect(self.small_cell_size_changed)
 
         # self.tb2.addWidget(self.small_cell_size)
-        # apply_rm_small_cells = QtWidgets.QAction(qta.icon('mdi.check-underline'), 'Apply drawing and remove small cells (same as pressing "Shift+Enter")', self)
+        # apply_rm_small_cells = QAction(qta.icon('mdi.check-underline'), 'Apply drawing and remove small cells (same as pressing "Shift+Enter")', self)
         # # apply_rm_small_cells.triggered.connect(self.EZFIG_panel.shift_apply)# self.EZFIG_panel.shift_apply
         # self.tb2.addAction(apply_rm_small_cells)
 
         # marche pas --> comment faire pr que ça marche...
-        # local_reshed = QtWidgets.QAction(qta.icon('mdi.reload'), 'Locally seeded watershed (same as pressing "Ctrl/Cmd + M")', self)
+        # local_reshed = QAction(qta.icon('mdi.reload'), 'Locally seeded watershed (same as pressing "Ctrl/Cmd + M")', self)
         # # local_reshed.triggered.connect(self.EZFIG_panel.ctrl_m_apply)# self.EZFIG_panel.shift_apply
         # self.tb2.addAction(local_reshed)
         # hgjhghj
@@ -479,25 +479,25 @@ class scrollable_EZFIG(QWidget):
         # toolButton9.setIcon(qta.icon('ei.zoom-out'))
         # tb.addWidget(toolButton9)
 
-        zoom_plus = QtWidgets.QAction(qta.icon('ei.zoom-in'), 'Zoom+', self)
+        zoom_plus = QAction(qta.icon('ei.zoom-in'), 'Zoom+', self)
         zoom_plus.triggered.connect(self.zoomIn)
         self.tb1.addAction(zoom_plus)
 
-        zoom_minus = QtWidgets.QAction(qta.icon('ei.zoom-out'), 'Zoom-', self)
+        zoom_minus = QAction(qta.icon('ei.zoom-out'), 'Zoom-', self)
         zoom_minus.triggered.connect(self.zoomOut)
         self.tb1.addAction(zoom_minus)
 
-        zoom_width_or_height = QtWidgets.QAction(qta.icon('mdi.fit-to-page-outline'),
+        zoom_width_or_height = QAction(qta.icon('mdi.fit-to-page-outline'),
                                                  'Alternates between best fit in width and height', self)
         zoom_width_or_height.triggered.connect(self.fit_to_width_or_height)
         self.tb1.addAction(zoom_width_or_height)
 
-        zoom_0 = QtWidgets.QAction(qta.icon('ei.resize-full'), 'Reset zoom', self)
+        zoom_0 = QAction(qta.icon('ei.resize-full'), 'Reset zoom', self)
         zoom_0.triggered.connect(self.zoom_reset)
         self.tb1.addAction(zoom_0)
 
         # redundant with TA full screen and not in sync --> disable for now
-        self.fullscreen = QtWidgets.QAction(qta.icon('mdi.fullscreen'), 'Full screen', self)
+        self.fullscreen = QAction(qta.icon('mdi.fullscreen'), 'Full screen', self)
         self.fullscreen.setToolTip('Enter full screen')
         self.fullscreen.triggered.connect(self.full_screen)
         self.tb1.addAction(self.fullscreen)

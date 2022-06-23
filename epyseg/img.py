@@ -57,18 +57,22 @@ def elastic_deform(image, displacement=None, axis=None, order=0, zoom=None, rota
             axis = (0, 1)
     if displacement is None:
         displacement = np.random.randn(2, 3, 3) * 25
-    X_deformed = elasticdeform.deform_grid(image, displacement, axis=axis, order=order, mode=mode, rotate=rotation, zoom=zoom)
+    X_deformed = elasticdeform.deform_grid(image, displacement, axis=axis, order=order, mode=mode, rotate=rotation,
+                                           zoom=zoom)
     if return_deformation_matrix:
         # maybe would be smart to return the comple parameter dict some day but ok for now
         return displacement, X_deformed  # diplacement can be used to pass all the parameters to another image --> quite easy to do
     else:
         return X_deformed
 
+
 def avg_proj(image, axis=0):
     return np.mean(image, axis=axis)
 
+
 def max_proj(image, axis=0):  # z proj for a 3D image
     return np.max(image, axis=axis)
+
 
 # we check if the image is a binary image --> retrun True if yes, False otherwise
 def is_binary(image):
@@ -77,6 +81,102 @@ def is_binary(image):
     if mx == mn:
         return True
     return image.size == np.count_nonzero((image == mn) | (image == mx))
+
+
+# try an auto norm method à la ImageJ --> somewhat the same idea as in https://github.com/imagej/ImageJ/blob/706f894269622a4be04053d1f7e1424094ecc735/ij/plugin/frame/ContrastAdjuster.java
+def auto_scale(img, individual_channels=True, min_px_count_in_percent=0.005):
+    if not isinstance(img, np.ndarray):
+        return img
+
+    min = float(img.min())
+    max = float(img.max())
+
+    # absolutely key !!!
+    img= img.astype(np.float)
+
+    if len(img.shape) > 2 and individual_channels:
+        for ch in range(img.shape[-1]):
+            img[..., ch] = auto_scale(img[..., ch])
+    else:
+
+        if min == max:
+            # nothing to do
+            # return img - min
+            # to still normalize it
+            if max != 0:
+                return img / max
+            else:
+                return img
+
+        rng = max - min
+        px_count = img.size
+        # print(min, max,px_count)
+
+        # print(min < max)
+
+        while (img[img <= min].size / px_count < min_px_count_in_percent) and (min < max):
+            # print('min', img[img <= min].size/px_count, min)
+            min = min + 0.01 * rng
+
+        # print('1', img[img <= min].size / px_count)
+
+        while img[img <= max].size / px_count > 1. - min_px_count_in_percent and max > min:
+            # print('max', img[img  <= max].size / px_count, max)
+            max = max - 0.01 * rng
+
+        # print('2', img[img <= max].size / px_count)
+        #
+        # print('min2', min)
+        # print('max2', max)
+
+        # normalize the image just between this range and rescale to originaal max
+
+        img = np.clip(img, min, max)
+
+        # print('clipped', img.min(), img.max())
+
+        img = (img - min) / (max - min)
+
+
+
+        # print('norm', img.min(), img.max())
+
+    return img
+
+
+def _create_dir(output_name):
+    # create dir if does not exist
+    if output_name is None:
+        return
+    output_folder, filename = os.path.split(output_name)
+    # bug fix in case just a filename and no parent folder
+    if output_folder:
+        os.makedirs(output_folder, exist_ok=True)
+
+
+def fill_holes(img, fill_hole_below_this_size):
+    from skimage.morphology import remove_small_holes
+    if len(img.shape) == 3:
+        # assume hwc --> do this fo all channels
+        for ccc in range(img.shape[-1]):
+            img[..., ccc] = fill_holes(img[..., ccc], fill_hole_below_this_size)
+    else:
+        mask = img > 0
+        mask = remove_small_holes(mask, area_threshold=fill_hole_below_this_size, connectivity=1, in_place=False)
+        img[mask != 0] = img.max()
+    return img
+
+
+def clean_blobs_below(img, size_of_obejcts_to_be_removed):
+    from skimage.morphology import remove_small_objects, remove_small_holes
+    if len(img.shape) == 3:
+        for ccc in range(img.shape[-1]):
+            img[..., ccc] = clean_blobs_below(img[..., ccc], size_of_obejcts_to_be_removed)
+    else:
+        mask = img > 0
+        mask = remove_small_objects(mask, min_size=size_of_obejcts_to_be_removed, connectivity=1, in_place=False)
+        img[mask == 0] = img.min()
+    return img
 
 
 def to_stack(images):
@@ -105,14 +205,16 @@ def to_stack(images):
         print('conversion to stack failed')
         pass
 
+
 def fake_n_channels(image, n_channels=3):
-    if len(image.shape)==2:
-        tmp = np.zeros((*image.shape,n_channels), dtype=image.dtype)
+    if len(image.shape) == 2:
+        tmp = np.zeros((*image.shape, n_channels), dtype=image.dtype)
         for ch in range(3):
-            tmp[...,ch]=image
+            tmp[..., ch] = image
         return tmp
     else:
         return image
+
 
 # returns True if an image is of Img class and has metadata, if it was converted to a classical nd array it will have lost it
 def has_metadata(im):
@@ -193,6 +295,181 @@ def _normalize_8bits(img, mode='min_max'):
     return img
 
 
+# recode all the save anyway and deduplicate code!!!
+def save_as_tiff(img, output_name, print_file_name=False, ijmetadata='copy', mode='IJ'):
+    '''saves the current image
+
+        Parameters
+        ----------
+        output_name : string
+            name of the file to save
+
+        '''
+
+    if print_file_name:
+        print('saving', output_name)
+
+    if output_name is None:
+        logger.error("No output name specified... ignoring...")
+        return
+
+    # TODO maybe handle tif with stars in their name here to avoid loss of data but ok for now...
+    # if not '*' in output_name and (output_name.lower().endswith('.tif') or output_name.lower().endswith('.tiff')):
+    _create_dir(output_name)
+    if mode != 'IJ':  # TODO maybe do a TA mode or alike instead...
+        out = img
+        tifffile.imwrite(output_name, out)
+    else:
+        # create dir if does not exist
+        out = img
+        # apparently int type is not supported by IJ
+        if out.dtype == np.int32:
+            out = out.astype(np.float32)  # TODO check if correct with real image but should be
+        if out.dtype == np.int64:
+            out = out.astype(np.float64)  # TODO check if correct with real image but should be
+        # IJ does not support bool type too
+        if out.dtype == bool:
+            out = out.astype(np.uint8) * 255
+        if out.dtype == np.double:
+            out = out.astype(np.float32)
+        # if self.has_c():
+        #     if not self.has_d() and self.has_t():
+        #         out = np.expand_dims(out, axis=-1)
+        #         out = np.moveaxis(out, -1, 1)
+        #     out = np.moveaxis(out, -1, -3)
+        #     tifffile.imwrite(output_name, out, imagej=True)  # make the data compatible with IJ
+        # else:
+        #     # most likely a big bug here --> fix it --> if has d and no t does it create a bug ???? --> maybe
+        #     if not self.has_d() and self.has_t():
+        #         out = np.expand_dims(out, axis=-1)
+        #         out = np.moveaxis(out, -1, 1)
+        #     out = np.expand_dims(out, axis=-1)
+        #     # reorder dimensions in the IJ order
+        #     out = np.moveaxis(out, -1, -3)
+        #     tifffile.imwrite(output_name, out, imagej=True)  # this is the way to get the data compatible with IJ
+        # should work better now and fix several issues... but need test it with real images
+        # if image has no c --> assume all ok
+        if getattr(img, '__dict__', None) is not None and 'metadata' in img.__dict__ and img.metadata[
+            'dimensions'] is not None:
+            # print('in dims')
+            # print(self.has_c())  # why has no c channel ???
+            if not img.has_c():
+                out = out[..., np.newaxis]
+            if not img.has_d():
+                out = out[np.newaxis, ...]
+            if not img.has_t():
+                out = out[np.newaxis, ...]
+        else:
+            # print('othyer')
+            # no dimension specified --> assume always the same order that is tzyxc --> TODO maybe ...tzyxc
+            if out.ndim < 3:
+                out = out[..., np.newaxis]
+            if out.ndim < 4:
+                out = out[np.newaxis, ...]
+            if out.ndim < 5:
+                out = out[np.newaxis, ...]
+
+        # print('final', out.shape)
+
+        out = np.moveaxis(out, -1, -3)  # need move c channel before hw (because it is default IJ style)
+
+        # TODO maybe offer compression at some point to gain space ???
+        # imageJ order is TZCYXS order with dtype is uint8, uint16, or float32. Is S a LUT ???? probably yes because (S=3 or S=4) must be uint8. can I use compression with ImageJ's Bio-Formats import function.
+        # TODO add the possibility to save ROIs if needed...
+        #        Parameters 'append', 'byteorder', 'bigtiff', and 'imagej', are passed             #         to TiffWriter(). Other parameters are passed to TiffWriter.save().
+        # print(ijmetadata)
+
+        # working version 2021.11.2
+
+        ijmeta = {}
+        if getattr(img, '__dict__', None) is not None and 'metadata' in img.__dict__ and ijmetadata == 'copy':
+            if img.metadata['Overlays']:
+                ijmeta['Overlays'] = img.metadata['Overlays']
+            if img.metadata['ROI']:
+                ijmeta['ROI'] = img.metadata['ROI']
+            # TODO add support for Luts some day --> make sure IJ luts and epyseg lust are not incompatible or define an IJ_LUTs in metadata and get it
+            # make sure this does not create trouble
+            if img.metadata['LUTs']:
+                ijmeta['LUTs'] = img.metadata['LUTs']
+        if not ijmeta:
+            ijmeta = None
+
+        # old save code with deprecated ijmetadata
+        if tifffile.__version__ < '2022.4.22':
+            tifffile.imwrite(output_name, out, imagej=True, ijmetadata=ijmeta,
+                             metadata={'mode': 'composite'} if getattr(img, '__dict__',
+                                                                       None) is not None and 'metadata' in img.__dict__ and
+                                                               img.metadata[
+                                                                   'dimensions'] is not None and img.has_c() else {})  # small hack to keep only non RGB images as composite and self.get_dimension('c')!=3
+        else:
+            try:
+                # somehow this code doesn't seem to work with old tiffile but works with new one
+                from tifffile.tifffile import imagej_metadata_tag
+                # fix for ijmetadata deprecation in recent tifffile
+                ijtags = imagej_metadata_tag(ijmeta, '>') if ijmeta is not None else {}
+                # nb can add and save lut to the metadata --> see https://stackoverflow.com/questions/50258287/how-to-specify-colormap-when-saving-tiff-stack
+
+                # quick hack to force images to display as composite in IJ if they have channels -> probably needs be improved at some point
+                tifffile.imwrite(output_name, out, imagej=True,
+                                 metadata={'mode': 'composite'} if getattr(img, '__dict__',
+                                                                           None) is not None and 'metadata' in img.__dict__ and
+                                                                   img.metadata[
+                                                                       'dimensions'] is not None and img.has_c() else {},
+                                 extratags=ijtags)  # small hack to keep only non RGB images as composite and self.get_dimension('c')!=3
+                # TODO at some point handle support for RGB 24-32 bits images saving as IJ compatible but skip for now
+                # nb tifffile.imwrite(os.path.join(filename0_without_ext,'tra_test_saving_24bits_0.tif'), tracked_cells_t0, imagej=True,                      metadata={}) --> saves as RGB if image RGB 3 channels
+
+                # TODO --> some day do the saving smartly with the dimensions included see https://pypi.org/project/tifffile/
+                # imwrite('temp.tif', data, bigtiff=True, photometric='minisblack',  compression = 'deflate', planarconfig = 'separate', tile = (32, 32),    metadata = {'axes': 'TZCYX'})
+                # imwrite('temp.tif', volume, imagej=True, resolution=(1. / 2.6755, 1. / 2.6755),        metadata = {'spacing': 3.947368, 'unit': 'um', 'axes': 'ZYX'})
+            except:
+                traceback.print_exc()
+                tifffile.imwrite(output_name, out, imagej=True,
+                                 metadata={'mode': 'composite'} if getattr(img, '__dict__',
+                                                                           None) is not None and 'metadata' in img.__dict__ and
+                                                                   img.metadata[
+                                                                       'dimensions'] is not None and img.has_c() else {})  # small hack to keep only non RGB images as composite and self.get_dimension('c')!=3
+
+
+# first attempt to make a one hot encoder --> probably needs some love though (especially with the values maybe getting the histogram of the image would be smarter than what I do)
+# do it smartly so that it can even combine layers using additions for example --> have I done image math ???
+# or do it after because simpler
+# in a way it's just some channel swapping --> easy to do
+def one_hot_encoder(img, remap_dict=None):  # , remap_dict=None):
+    # print(img.shape)
+    # convert eash to a channel
+
+    # 3=bg 2 =veins 1=interveins
+    # remap_dict = {2:1, 1:2, 0:0}
+
+    one_hot_encoded = np.empty((*img.shape, img.max()), dtype=np.uint8)
+    # print(one_hot_encoded.shape)
+    for ch, iii in enumerate(range(img.min(), img.max() + 1)):
+        # print(iii,ch )
+        # channel = one_hot_encoded[...,iii]
+
+        if remap_dict is not None:
+            final_ch = remap_dict[ch]
+        else:
+            final_ch = ch
+
+        one_hot_encoded[img == iii, final_ch] = 255  # or 1
+
+        # tmp = img[img==iii]
+        # print(tmp.shape)
+        # plt.imshow(tmp)
+        # plt.show()
+    #
+    # if remap_dict:
+    #     for inch, outch in remap_dict.items():
+    #         # one_hot_encoded = np.rollaxis(one_hot_encoded,inch,outch)
+    #         tmp = one_hot_encoded[...,inch]
+    #         one_hot_encoded[...,inch]=one_hot_encoded[...,outch]
+    #         one_hot_encoded[..., outch]=tmp
+
+    return one_hot_encoded
+
+
 # NB I ASSUME IMAGE IS hw or hwc and nothing else which may be wrong!!! but then conversion should take place before the image is passed there
 def toQimage(img, autofix_always_display2D=True, normalize=True):
     '''get a qimage from ndarray
@@ -226,7 +503,6 @@ def toQimage(img, autofix_always_display2D=True, normalize=True):
         # probably need more fixes
         if 't' in dimensions:
             img = img[0]  # get first time point
-
 
         # bug here cause my stuff is not very smart because the image is not having d as the first dimension...
         if 'd' in dimensions:
@@ -1475,15 +1751,6 @@ class Img(np.ndarray):  # subclass ndarray
         '''
         return 'c' in self.metadata['dimensions']
 
-    def _create_dir(self, output_name):
-        # create dir if does not exist
-        if output_name is None:
-            return
-        output_folder, filename = os.path.split(output_name)
-        # bug fix in case just a filename and no parent folder
-        if output_folder:
-            os.makedirs(output_folder, exist_ok=True)
-
     @staticmethod
     def img2Base64(img):
         # save it as png and encode it
@@ -1526,7 +1793,7 @@ class Img(np.ndarray):  # subclass ndarray
 
         # TODO maybe handle tif with stars in their name here to avoid loss of data but ok for now...
         if not '*' in output_name and (output_name.lower().endswith('.tif') or output_name.lower().endswith('.tiff')):
-            self._create_dir(output_name)
+            _create_dir(output_name)
             if mode != 'IJ':  # TODO maybe do a TA mode or alike instead...
                 out = self
                 tifffile.imwrite(output_name, out)
@@ -1606,17 +1873,21 @@ class Img(np.ndarray):  # subclass ndarray
 
                 # old save code with deprecated ijmetadata
                 if tifffile.__version__ < '2022.4.22':
-                    tifffile.imwrite(output_name, out, imagej=True, ijmetadata=ijmeta,metadata={'mode': 'composite'} if self.metadata['dimensions'] is not None and self.has_c() else {})  # small hack to keep only non RGB images as composite and self.get_dimension('c')!=3
+                    tifffile.imwrite(output_name, out, imagej=True, ijmetadata=ijmeta,
+                                     metadata={'mode': 'composite'} if self.metadata[
+                                                                           'dimensions'] is not None and self.has_c() else {})  # small hack to keep only non RGB images as composite and self.get_dimension('c')!=3
                 else:
                     try:
                         # somehow this code doesn't seem to work with old tiffile but works with new one
-                        from imageio.plugins._tifffile import imagej_metadata_tags
+                        from tifffile.tifffile import imagej_metadata_tag
                         # fix for ijmetadata deprecation in recent tifffile
-                        ijtags = imagej_metadata_tags(ijmeta, '>') if ijmeta is not None else {}
+                        ijtags = imagej_metadata_tag(ijmeta, '>') if ijmeta is not None else {}
                         # nb can add and save lut to the metadata --> see https://stackoverflow.com/questions/50258287/how-to-specify-colormap-when-saving-tiff-stack
 
                         # quick hack to force images to display as composite in IJ if they have channels -> probably needs be improved at some point
-                        tifffile.imwrite(output_name, out, imagej=True, metadata={'mode': 'composite'} if self.metadata['dimensions'] is not None and self.has_c() else {}, extratags=ijtags)  # small hack to keep only non RGB images as composite and self.get_dimension('c')!=3
+                        tifffile.imwrite(output_name, out, imagej=True, metadata={'mode': 'composite'} if self.metadata[
+                                                                                                              'dimensions'] is not None and self.has_c() else {},
+                                         extratags=ijtags)  # small hack to keep only non RGB images as composite and self.get_dimension('c')!=3
                         # TODO at some point handle support for RGB 24-32 bits images saving as IJ compatible but skip for now
                         # nb tifffile.imwrite(os.path.join(filename0_without_ext,'tra_test_saving_24bits_0.tif'), tracked_cells_t0, imagej=True,                      metadata={}) --> saves as RGB if image RGB 3 channels
 
@@ -1630,7 +1901,7 @@ class Img(np.ndarray):  # subclass ndarray
         else:
             if output_name.lower().endswith('.npy') or output_name.lower().endswith('.epyseg'):
                 # directly save as .npy --> the numpy default array format
-                self._create_dir(output_name)
+                _create_dir(output_name)
                 np.save(output_name, self,
                         allow_pickle=False)  # set allow pickle false to avoid pbs as pickle is by def not stable
 
@@ -1650,7 +1921,7 @@ class Img(np.ndarray):  # subclass ndarray
             # the huge pb with this is that it is not portable --> because it necessarily uses pickle --> very dangerous save and too bad cause would allow saving metadata easily if passed as an array...
             if output_name.lower().endswith('.npz'):
                 # directly save as .npy --> the numpy default array format
-                self._create_dir(output_name)
+                _create_dir(output_name)
                 # VERY GOOD IDEA TODO data is saved as data.npy inside the npz --> could therefore also save metadata ... --> VERY GOOD IDEA
                 np.savez_compressed(output_name,
                                     data=self)  # set allow pickle false to avoid pbs as pickle is by def not stable
@@ -1661,7 +1932,7 @@ class Img(np.ndarray):  # subclass ndarray
                     "image is a stack and cannot be saved as a single image use a geneic name like /path/to/img*.png instead")
                 return
             else:
-                self._create_dir(output_name)
+                _create_dir(output_name)
                 if not self.has_t() and not self.has_d():
                     new_im = Image.fromarray(self)
                     new_im.save(output_name)
@@ -2238,6 +2509,7 @@ class Img(np.ndarray):  # subclass ndarray
         out = np.concatenate(tuple(linear), axis=0)
         return out
 
+    # nb normalization assumes that the image is hwc --> and not hw --> maybe change that some day
     @staticmethod
     def normalization(img, method=None, range=None, individual_channels=False, clip=False,
                       normalization_minima_and_maxima=None):
@@ -2265,6 +2537,9 @@ class Img(np.ndarray):  # subclass ndarray
         if img is None:
             logger.error("'None' image cannot be normalized")
             return
+
+        # print('method', method)
+        # print('ercentile' in method)
 
         logger.debug('max before normalization=' + str(img.max()) + ' min before normalization=' + str(img.min()))
         if method is None or method == 'None':
@@ -2316,7 +2591,7 @@ class Img(np.ndarray):  # subclass ndarray
                                             normalization_minima_and_maxima=norm_min_max)
         else:
             # that should work
-            if 'percentile' in method:
+            if 'ercentile' in method:
                 # direct_range ??? --> think how to do that ???
                 # TODO here in some cases need assume passed directly the percentiles and in that case need not do that again... --> think how to do that --> shall I pass a second parameter directly --> maybe direct_range that bypasses the percentiles if set --> TODO --> check that
                 if normalization_minima_and_maxima is None:
@@ -2913,7 +3188,10 @@ class ImageReader:
                 bits = meta_data['ImageDocument']['Metadata']['Information']['Image']['ComponentBitCount']
                 width = meta_data['ImageDocument']['Metadata']['Information']['Image']['SizeX']
                 height = meta_data['ImageDocument']['Metadata']['Information']['Image']['SizeY']
-                depth = meta_data['ImageDocument']['Metadata']['Information']['Image']['SizeZ']
+                try:
+                    depth = meta_data['ImageDocument']['Metadata']['Information']['Image']['SizeZ']
+                except:
+                    logger.warning('no Z found in the image')
                 image = np.squeeze(image)  # removes all the empty dimensions
         elif f.lower().endswith('.lif'):
             # reader = read_lif.Reader(f)
@@ -3128,6 +3406,7 @@ if __name__ == '__main__':
         Img(img, dimensions='dhwc').save('/E/Sample_images/test_IJ_metadata_n_ROIs_tifffile/test.tif')
 
         import sys
+
         sys.exit(0)
 
     if True:

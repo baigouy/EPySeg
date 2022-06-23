@@ -87,7 +87,7 @@ class DataGenerator:
                                        'individual_channels': True},
                  validation_split=0, test_split=0,
                  shuffle=True, clip_by_frequency=None, is_predict_generator=False, overlap_x=0, overlap_y=0,
-                 invert_image=False, input_bg_subtraction=None, create_epyseg_style_output=None,
+                 invert_image=False, input_bg_subtraction=None, pre_processing_input__or_output=None, create_epyseg_style_output=None,
                  remove_n_border_mask_pixels=None, is_output_1px_wide=False,
                  rebinarize_augmented_output=False, rotate_n_flip_independently_of_augmentation=False,
                  mask_lines_and_cols_in_input_and_mask_GT_with_nans=None,
@@ -134,6 +134,7 @@ class DataGenerator:
 
         self.invert_image = invert_image  # first thing to do. Should not be applied to the output.
         self.input_bg_subtraction = input_bg_subtraction  # bg subtraction for input
+        self.pre_processing_input__or_output = pre_processing_input__or_output
         self.create_epyseg_style_output = create_epyseg_style_output  # to be used only for pre trained models
 
         self.clip_by_frequency = clip_by_frequency
@@ -589,6 +590,8 @@ class DataGenerator:
         # print('output',cur_idx, len(outputs)) # bug here should be len =1 not two...--> I do have a bug
         # print('inp',inputs)
         # print('output',outputs)
+        # in fact preprocessing needs be done before or in augment
+
         inp, out = self.augment(self._get_from(inputs, cur_idx),
                                 self._get_from(outputs, cur_idx), skip_augment, first_run)
 
@@ -596,6 +599,9 @@ class DataGenerator:
 
         # import sys
         # sys.exit(0)
+
+        #TODO add preprocessing here if exists
+
 
         if self.rebinarize_augmented_output:
             # out[out > 0] = 1
@@ -665,9 +671,15 @@ class DataGenerator:
                 #     height=height - self.overlap_y, overlap_x=self.overlap_x,
                 #     overlap_y=self.overlap_y, overlap=0, dimension_h=dimension_h, dimension_w=dimension_w,
                 #     force_to_size=True)
+                # crop_parameters, tiles2D_inp = Img.get_2D_tiles_with_overlap(
+                #     img, width=width - self.overlap_x,
+                #     height=height - self.overlap_y, overlap_x=self.overlap_x,
+                #     overlap_y=self.overlap_y, overlap=0, dimension_h=dimension_h, dimension_w=dimension_w,
+                #     force_to_size=True)
+                # Big bug fix
                 crop_parameters, tiles2D_inp = Img.get_2D_tiles_with_overlap(
-                    img, width=width - self.overlap_x,
-                    height=height - self.overlap_y, overlap_x=self.overlap_x,
+                    img, width=width,
+                    height=height , overlap_x=self.overlap_x,
                     overlap_y=self.overlap_y, overlap=0, dimension_h=dimension_h, dimension_w=dimension_w,
                     force_to_size=True)
                 inputs.append(tiles2D_inp)
@@ -700,8 +712,15 @@ class DataGenerator:
                     #                                                overlap_y=self.overlap_y, overlap=0,
                     #                                                dimension_h=dimension_h, dimension_w=dimension_w,
                     #                                                force_to_size=True)
-                    _, tiles2D_out = Img.get_2D_tiles_with_overlap(img, width=width - self.overlap_x,
-                                                                   height=height - self.overlap_y,
+                    # _, tiles2D_out = Img.get_2D_tiles_with_overlap(img, width=width - self.overlap_x,
+                    #                                                height=height - self.overlap_y,
+                    #                                                overlap_x=self.overlap_x,
+                    #                                                overlap_y=self.overlap_y, overlap=0,
+                    #                                                dimension_h=dimension_h, dimension_w=dimension_w,
+                    #                                                force_to_size=True)
+                    # bug fix for reduced tile size
+                    _, tiles2D_out = Img.get_2D_tiles_with_overlap(img, width=width ,
+                                                                   height=height,
                                                                    overlap_x=self.overlap_x,
                                                                    overlap_y=self.overlap_y, overlap=0,
                                                                    dimension_h=dimension_h, dimension_w=dimension_w,
@@ -775,6 +794,8 @@ class DataGenerator:
         if not input_has_channels:
             img = np.reshape(img, (*img.shape, 1))
 
+
+        # print('desired_shape',desired_shape)
         if desired_shape[-1] != input_channels:
             if input_channels < desired_shape[-1]:
                 # too few channels in image compared to expected input of the model --> need add channels
@@ -924,7 +945,7 @@ class DataGenerator:
         inputs_outputs_to_skip = []
         for idx, input in enumerate(inputs):
             if idx == 0:
-                # we set the new seed for the first inpout and keep it for all others
+                # we set the new seed for the first input and keep it for all others
                 # set seed here so that random is the same for all inputs
                 self.random_seed = datetime.now()
                 random.seed(self.random_seed)
@@ -1004,9 +1025,22 @@ class DataGenerator:
                 return None, None, None
                 # so it will fail --> need continue
 
+
+
         input = self.increase_or_reduce_nb_of_channels(input, input_shape, self.input_channel_of_interest,
                                                        self.input_channel_augmentation_rule,
                                                        self.input_channel_reduction_rule)
+
+
+        # shall I do it here or after channel reduction ??? --> both can be good ideas --> think about it --> simpler here because keeps has_c and alike !!!
+        # added code for general preprocessing of input and or output
+        if self.pre_processing_input__or_output is not None:
+            if isinstance(self.pre_processing_input__or_output, list) and self.pre_processing_input__or_output:
+                pre_proc_fn = self.pre_processing_input__or_output[0]
+            else:
+                pre_proc_fn = self.pre_processing_input__or_output
+            if pre_proc_fn is not None:
+                input = pre_proc_fn(input)
 
         # TODO in fact that would make more sense to clip by freq before --> indeed clipping should be done before any data augmentation
         if self.clip_by_frequency is not None:
@@ -1186,6 +1220,19 @@ class DataGenerator:
             # ça devrait marcher
             # pas mal en fait
             # TODO
+
+            # shall I do it here or after channel reduction ??? --> both can be good ideas --> think about it
+            # added code for general preprocessing of input and or output
+            if self.pre_processing_input__or_output is not None:
+                if isinstance(self.pre_processing_input__or_output, list) and self.pre_processing_input__or_output:
+                    if len(self.pre_processing_input__or_output) == 2:
+                        pre_proc_fn = self.pre_processing_input__or_output[1]
+                    else:
+                        pre_proc_fn = self.pre_processing_input__or_output[0]
+                else:
+                    pre_proc_fn = self.pre_processing_input__or_output
+                if pre_proc_fn is not None:
+                    msk = pre_proc_fn(msk)
 
             # maybe put a smart dilation mode here to genearte a safe zone
             # NB WOULD BE SMARTER TO DO BEFORE INCREASING THE NB OF CHANNELS...

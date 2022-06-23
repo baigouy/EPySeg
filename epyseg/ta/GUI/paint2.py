@@ -2,6 +2,7 @@
 
 # NB this will ultimately become the one and only paint widget in the app --> all others or most of them should disappear and be replaced by that
 # TODO need add the save but only for the mask edit item!!!
+import os.path
 import traceback
 
 from PyQt5.QtGui import QKeySequence
@@ -12,7 +13,7 @@ from epyseg.dialogs.opensave import saveFileDialog
 from epyseg.draw.widgets.vectorial import VectorialDrawPane
 from PyQt5.QtWidgets import qApp, QMenu
 from PyQt5 import QtCore, QtGui, QtWidgets
-from epyseg.img import toQimage, Img, get_white_bounds, RGB_to_int24, is_binary
+from epyseg.img import toQimage, Img, get_white_bounds, RGB_to_int24, is_binary, auto_scale, save_as_tiff
 from epyseg.ta.measurements.measurements3D.get_point_on_surface_if_centroid_is_bad import point_on_surface
 from epyseg.ta.segmentation.neo_wshed import wshed
 from epyseg.ta.selections.selection import get_colors_drawn_over, convert_selection_color_to_coords
@@ -38,6 +39,7 @@ class Createpaintwidget(QWidget):
         self.vdp = VectorialDrawPane(active=False) # the vectorial drawing panel
         self.raw_image = None # the original unprocessed image
         self.image = None # the displayed image (a qimage representation of raw_image can be a subset of raw_image_also)
+        self.raw_mask = None  # the original unprocessed mask
         self.imageDraw = None # the mask image drawn over the image
         self.raw_user_drawing = None # contains just the user drawing without image mask
         self.cursor = None
@@ -62,6 +64,8 @@ class Createpaintwidget(QWidget):
         self.channel = None
         self.force_cursor_visible = False # required to force activate cursor to be always visible
         self.save_file_name=None
+        self.multichannel_mode = False
+        # self.multi_channel_editor_n_save = False
         # TODO add sortcuts
 
         if enable_shortcuts:
@@ -144,6 +148,10 @@ class Createpaintwidget(QWidget):
         self.ctrl_shift_S_grab_screen_shot = QtWidgets.QShortcut('Ctrl+Shift+S', self)
         self.ctrl_shift_S_grab_screen_shot.activated.connect(self.grab_screen_shot)
         self.ctrl_shift_S_grab_screen_shot.setContext(QtCore.Qt.ApplicationShortcut)
+
+        self.increase_contrastC = QtWidgets.QShortcut('C', self)
+        self.increase_contrastC.activated.connect(self.increase_contrast)
+        self.increase_contrastC.setContext(QtCore.Qt.ApplicationShortcut)
 
         # QtGui.QShortcut(
         # self.supr = QtWidgets.QShortcut(QtGui.QKeySequence(QtCore.Qt.Key_Delete), self)
@@ -243,6 +251,17 @@ class Createpaintwidget(QWidget):
 
     # def suppr_pressed(self):
 
+    def increase_contrast(self):
+        print('increasing contrast')
+        try:
+            # metadata = self.raw_image.metadata
+            # sqqsdq
+            # self.raw_image = Img(auto_threshold(self.raw_image),metadata=metadata)
+            # self.set_image(self.raw_image)
+            self.set_display(auto_scale(np.copy(self.raw_image)))
+        except:
+            traceback.print_exc()
+
 
 
     def grab_screen_shot(self):
@@ -306,6 +325,7 @@ class Createpaintwidget(QWidget):
             self.raw_image = None
             self.image = None
             self.imageDraw = None
+            self.raw_mask = None
             self.raw_user_drawing = None
             self.unsetCursor()  # restore cursor
             self.update()
@@ -384,25 +404,37 @@ class Createpaintwidget(QWidget):
         return self.raw_image
 
     # do I need that ??? maybe yes if I just wanna change the mask
-    def set_mask(self, mask):
+    def set_mask(self, mask, auto_convert_float_to_binary=0.4):
         if isinstance(mask, str):
             self.save_file_name = mask
             # self.image_path = img# maybe this image path can be used for saving, could also be provided serparately
             mask = Img(mask)
+            self.raw_mask = mask
             # for TA compat
             if mask.has_c():
-                mask=mask[...,0]
+                # but should also save the raw mask as for the raw_image --> TODO --> maybe
+                if self.channel is not None:
+                    mask=mask[...,self.channel]
+                else:
+                    mask = mask[..., 0]
 
         # convert mask to image draw
         if mask is None:
             self.imageDraw = None
             self.raw_user_drawing = None
+            self.raw_mask = None
         else:
+            # auto convert float deep learning masks to binary --> maybe this should be a parameter ...
+            # print('tada', auto_convert_float_to_binary, mask.max())
+
+            if auto_convert_float_to_binary and mask.max()<=1:
+                # print('autoconvert')
+                mask = mask>auto_convert_float_to_binary
             # convert mask to a mask
             # self.imageDraw = QtGui.QImage(self.image.size(), QtGui.QImage.Format_ARGB32)
             # self.imageDraw.fill(QtCore.Qt.transparent)
             self.imageDraw = toQimage(Img(self.createRGBA(mask), dimensions='hwc')) #.getQimage()  # marche pas car besoin d'une ARGB
-            self.raw_user_drawing =  QtGui.QImage(self.imageDraw.size(), QtGui.QImage.Format_ARGB32)
+            self.raw_user_drawing = QtGui.QImage(self.imageDraw.size(), QtGui.QImage.Format_ARGB32)
             self.raw_user_drawing.fill(QtCore.Qt.transparent) # somehow this is really required to have an empty image otherwise it is not --> ??? why
         self.update()
 
@@ -545,6 +577,8 @@ class Createpaintwidget(QWidget):
     # def get_nb_channels(self):
     #     if self.
 
+
+    # TODO--> maybe implement a multi channel save -> TODO
     def channelChange(self, i):
         # update displayed image depending on channel
         # dqqsdqsdqsd
@@ -564,11 +598,51 @@ class Createpaintwidget(QWidget):
                     # print('original', self.img.metadata)
                 else:
                     # print('modified0', self.img.metadata)
-                    channel_img = self.raw_image.imCopy(c=i - 1)  # it's here that it is affected
+                    # I need a hack when the image is single channel yet I need several masks for it !!!
+                    if self.multichannel_mode and i-1>=self.raw_image.shape[-1]:
+                        channel_img = self.raw_image.imCopy(c=0) # if out of bonds load the first channel
+                    else:
+                        channel_img = self.raw_image.imCopy(c=i - 1)  # it's here that it is affected
                     self.channel = i-1
                     # print('modified1', self.img.metadata)
                     # print('modified2', channel_img.metadata)
                     self.set_display(channel_img) # maybe do a set display instead rather --> easier to handle --> does a subest of the other
+                    if self.multichannel_mode:
+                        if self.raw_mask is not None:
+                            # print('multichannel_mode', self.multichannel_mode)
+                            try:
+                                # print('self.raw_mask.shape',self.raw_mask.shape)
+                                if len(self.raw_mask.shape)<=2:
+                                    self.raw_mask = self.raw_mask[..., np.newaxis]
+                                self.set_mask(self.raw_mask[..., i-1])
+                            except:
+                                # print(i-1,  self.raw_mask.shape[-1] , len(self.raw_mask.shape))
+                                if i-1 >= self.raw_mask.shape[-1] and len(self.raw_mask.shape)>2:
+                                    # extend mask
+
+
+                                    if len(self.raw_mask.shape) > 2:
+                                        raw_mask2 = np.zeros_like(self.raw_mask, shape=(*self.raw_mask.shape[0:-1], i))
+                                    else:
+                                        raw_mask2 = np.zeros_like(self.raw_mask, shape=(*self.raw_mask.shape, i))
+
+                                    # copy existing mask to it
+                                    # print(raw_mask2.shape, self.raw_mask.shape)
+                                    for ch in range(self.raw_mask.shape[-1]):
+                                        raw_mask2[...,ch]=self.raw_mask[...,ch]
+                                    self.raw_mask = raw_mask2
+                                    self.set_mask(self.raw_mask[..., i - 1])
+                                else:
+                                    traceback.print_exc()
+                        else:
+                            # create empty mask
+                            if len(self.raw_image.shape)>2:
+                                self.raw_mask = np.zeros(shape=(*self.raw_image.shape[0:-1],i))
+                            else:
+                                self.raw_mask = np.zeros(shape=(*self.raw_image.shape, i))
+
+                            # print('doubs', self.raw_mask.shape, self.raw_image.shape)
+                            self.set_mask(self.raw_mask[..., i - 1])
                 self.update()
         else:
             self.channel = None
@@ -576,7 +650,6 @@ class Createpaintwidget(QWidget):
             #     # logger.error("Not implemented yet TODO add support for channels in 3D viewer")
             #     # sdqdqsdsqdqsd
             #     self.loadVolume()
-
 
 
     def get_colors_drawn_over(self):
@@ -599,6 +672,44 @@ class Createpaintwidget(QWidget):
 
         self.update()
         return selected_colors
+
+    def edit_drawing(self):
+        # if self.multichannel_mode and self.channel is None:
+        #     logger.error('please select a channel first')
+        #     return
+
+        # basic mask drawing edit
+        drawn_mask = self.get_mask()
+        if drawn_mask is None:
+            return
+        drawn_mask = np.copy(drawn_mask)
+        erased, drawn = self.get_user_drawing(show_erased=True)
+        # bounds = get_white_bounds([drawn, erased])
+        # if bounds is None:
+        # pass
+        # print(drawn_mask.shape)
+        # print(drawn_mask.max(), drawn_mask.min())
+        # print(drawn_mask.dtype)
+
+        drawn_mask[erased!=0]=0
+        drawn_mask[drawn!=0]=drawn[drawn!=0]
+        if self.multichannel_mode:
+            if self.raw_mask is not None:
+                if self.channel is not None:
+                    # print('overwriting mask in image')
+                    self.raw_mask[..., self.channel]=drawn_mask
+                    # big bug here this stuff contains the bg image --> really huge bug
+                    # Img(self.raw_mask, dimensions='hwc').save('/E/Sample_images/sample_images_PA/test_complete_wing_raphael/tst2.tif')
+                else:
+                    # if nothing is specified assume ch 0
+                    if len(self.raw_mask.shape)>2:
+                        self.raw_mask[..., 0] = drawn_mask
+                    else:
+                        self.raw_mask = drawn_mask
+
+        # Img(drawn_mask, dimensions='hw').save('/E/Sample_images/sample_images_PA/test_complete_wing_raphael/tst.tif')
+        self.set_mask(Img(drawn_mask, dimensions='hw'))
+
 
     # draws/removes bonds locally à la TA
     def apply_drawing(self, minimal_cell_size=0):
@@ -666,14 +777,67 @@ class Createpaintwidget(QWidget):
         drawn_mask[min_y:max_y, min_x:max_x][first_y:min(first_y + (bounds[1] - bounds[0]) + 1, minished.shape[0]),first_x:min(first_x + (bounds[3] - bounds[2]) + 1, minished.shape[1])] = minished[first_y:min(first_y + (bounds[1] - bounds[0]) + 1, minished.shape[0]), first_x:min(first_x + (bounds[3] - bounds[2]) + 1, minished.shape[1])]
         self.set_mask(drawn_mask)
 
-    def save_mask(self):
+    def save_mask(self, multichannel_save=False, forced_nb_of_channels=None):
         # print('saving to ....' + self.save_file_name)
         if self.save_file_name is not None:
             # print('really saving/...')
             mask = self.get_mask()
             if mask is not None:
                 logger.debug('saving mask to '+str(self.save_file_name))
-                Img(mask, dimensions='hw').save(self.save_file_name)
+                try:
+                    single_channel_image = len(self.raw_image.shape)==2
+                except:
+                    single_channel_image = False
+                if multichannel_save == False or single_channel_image  and (forced_nb_of_channels is None or forced_nb_of_channels ==0):
+                    Img(mask, dimensions='hw').save(self.save_file_name)
+                else:
+                    if self.raw_mask is not None:
+                        # print('quick saving edited mask')
+                        # Img(self.raw_mask, dimensions='hwc').save(self.save_file_name)
+                        if len(self.raw_mask.shape)>2:
+                            Img(self.raw_mask, dimensions='hwc').save(self.save_file_name)
+                        else:
+                            Img(self.raw_mask, dimensions='hw').save(self.save_file_name)
+                        return
+
+                    # print('test', self.channel )
+                    # print('orig img channels', self.raw_image.shape[-1])
+                    # if self.channel is None:
+                    #     logger.error('Please select a channel first')
+                    #     return
+                    # BELOW IS CRAPPY CODE --> BEST is if multichannel_mode to create a black empty image
+                    # if os.path.exists(self.save_file_name):
+                    #     try:
+                    #         mask_out = Img(self.save_file_name)
+                    #         if self.channel is not None:
+                    #             mask_out[...,self.channel]=mask
+                    #         else:
+                    #             # assume ch0
+                    #             mask_out[..., 0] = mask
+                    #         Img(mask_out, dimensions='hwc').save(self.save_file_name)
+                    #         return
+                    #     except:
+                    #         traceback.print_exc()
+                    #     print('le fichier existe')
+                    #
+                    #     # on le charge
+                    # # else:
+                    # print('le fichier existe pas')
+                    # mask_out = np.zeros_like(mask, shape=(*mask.shape, self.raw_image.shape[-1]))
+                    # if self.channel is not None:
+                    #     mask_out[..., self.channel] = mask
+                    # else:
+                    #     # assume ch0
+                    #     mask_out[..., 0] = mask
+                    # Img(mask_out, dimensions='hwc').save(self.save_file_name)
+                    # sinon on recup le nb de canaux de l'image finale
+
+
+    # def _update_channel(self, output, mask, channel):
+    #     if channel is not None:
+    #         mask_out = np.zeros_like(mask, shape=(*mask.shape, self.raw_image.shape[-1]))
+    #         mask_out[..., self.channel] = mask
+    #         Img(mask_out, dimensions='hwc').save(self.save_file_name)
 
 
     # this is the local seeded watershed à la TA
@@ -852,8 +1016,8 @@ class Createpaintwidget(QWidget):
     def _draw_on_image(self, image_to_be_drawn, event, zoom_corrected_pos, erase_color=None):
         painter = QtGui.QPainter(image_to_be_drawn)
         try:
-
-            if event.buttons() == QtCore.Qt.LeftButton:
+            # small hack to allow use pen or fingers on touch screens to erase when Ctrl or shift is pressed along with the click --> MAYBE PUT THIS AS AN OPTION SOME DAY BECAUSE THIS MAY PERTURB PEOPLE
+            if event.buttons() == QtCore.Qt.LeftButton and not (event.modifiers() == QtCore.Qt.ControlModifier or event.modifiers() ==QtCore.Qt.ShiftModifier):
                 painter.setPen(QtGui.QPen(self.drawColor, self.brushSize, QtCore.Qt.SolidLine, QtCore.Qt.RoundCap,
                                           QtCore.Qt.RoundJoin))
             else:
@@ -992,7 +1156,7 @@ class Createpaintwidget(QWidget):
                 return
 
             canvasPainter.drawImage(visibleRect, self.image, scaledVisibleRect)
-            if not self.vdp.active and self.maskVisible:
+            if not self.vdp.active and self.maskVisible and self.imageDraw is not None:
                 canvasPainter.drawImage(visibleRect, self.imageDraw, scaledVisibleRect)
                 # should draw the cursor
             canvasPainter.drawImage(visibleRect, self.cursor, scaledVisibleRect)
@@ -1048,12 +1212,34 @@ if __name__ == '__main__':
 
     # w = Createpaintwidget(enable_shortcuts=True)
     w = overriding_apply(enable_shortcuts=True)
-    w.set_image('/E/Sample_images/sample_images_PA/trash_test_mem/mini (copie)/focused_Series012.png')
-    w.set_mask('/E/Sample_images/sample_images_PA/trash_test_mem/mini (copie)/focused_Series012/handCorrection.png')
+    # w.set_image('/E/Sample_images/sample_images_PA/trash_test_mem/mini (copie)/focused_Series012.png')
+    # w.set_image('/E/Sample_images/fluorescent_wings_spots_charroux/909dsRed/0.tif')
+    w.set_image('/E/Sample_images/fluorescent_wings_spots_charroux/contoles_test_X1VK06/0.tif')
+    # w.set_mask('/E/Sample_images/sample_images_PA/trash_test_mem/mini (copie)/focused_Series012/handCorrection.png')
+    # w.set_image(Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini (copie)/focused_Series012.png'))
+
+    # print(tst.max())
+    # tst = tst[..., np.newaxis]
 
 
 
 
+    # tst = Img('/E/Sample_images/fluorescent_wings_spots_charroux/909dsRed/0.tif')
+    # tst = Img('/E/Sample_images/fluorescent_wings_spots_charroux/contoles_test_X1VK06/0.tif')
+    # tst = Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini (copie)/focused_Series012.png')
+    # tst = Img.normalization(tst, method='Rescaling (min-max normalization)', range=[0,1], individual_channels=len(tst.shape)>2, clip=True)
+    # tst = Img.normalization(tst, method='Rescaling (min-max normalization)', range=[0,1], individual_channels=len(tst.shape)>2, clip=True)
+    # tst = Img.normalization(tst, method='Standardization', range=[0,1], individual_channels=True, clip=True)
+    # tst = Img.normalization(tst, method='Percentile', range=[0,1], individual_channels=len(tst.shape)>2, clip=True, normalization_minima_and_maxima=[1.,50.0])
+    # tst = np.squeeze(tst)
+
+    # tst = auto_threshold(tst)
+    # save_as_tiff(tst, output_name='/E/Sample_images/sample_images_PA/trash_test_mem/mini (copie)/tst_norm.tif')
+
+    # do I have a standar
+    # tst = Img.normalization(tst, method='standardization', range=[0,1], individual_channels=True)
+    # print(tst.max())
+    # w.set_image(tst)
 
     # all is so easy to do this way
 

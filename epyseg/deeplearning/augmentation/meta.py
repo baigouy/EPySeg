@@ -91,7 +91,7 @@ class MetaAugmenter:
                                        'individual_channels': True},
                  validation_split=0, test_split=0,
                  shuffle=True, clip_by_frequency=None, is_predict_generator=False, overlap_x=0, overlap_y=0,
-                 batch_size=None, batch_size_auto_adjust=False, invert_image=False, input_bg_subtraction=None, create_epyseg_style_output=None, remove_n_border_mask_pixels=None,
+                 batch_size=None, batch_size_auto_adjust=False, invert_image=False, input_bg_subtraction=None, pre_processing_input__or_output=None,  create_epyseg_style_output=None, remove_n_border_mask_pixels=None,
                  is_output_1px_wide=False, rebinarize_augmented_output=False,
                  rotate_n_flip_independently_of_augmentation=False,
                  mask_lines_and_cols_in_input_and_mask_GT_with_nans=None, # should be 'id' or 'noid' and requires a custom loss and metrics --> can only be applied with some losses
@@ -120,6 +120,7 @@ class MetaAugmenter:
         self.batch_size_auto_adjust = batch_size_auto_adjust
         self.invert_image = invert_image
         self.input_bg_subtraction = input_bg_subtraction
+        self.pre_processing_input__or_output= pre_processing_input__or_output
         self.create_epyseg_style_output=create_epyseg_style_output
         self.remove_n_border_mask_pixels = remove_n_border_mask_pixels
         self.is_output_1px_wide = is_output_1px_wide
@@ -173,7 +174,7 @@ class MetaAugmenter:
                                   shuffle=shuffle,
                                   clip_by_frequency=clip_by_frequency,
                                   is_predict_generator=is_predict_generator, overlap_x=overlap_x, overlap_y=overlap_y,
-                                  invert_image=invert_image, input_bg_subtraction=input_bg_subtraction, create_epyseg_style_output=create_epyseg_style_output, remove_n_border_mask_pixels=remove_n_border_mask_pixels,
+                                  invert_image=invert_image, input_bg_subtraction=input_bg_subtraction, pre_processing_input__or_output=pre_processing_input__or_output, create_epyseg_style_output=create_epyseg_style_output, remove_n_border_mask_pixels=remove_n_border_mask_pixels,
                                   is_output_1px_wide=is_output_1px_wide,
                                   rebinarize_augmented_output=rebinarize_augmented_output,
                                   rotate_n_flip_independently_of_augmentation=rotate_n_flip_independently_of_augmentation,
@@ -214,7 +215,7 @@ class MetaAugmenter:
                default_output_tile_height=None, keep_original_sizes=None, input_normalization=None,
                output_normalization=None, validation_split=None, test_split=None,
                shuffle=None, clip_by_frequency=None,
-               is_predict_generator=None, overlap_x=None, overlap_y=None, invert_image=None, input_bg_subtraction=None,create_epyseg_style_output=None,
+               is_predict_generator=None, overlap_x=None, overlap_y=None, invert_image=None, input_bg_subtraction=None, pre_processing_input__or_output=None, create_epyseg_style_output=None,
                remove_n_border_mask_pixels=None, is_output_1px_wide=None, rebinarize_augmented_output=None,
                rotate_n_flip_independently_of_augmentation=None,mask_lines_and_cols_in_input_and_mask_GT_with_nans=None,
                z_frames_to_add = None,
@@ -266,6 +267,7 @@ class MetaAugmenter:
                           overlap_y=self._get_significant_parameter(overlap_y, self.overlap_y),
                           invert_image=self._get_significant_parameter(invert_image, self.invert_image),
                           input_bg_subtraction=self._get_significant_parameter(input_bg_subtraction, self.input_bg_subtraction),
+                          pre_processing_input__or_output=self._get_significant_parameter(pre_processing_input__or_output, self.pre_processing_input__or_output),
                           create_epyseg_style_output=self._get_significant_parameter(create_epyseg_style_output, self.create_epyseg_style_output),
                           remove_n_border_mask_pixels=self._get_significant_parameter(remove_n_border_mask_pixels,
                                                                                       self.remove_n_border_mask_pixels),

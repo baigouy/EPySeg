@@ -1,8 +1,9 @@
 # support list for writing or not stuff
 from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QWidget, QAbstractItemView, QListWidget, QVBoxLayout, QListWidgetItem, QToolBar, QToolButton, \
-    QLabel
+from PyQt5.QtWidgets import QWidget, QAbstractItemView, QListWidget, QVBoxLayout, QListWidgetItem, QToolBar, \
+    QToolButton, \
+    QLabel, QAction
 import pyperclip as clip
 from epyseg.dialogs.opensave import saveFileDialog
 from epyseg.utils.loadlist import loadlist, save_list_to_file
@@ -98,7 +99,7 @@ class ListGUI(QWidget):
         #
         toolButton = QToolButton()
         # toolButton.setText('Draw')
-        save_action = QtWidgets.QAction(qta.icon('fa5.save'), 'Save image list', self)
+        save_action = QAction(qta.icon('fa5.save'), 'Save image list', self)
         save_action.triggered.connect(self.save_list)
         # END KEEP
         toolButton.setDefaultAction(save_action)
@@ -126,7 +127,7 @@ class ListGUI(QWidget):
         # pkoi marche pas
         # KEEP
 
-        delete_sel_action = QtWidgets.QAction(qta.icon('mdi.delete-outline'), 'Delete selection', self)
+        delete_sel_action = QAction(qta.icon('mdi.delete-outline'), 'Delete selection', self)
         # toolButton5.addAction(delete_sel_action) # this stuff adds a dropwdon that can be opened by pressing a long time on the button --> keep in mind cause can be useful
         delete_sel_action.triggered.connect(self.removeSel)
         # END KEEP
@@ -136,7 +137,7 @@ class ListGUI(QWidget):
         toolButton6 = QToolButton()
         # toolButton6.setText("Copy")
         # toolButton6.setIcon(qta.icon('fa5.copy'))
-        copy_action = QtWidgets.QAction(qta.icon('fa5.copy'), 'Copy selection to the system clipboard', self)
+        copy_action = QAction(qta.icon('fa5.copy'), 'Copy selection to the system clipboard', self)
         copy_action.triggered.connect(self.sel_to_clipboard)
         toolButton6.setDefaultAction(copy_action)
         # toolButton6.ad#dAction(print('toto'))
@@ -145,13 +146,13 @@ class ListGUI(QWidget):
         toolButton7 = QToolButton()
         # toolButton7.setText("Paste")
         # toolButton7.setIcon(qta.icon('fa.paste'))
-        paste_action = QtWidgets.QAction(qta.icon('fa.paste'), 'Paste the system clipboard to the list', self)
+        paste_action = QAction(qta.icon('fa.paste'), 'Paste the system clipboard to the list', self)
         paste_action.triggered.connect(self.paste_from_clipboard)
         toolButton7.setDefaultAction(paste_action)
         self.tb.addWidget(toolButton7)
 
         toolButton8 = QToolButton()
-        sort_action = QtWidgets.QAction(qta.icon('mdi.sort-alphabetical-ascending'), 'Sort list (using the Natsort algorithm)', self)
+        sort_action = QAction(qta.icon('mdi.sort-alphabetical-ascending'), 'Sort list (using the Natsort algorithm)', self)
         sort_action.triggered.connect(self.natsort_list)
         toolButton8.setDefaultAction(sort_action)
         self.tb.addWidget(toolButton8)

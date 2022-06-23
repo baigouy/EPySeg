@@ -1,31 +1,23 @@
 # TODO --> could store local neighbors like vertices and bonds for cells by using  border_cells_plus_one = get_border_cells_plus_one(get_cells_and_their_neighbors_from_image(lab_cells, vertices=np.stack(np.where(lab_cells == 0), axis=1),bg_color=0), border_cells, remove_border_cells=True) # this is as fast and detects nicely the cells having no vertices --> maybe I should by the way rather use that for cell neighborhood --> TODO # --> maybe a smart idea in fact 
-
 # TODO --> 3D should now work but test it still
 
-# fixé la polarite je pense globalement c'est presque les memes valeurs mais pas à 100% --> is that due to boundaries of the image or nee check the sorting of the pixels in both casee to see how they differ and if that may explain errors
+# fixé la polarite je pense globalement c'est presque les memes valeurs mais pas à 100% --> is that due to boundaries of the image or need check the sorting of the pixels in both cases to see how they differ and if that may explain errors
 
-
-# nb there might be a big in number of vertices computation too --> needs a fix --> seems be different between TA and pyTA --> fix
-# also bug in is border cells --> all cells are border cells in pyta --> that sucks --> really need improve my algo and do more checks!!
+# nb there might be a big bug in number of vertices computation too --> needs a fix --> seems be different between TA and pyTA --> fix
 
 # now connect and finalize tracking and the helper for correction --> TODO then edit the manuscript and do test of the install within conda or better miniconda and do so in an envirnoment to get it to work also need finalize plots as graphs or as images --> see how I can do that and improve things rapidly, should not be too hard actually then finalize and imporve the z depth ratio and the pixel width to make it automatically added to the ehight so that no action is required also detect automaticaly when a table needs be updated because the seg mask changed !!!
-# then done and finalize the pipeline for the RNAseq by Babis!!!
 
 # TODO store bond length in an array so that I can get the packing of the cell --> in fact should not be that hard to docs
 # just get bond length at the same time as I get the cell and that would do the job --> then count nb of occurences below
 
-
 # see how I can associate it !!!!
 # associate all bonds to cells --> TODO and to finalize
-
 
 # nb there seems to be an error with pixel_count of bonds_2D as it is not an integer --> see why --> but can easily be fixed I guess --> maybe linked to the perimeter approx of scipy
 # almost all ok now !!!
 
-
 # can I have all bonds of a cell
 # --> see how to best do that
-
 
 # could also remove vx1_x and vx2_x and replace it by the ID of the vertices and things can be recovered with a simple join
 # TODO add primary key because it can be very useful
@@ -50,9 +42,6 @@
 # nice sql tuto
 # https://datatofish.com/create-database-python-using-sqlite3/
 
-# bug is fixed
-
-# TODO --> store all in the db ...
 # now store all in the db then I'm almost done in a way
 # see all the TA parameters to see which one I can recover
 # instead of storing vx pos i could store local vx id --> gain of space and it's easy to get back to the coords anyway too
@@ -71,10 +60,8 @@
 # TODO need a code to detect border cells and border cells plus one because very useful!!!
 # TODO make a stretch nematic also à la TA just to keep if for consistency --> TODO
 
-
 # strecth à la TA -->  Point2D.Double S1S2 = flood.compute_stretch(1.)[2];
 #                         Point2D.Double center = flood.getCenter2D();
-
 
 # TODO try call IJ from python call(["./ImageJ-linux64", "myscript.py"]) or use the python imageJ thingy --> just the path need be defined somewhere
 # can try both and if that does not work then let the user save the file and open it manually!!!
@@ -254,6 +241,8 @@ def fill_missing_with_Nones(database):
 def TAMeasurements(file_or_list, __forced_orig=None, __forced_cells=None, __forced_heightmap=None,
                    measure_polarity=False, measure_3D=False, min_cell_size=10, progress_callback=None,
                    bond_cut_off=2, multi_threading=True):  # if less or equal to 2 --> is not a bond but is a vertex
+
+    # print('file_or_list', type(file_or_list))
     # we MT the whole stuff because it's fairly easy to do so
     if isinstance(file_or_list, list):
         start = timer()
@@ -272,22 +261,35 @@ def TAMeasurements(file_or_list, __forced_orig=None, __forced_cells=None, __forc
                 nb_procs = 1
             print('using',nb_procs, 'processors')
 
-            pool = Pool(processes=nb_procs)
-            process = partial(TAMeasurements, measure_polarity=measure_polarity, measure_3D=measure_3D,
-                           min_cell_size=min_cell_size, bond_cut_off=bond_cut_off)
-            for i, _ in enumerate(tqdm(pool.imap_unordered(process, file_or_list), total=len(file_or_list))):
-                # pass
-                # sys.stderr.write('\rdone {0:%}'.format(i / len(merge_names))) # --> I could use that to plot with the other progressbar --> ok
-                # cool --> I can use that to display progress in the other progress bar --> the QT one
-                # pass
-                if early_stop.stop:
-                    return
-                if progress_callback is not None:
-                    progress_callback.emit((i / len(file_or_list)) * 100)
+            # nb none of these alternatives work on macOS X... I guess this may have to do that I am launching threads from within a pyqt thread which may not be a good idea
+            # from concurrent.futures import ThreadPoolExecutor
+            # from concurrent.futures import ProcessPoolExecutor
+            with Pool(processes=nb_procs) as pool:
+            # with ThreadPoolExecutor(max_workers=nb_procs) as pool:
+            # with ProcessPoolExecutor(max_workers=nb_procs) as pool:
+                # pool = Pool(processes=nb_procs)
+                process = partial(TAMeasurements, measure_polarity=measure_polarity, measure_3D=measure_3D,
+                               min_cell_size=min_cell_size, bond_cut_off=bond_cut_off)
+                for i, _ in enumerate(tqdm(pool.imap_unordered(process, file_or_list), total=len(file_or_list))):
+                # for i, _ in enumerate(tqdm(pool.map(process, file_or_list), total=len(file_or_list))): # does not work with threadpool executor I am doing smthg wrong ???
+                    # pass
+                    # sys.stderr.write('\rdone {0:%}'.format(i / len(merge_names))) # --> I could use that to plot with the other progressbar --> ok
+                    # cool --> I can use that to display progress in the other progress bar --> the QT one
+                    # pass
+                    if early_stop.stop:
+                        # for multiprocpool
+                        pool.close()
+                        pool.join()
+                        return
+                    if progress_callback is not None:
+                        progress_callback.emit((i / len(file_or_list)) * 100)
 
-            pool.close()
-            pool.join()
-            print('total time', timer() - start)
+                # not sure I should put the lines below...
+                # https://stackoverflow.com/questions/38271547/when-should-we-call-multiprocessing-pool-join --> maybe still a good idea to keep that
+                # for multiprocpool
+                pool.close()
+                pool.join()
+                print('total time', timer() - start)
             return
         else:
             for iii, file in enumerate(file_or_list):
@@ -2138,6 +2140,16 @@ if __name__ == '__main__':
         # /E/Sample_images/sample_images_pyta/surface_projection/list.lst
 
         # TODO make it also save the vertices, cells and bonds ??? --> easy TODO in fact
+        import sys
+        sys.exit(0)
+
+    if True:
+        start = timer()
+        merge_names = loadlist('/E/Sample_images/sample_images_PA/trash_test_mem/mini_vide/list_simple.lst')
+        # TAMeasurements(merge_names, measure_polarity=False, measure_3D=False, multi_threading=False)
+        TAMeasurements(merge_names, measure_polarity=False, measure_3D=False, multi_threading=True) # vrai gain mais pas sur mac... comprend rien quand meme --> est ce du à numba
+        print('total execution time', timer() - start)
+
         import sys
         sys.exit(0)
 

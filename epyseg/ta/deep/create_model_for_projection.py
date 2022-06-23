@@ -1,5 +1,7 @@
 # create a model for projection that I can use --> à tester
 
+# cool tuto https://www.youtube.com/watch?v=CVtyxmuNgWk
+
 # the model should take a denoiser optionally and a surface proj model and then have the heightmap added to it and the conversion of any type of output to a single output model --> TODO --> no need for keep first channel as can be done by post processing --> and easier this way
 
 # bug fix --> don't mix  tensorflow.keras with tensorflow.python.keras
@@ -49,6 +51,8 @@ def create_surface_projection_denoise_and_height_map_combinatorial_model(surface
         shape=(None, None, None, 1), name="Z-stack"
     )
 
+
+    # somehow custom_model is None for the
 
     model_3D_projection = Sequential()
     # model_3D_projection.add(input_image_3D)
@@ -176,8 +180,10 @@ def create_surface_projection_denoise_and_height_map_combinatorial_model(surface
     # returns AttributeError: 'ModuleWrapper' object has no attribute 'layers' on new tensorflows ???
     # shall I force it sequential again
 
+
+    # for debug
     # <tensorflow.python.keras.engine.functional.ModuleWrapper object at 0x7fb7d55d8d10> Traceback (most recent call last): in tf 2.7.2 but not in
-    print('model_3D_projection.layers[0]',model_3D_projection.layers[0])
+    # print('model_3D_projection.layers[0]',model_3D_projection.layers[0])
     # when working it is a <tensorflow.python.keras.engine.functional.Functional object at 0x7f5823bb0390>
 
     real_denoised_3D_image = model_3D_projection.layers[0].layers[-2]([input_image_3D,
@@ -270,7 +276,7 @@ if __name__ == '__main__':
     final_separated_denoiser_keep_one_channel.add(model.layers[-3])
     final_separated_denoiser_keep_one_channel.add(Lambda(lambda x: x[..., 0:1]))
 
-    print('final denoiser onmly',final_separated_denoiser_keep_one_channel.summary(line_length=250))#perfect --> that is the 2D denoiser to which I should apply the
+    print('final denoiser only',final_separated_denoiser_keep_one_channel.summary(line_length=250))#perfect --> that is the 2D denoiser to which I should apply the
 
 
 

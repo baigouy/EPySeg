@@ -40,7 +40,10 @@ DEBUG = False  # set to True if GUI crashes
 
 logger = TA_logger()
 
-QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)  # high DPI fix
+from PyQt5.Qt import PYQT_VERSION_STR
+if PYQT_VERSION_STR<'6':
+    # get code ready for pyqt6 where hi dpi is enabled by default
+    QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)  # high DPI fix
 
 # TODO enable that soon TODO connect CARE now and enable that --> need better training for CARE though...
 ENABLE_MINI_GUI = False # no never allow this and remove all related code
@@ -49,7 +52,7 @@ ENABLE_MINI_GUI = False # no never allow this and remove all related code
 
 __MAJOR__ = 0
 __MINOR__ = 1
-__MICRO__ = 28
+__MICRO__ = 29
 __RELEASE__ = ''  # a #b  # https://www.python.org/dev/peps/pep-0440/#public-version-identifiers --> alpha beta, ...
 __VERSION__ = ''.join([str(__MAJOR__), '.', str(__MINOR__), '.',
                        str(__MICRO__)])  # if __MICRO__ != 0 else '', __RELEASE__]) # bug here fix some day

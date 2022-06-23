@@ -2,12 +2,16 @@
 # a tool to load lists that is smarter than the TA list loader
 
 import os
-from natsort import natsorted
+from functools import partial
 
+from natsort import natsorted
 # from epyseg.img import _transfer_voxel_size_metadata
+from epyseg.tools.early_stopper_class import early_stop
 from epyseg.tools.logger import TA_logger # logging
 import glob
 import shutil
+
+from epyseg.utils.commontools import execute_chained_functions_and_save_as_tiff
 
 logger = TA_logger()
 
@@ -267,6 +271,54 @@ def get_transversal_list(root_path):
 
     return transverse_list
 
+
+def list_processor(lst, processing_fn, multithreading=True, progress_callback=None, use_save_execution_if_chained=False, name_processor_function_for_saving=None):
+    # process all the images with the function (maybe even chain process them if needed --> think about how to do that)
+    from tqdm import tqdm
+    import multiprocessing
+    from multiprocessing import Pool
+    from timeit import default_timer as timer
+
+    start = timer()
+
+    # import platform
+    #
+    # if platform.system() == "Darwin":
+    #     multiprocessing.set_start_method('spawn')
+
+    nb_procs = multiprocessing.cpu_count() - 1
+    if nb_procs <= 0:
+        nb_procs = 1
+    print('using', nb_procs, 'processors')
+
+    if isinstance(processing_fn, list):
+        # function_to_chain_iterable, parameter, output_file_name, reverse = False
+        processing_fn = partial(execute_chained_functions_and_save_as_tiff, function_to_chain_iterable=processing_fn,
+                                output_file_name=name_processor_function_for_saving, reverse=False)
+        print(processing_fn)
+    if multithreading:
+        with Pool(processes=nb_procs) as pool:
+            for i, _ in enumerate(tqdm(pool.imap_unordered(processing_fn, lst), total=len(lst))):
+                if early_stop.stop:
+                    pool.close()
+                    pool.join()
+                    return
+                if progress_callback is not None:
+                    progress_callback.emit((i / len(lst)) * 100)
+            # not sure I should put the lines below...
+            # https://stackoverflow.com/questions/38271547/when-should-we-call-multiprocessing-pool-join --> maybe still a good idea to keep that
+            pool.close()
+            pool.join()
+    else:
+        # for i, _ in enumerate(tqdm(pool.imap_unordered(processing_fn, lst), total=len(lst))):
+        for i, lst_elm in enumerate(lst):
+            result = processing_fn(lst_elm)
+            if early_stop.stop:
+                return
+            if progress_callback is not None:
+                progress_callback.emit((i / len(lst)) * 100)
+
+    print('total time', timer() - start)
 
 if __name__ == '__main__':
 

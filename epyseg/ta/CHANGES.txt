@@ -1,3 +1,7 @@
+15/06/2022
+-added support for increasing contrast of displayed images (press C)
+-many changes applied to paint/display to build a binary GT editor for deep learning with a lot of automated stuff to help the user. I hope I didn't break anything in TA that shares this class...
+
 05/05/2022
 -added support for filling/erasing shape (double left/right click in drawing mode)
 

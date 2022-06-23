@@ -145,7 +145,10 @@ from epyseg.worker.threaded import Worker
 logger = TA_logger()
 
 # allow high dpi scaling only on systems that support it it's really cool and I should have this in all main classes of PyQT stuff
-QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
+from PyQt5.Qt import PYQT_VERSION_STR
+if PYQT_VERSION_STR<'6':
+    # get code ready for pyqt6 where hi dpi is enabled by default
+    QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)  # high DPI fix
 
 # can I create an on the fly stuff ??? for the masterdb
 # maybe just for one command --> maybe that is the smartest way of doing this
