@@ -20,15 +20,15 @@ from skimage.util import img_as_ubyte
 import scipy.signal  # convolution of images
 import numpy as np
 import json
-from PyQt5.QtGui import QImage, QColor  # allows for qimage creation
+from PyQt5.QtGui import QImage
 from natsort import natsorted  # sort strings as humans would do
 import xml.etree.ElementTree as ET  # to handle xml metadata of images
 import base64
 import io
 import matplotlib.pyplot as plt
 import traceback
-from skimage.morphology import white_tophat, black_tophat, disk
-from skimage.morphology import square, ball, diamond, octahedron, rectangle
+from skimage.morphology import white_tophat, black_tophat
+from skimage.morphology import square
 import pathlib
 import platform
 import datetime as dt
@@ -100,8 +100,8 @@ def auto_scale(img, individual_channels=True, min_px_count_in_percent=0.005):
     if not isinstance(img, np.ndarray):
         return img
 
-    min = float(img.min())
-    max = float(img.max())
+    mn = float(img.min())
+    mx = float(img.max())
 
     # absolutely key !!!
     img= img.astype(np.float)
@@ -111,45 +111,43 @@ def auto_scale(img, individual_channels=True, min_px_count_in_percent=0.005):
             img[..., ch] = auto_scale(img[..., ch])
     else:
 
-        if min == max:
+        if mn == mx:
             # nothing to do
-            # return img - min
+            # return img - mn
             # to still normalize it
-            if max != 0:
-                return img / max
+            if mx != 0:
+                return img / mx
             else:
                 return img
 
-        rng = max - min
+        rng = mx - mn
         px_count = img.size
-        # print(min, max,px_count)
+        # print(mn, mx,px_count)
 
-        # print(min < max)
+        # print(mn < mx)
 
-        while (img[img <= min].size / px_count < min_px_count_in_percent) and (min < max):
-            # print('min', img[img <= min].size/px_count, min)
-            min = min + 0.01 * rng
+        while (img[img <= mn].size / px_count < min_px_count_in_percent) and (mn < mx):
+            # print('mn', img[img <= mn].size/px_count, mn)
+            mn = mn + 0.01 * rng
 
-        # print('1', img[img <= min].size / px_count)
+        # print('1', img[img <= mn].size / px_count)
 
-        while img[img <= max].size / px_count > 1. - min_px_count_in_percent and max > min:
-            # print('max', img[img  <= max].size / px_count, max)
-            max = max - 0.01 * rng
+        while img[img <= mx].size / px_count > 1. - min_px_count_in_percent and mx > mn:
+            # print('max', img[img  <= mx].size / px_count, mx)
+            mx = mx - 0.01 * rng
 
-        # print('2', img[img <= max].size / px_count)
+        # print('2', img[img <= mx].size / px_count)
         #
-        # print('min2', min)
-        # print('max2', max)
+        # print('min2', mn)
+        # print('max2', mx)
 
         # normalize the image just between this range and rescale to originaal max
 
-        img = np.clip(img, min, max)
+        img = np.clip(img, mn, mx)
 
         # print('clipped', img.min(), img.max())
 
-        img = (img - min) / (max - min)
-
-
+        img = (img - mn) / (mx - mn)
 
         # print('norm', img.min(), img.max())
 
@@ -180,7 +178,7 @@ def fill_holes(img, fill_hole_below_this_size):
 
 
 def clean_blobs_below(img, size_of_obejcts_to_be_removed):
-    from skimage.morphology import remove_small_objects, remove_small_holes
+    from skimage.morphology import remove_small_objects
     if len(img.shape) == 3:
         for ccc in range(img.shape[-1]):
             img[..., ccc] = clean_blobs_below(img[..., ccc], size_of_obejcts_to_be_removed)
@@ -253,11 +251,10 @@ def fig_to_numpy(fig, tight=True):
         fig.savefig(buf, format='png')
     buf.seek(0)
     # open in mem image
-    im = Image.open(buf)
-    img = np.array(im)
+    im = np.array(Image.open(buf))
     # close buffer
     buf.close()
-    return img
+    return im
 
 
 # TODO check on the different oses maybe replace mtime by mtime_nano
@@ -3071,7 +3068,6 @@ class ImageReader:
                 '.lsm'):
 
             # added support for url
-
             with tifffile.TiffFile(to_read) as tif:
 
                 # TODO need handle ROIs there!!!
@@ -3195,19 +3191,22 @@ class ImageReader:
                                 times = value
                             elif name == 'ChannelColors':
                                 luts = value['Colors']
-
+                # print('in here',tif.series[0].asarray()) # --> so indeed it can read it here --> the rest is then a waste of time
+                # tif.series[0].asarray() # just one page
+                # image = np.squeeze(np.asarray(tif.series)) # not good because reads only one page here too --> at some point work on that
         # TODO also recover my own tags maybe # TODO recode all of this properly some day because it becomes a huge mess now
 
-        # very dumb thing here is that I open the tiff file twice --> really not Smart --> change this --> I opne it here and above
+        # very dumb thing here is that I open the tiff file twice --> really not Smart --> change this --> I opne it here and above --> indeed
         if f.lower().endswith('.tif') or f.lower().endswith('.tiff') or f.lower().endswith('.lsm'):
             if not isinstance(to_read, str):
                 # assume url file
                 to_read.seek(0)
 
-            image_stack = tifffile.imread(to_read)
-            # has more properties than that
-            image = image_stack
-            image = np.squeeze(image)
+            # image_stack = tifffile.imread(to_read)
+            # # has more properties than that
+            # image = image_stack
+            # image = np.squeeze(image)
+            image = np.squeeze(tifffile.imread(to_read))
         elif f.lower().endswith('.czi'):
             with czifile.CziFile(f) as czi:
                 meta_data = czi.metadata(
@@ -3421,20 +3420,40 @@ class ImageReader:
     # def _fix_dimensions1(self):
     #     if
 
-    def imageread(self, filePath):
+    def imageread(filePath):
         # TODO return other stuff here such as nb of frames ... do I need skimage to read or should I use smthg else
-        temp = skimage.io.imread(filePath[0])
-        h, w, c = temp.shape
-        d = len(filePath)
-        volume = np.zeros((d, w, h, c), dtype=np.uint16)  # TODO why np.uint16 especially if imag is not ? FIX
-        k = 0
-        for img in filePath:  # assuming tif
-            im = skimage.io.imread(img)
-            volume[k, :, :, :] = np.swapaxes(im[:, :, :], 0, 1)
-            k += 1
+        # temp = skimage.io.imread(filePath[0])
+        # h, w, c = temp.shape
+        # d = len(filePath)
+        # volume = np.zeros((d, w, h, c), dtype=temp.dtype)
+        # rather do stack
+        # k = 0
+        # for img in filePath:  # assuming tif
+        #     im = skimage.io.imread(img)
+        #     volume[k, :, :, :] = np.swapaxes(im[:, :, :], 0, 1)
+        #     k += 1
+        volume = np.stack([skimage.io.imread(img) for img in filePath],axis=0) # will take more memory but more elegant than before
         return volume
 
 if __name__ == '__main__':
+
+    if True:
+        # ok TODO --> do a master cleaning some day
+        img = Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini_asym/*.png')
+        print(img.shape)
+        import sys
+        sys.exit(0)
+
+    if True:
+        import timeit
+        img = Img('/E/Sample_images/clara_tests_3D_mesh/E9 WT GM130V actinR 4.lsm')
+        print(img.metadata)
+        print(img.shape)
+
+
+        print(timeit.timeit(lambda: Img('/E/Sample_images/clara_tests_3D_mesh/E9 WT GM130V actinR 4.lsm'), number=50))# -->7.5 secs with meta
+        import sys
+        sys.exit(0)
 
     if False:
         # open image url

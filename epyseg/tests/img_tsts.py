@@ -1,6 +1,7 @@
-# NB: to get things tested it must start with test!!!!
-# quite cool
-# here I will gather all the unit tests for images
+# Here I will gather all the unit tests for images
+
+# NB: DEVELOPER TIP: keep in mind that in order that to get things tested it must start with 'test' !!!
+
 import unittest
 
 from numpy.ma.testutils import assert_array_equal
@@ -17,31 +18,25 @@ class TestSum(unittest.TestCase):
         self.assertEqual(tmp.get_dimensions_as_string(),'hwc')
         # self.assertEqual(tmp.get_dimensions_as_string(),'dhwc')
 
+    def test_open_image_series(self):
+        img = Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini_asym/*.png')
+        self.assertEqual(img.shape, (6, 312, 512, 3)) # h=312
 
     def test_invert(self):
-        tmp = np.asarray([[0,0],
-                          [255,0]])
-        # print(Img.invert(tmp))# ok
-        # self.assertEqual(Img.invert(tmp),np.asarray([[255,255],[0,255]]))
-        # this is the way to test numpy arrays
+        tmp = np.asarray([[0,0],[255,0]])
         assert_array_equal(Img.invert(tmp),np.asarray([[255,255],[0,255]]))
-        # assert_array_equal(Img.invert(tmp),np.asarray([[255,255],[255,255]]))
 
-        tmp = np.asarray([[0, 0],
-                          [65300, 0]])
+        tmp = np.asarray([[0, 0],[65300, 0]])
         assert_array_equal(Img.invert(tmp), np.asarray([[65300, 65300], [0, 65300]]))
 
         # that does not work as I want --> shall I fix it
-        tmp = np.asarray([[123,123],
-                          [65300, 123]])
+        tmp = np.asarray([[123,123],[65300, 123]])
         assert_array_equal(Img.invert(tmp), np.asarray([[65300, 65300], [123, 65300]]))
 
-        tmp = np.asarray([[-123, -123],
-                          [65300, -123]])
+        tmp = np.asarray([[-123, -123],[65300, -123]])
         assert_array_equal(Img.invert(tmp), np.asarray([[65300, 65300], [-123, 65300]]))
 
-        tmp = np.asarray([[True, True],
-                          [False, True]])
+        tmp = np.asarray([[True, True],[False, True]])
         assert_array_equal(Img.invert(tmp), np.asarray([[False, False], [True, False]]))
 
     def test_read_image_from_the_web(self):
