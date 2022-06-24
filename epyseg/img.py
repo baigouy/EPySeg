@@ -73,6 +73,7 @@ def read_file_from_url(url):
         import requests
         resp = requests.get(url)
         bytes = io.BytesIO(resp.content)
+        resp.close()
         return bytes
     except:
         traceback.print_exc()
@@ -81,12 +82,10 @@ def read_file_from_url(url):
 def avg_proj(image, axis=0):
     return np.mean(image, axis=axis)
 
-
 def max_proj(image, axis=0):  # z proj for a 3D image
     return np.max(image, axis=axis)
 
-
-# we check if the image is a binary image --> retrun True if yes, False otherwise
+# we check if the image is a binary image --> return True if yes, False otherwise
 def is_binary(image):
     mx = image.max()
     mn = image.min()
@@ -94,27 +93,21 @@ def is_binary(image):
         return True
     return image.size == np.count_nonzero((image == mn) | (image == mx))
 
-
 # try an auto norm method à la ImageJ --> somewhat the same idea as in https://github.com/imagej/ImageJ/blob/706f894269622a4be04053d1f7e1424094ecc735/ij/plugin/frame/ContrastAdjuster.java
 def auto_scale(img, individual_channels=True, min_px_count_in_percent=0.005):
     if not isinstance(img, np.ndarray):
         return img
 
-    mn = float(img.min())
-    mx = float(img.max())
-
-    # absolutely key !!!
-    img= img.astype(np.float)
-
     if len(img.shape) > 2 and individual_channels:
         for ch in range(img.shape[-1]):
             img[..., ch] = auto_scale(img[..., ch])
     else:
+        # absolutely key --> KEEP!!!
 
+        img = img.astype(np.float)
+        mn = float(img.min())
+        mx = float(img.max())
         if mn == mx:
-            # nothing to do
-            # return img - mn
-            # to still normalize it
             if mx != 0:
                 return img / mx
             else:
@@ -122,34 +115,16 @@ def auto_scale(img, individual_channels=True, min_px_count_in_percent=0.005):
 
         rng = mx - mn
         px_count = img.size
-        # print(mn, mx,px_count)
-
-        # print(mn < mx)
 
         while (img[img <= mn].size / px_count < min_px_count_in_percent) and (mn < mx):
-            # print('mn', img[img <= mn].size/px_count, mn)
             mn = mn + 0.01 * rng
 
-        # print('1', img[img <= mn].size / px_count)
-
         while img[img <= mx].size / px_count > 1. - min_px_count_in_percent and mx > mn:
-            # print('max', img[img  <= mx].size / px_count, mx)
             mx = mx - 0.01 * rng
 
-        # print('2', img[img <= mx].size / px_count)
-        #
-        # print('min2', mn)
-        # print('max2', mx)
-
-        # normalize the image just between this range and rescale to originaal max
-
+        # normalize the image just between this range and rescale to original max
         img = np.clip(img, mn, mx)
-
-        # print('clipped', img.min(), img.max())
-
         img = (img - mn) / (mx - mn)
-
-        # print('norm', img.min(), img.max())
 
     return img
 
@@ -163,7 +138,7 @@ def _create_dir(output_name):
     if output_folder:
         os.makedirs(output_folder, exist_ok=True)
 
-
+# Be careful this modifies the original image --> maybe offer a copy
 def fill_holes(img, fill_hole_below_this_size):
     from skimage.morphology import remove_small_holes
     if len(img.shape) == 3:
@@ -176,7 +151,7 @@ def fill_holes(img, fill_hole_below_this_size):
         img[mask != 0] = img.max()
     return img
 
-
+# Be careful this modifies the original image --> maybe offer a copy
 def clean_blobs_below(img, size_of_obejcts_to_be_removed):
     from skimage.morphology import remove_small_objects
     if len(img.shape) == 3:
@@ -190,8 +165,8 @@ def clean_blobs_below(img, size_of_obejcts_to_be_removed):
 
 
 def to_stack(images):
-    # Nothing to do
     if images is None or not images:
+        # Nothing to do
         return
     # we need to determine the max width and height of the images so that we can create an image that contains all images if they haven't the same size already
 
@@ -199,15 +174,19 @@ def to_stack(images):
     if isinstance(images[0], str):
         images = [Img(image) for image in images]
 
-    for iii, image in enumerate(images):
-        image = image[np.newaxis, ...]
-        images[iii] = image
+    if len(images)==1:
+        return images[0]
+
+    # for iii, image in enumerate(images):
+    #     image = image[np.newaxis, ...]
+    #     images[iii] = image
     # try create a stack and if fails try find a solution
     try:
         # stack = np.dstack(images)#, axis=np.newaxis)
         # stack = np.moveaxis(stack,-1, 0)
         # NB this will fail if not all dims are the same --> need more control ValueError: all the input array dimensions for the concatenation axis must match exactly, but along dimension 1, the array at index 0 has size 51 and the array at index 1 has size 48
-        stack = np.concatenate(images, axis=0)
+        # stack = np.concatenate(images, axis=0)
+        stack = np.stack(images, axis=0)
         return stack
     except:
         # if fails then see how to fix that
@@ -225,23 +204,28 @@ def fake_n_channels(image, n_channels=3):
     else:
         return image
 
-
-# returns True if an image is of Img class and has metadata, if it was converted to a classical nd array it will have lost it
 def has_metadata(im):
+    '''
+    checks if an image has metadata
+    :param im: input image
+    :return: True if an image is Img has metadata (false if Img was converted to a classical nd array that lost metadata)
+    '''
     return hasattr(im, 'metadata')
-
 
 def numpy_to_PIL(im, force_RGB=True):
     img = Image.fromarray(im)
     return img
 
-
 def PIL_to_numpy(PIL_image):
     return np.array(PIL_image)
 
-
-# converts a matplotlib fig to a numpy array
 def fig_to_numpy(fig, tight=True):
+    '''
+    converts a matplotlib figure to a numpy array
+    :param fig: matplotlib figure
+    :param tight: force tight packing for matplotlib figure
+    :return: numpy array from a matplotlib fig
+    '''
     buf = io.BytesIO()
     if tight:
         # save with tight layout, very useful for saving LUTs for example
@@ -288,18 +272,27 @@ def get_file_creation_time(filename, return_datetime_object=False):
 
 
 def RGB_to_int24(RGBimg):
-    RGB24 = (RGBimg[..., 0].astype(np.uint32) << 16) | (RGBimg[..., 1].astype(np.uint32) << 8) | RGBimg[..., 2].astype(
-        np.uint32)
+    '''
+    converts a 3 channel RGB image to a single channel int24 image
+    :param RGBimg: image of type (h,w,3)
+    :return: image (h,w) with 24 bits integers
+    '''
+    RGB24 = (RGBimg[..., 0].astype(np.uint32) << 16) | (RGBimg[..., 1].astype(np.uint32) << 8) | RGBimg[..., 2].astype(np.uint32)
     return RGB24
 
 
 def int24_to_RGB(RGB24):
+    '''
+    Converts 24 bits integers to R,G and B components
+    :param RGB24: image (h,w) with 24 bits integers
+    :return: (h,w,3) R,G,B image
+    '''
     RGBimg = np.zeros(shape=(*RGB24.shape, 3), dtype=np.uint8)
     for c in range(RGBimg.shape[-1]):
         RGBimg[..., c] = (RGB24 >> ((RGBimg.shape[-1] - c - 1) * 8)) & 0xFF
     return RGBimg
 
-
+# dirty code --> can i improve it ??
 def _normalize_8bits(img, mode='min_max'):
     try:
         if mode == 'min_max':
@@ -974,7 +967,6 @@ def mask_colors(colored_image, colors_to_mask, invert_mask=False, warn_on_color_
 
 
 # TODO maybe make this a more generic stuff
-
 def get_nb_of_series_in_lif(lif_file_name):
     if not lif_file_name or not lif_file_name.lower().endswith('.lif'):
         logger.error('Error only lif file supported')
@@ -1070,9 +1062,22 @@ def _transfer_voxel_size_metadata(input_file_with_correct_metadata, output_file_
 
 # TODO maybe make one that does the same with ROIs ???
 # if return mask then I just return the mask with boolean and not the
+# NB it assumes the image is hwc
+# needs some love !!!
 def mask_rows_or_columns(img, spacing_X=2, spacing_Y=None, masking_value=0, return_boolean_mask=False,
                          initial_shiftX=0, initial_shiftY=0, random_start=False):  # , dimension_h=-2, dimension_w=-1
-
+    '''
+    creates lines where signal is removed --> can eb used to train deep learning models à la noise2void. be careful it creates an image out that is necessarily hwc --> even if original is not --> that maybe be conterintuitive
+    :param img:
+    :param spacing_X:
+    :param spacing_Y:
+    :param masking_value:
+    :param return_boolean_mask:
+    :param initial_shiftX:
+    :param initial_shiftY:
+    :param random_start:
+    :return:
+    '''
     if isinstance(img, tuple):
         mask = np.zeros(img, dtype=bool)
     else:
@@ -2947,12 +2952,12 @@ class Img(np.ndarray):  # subclass ndarray
 
     @staticmethod
     def invert(img):
-        # should take the negative of an image should always work I think but try and see if not wise making a version that handles channels # does it even make sense ??? need to think a bit about it
-        max = img.max()
-        min = img.min()
         if not img.dtype == bool:
-            img = np.negative(img) + max + min
+            mx = img.max()
+            mn = img.min()
+            img = np.negative(img) + mx + mn
         else:
+            # negative for boolean
             img = ~img
         return img
 
@@ -3432,8 +3437,8 @@ class ImageReader:
         #     im = skimage.io.imread(img)
         #     volume[k, :, :, :] = np.swapaxes(im[:, :, :], 0, 1)
         #     k += 1
-        volume = np.stack([skimage.io.imread(img) for img in filePath],axis=0) # will take more memory but more elegant than before
-        return volume
+        # volume = np.stack([skimage.io.imread(img) for img in filePath],axis=0) # will take more memory but more elegant than before
+        return to_stack(filePath)
 
 if __name__ == '__main__':
 
