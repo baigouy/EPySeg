@@ -2,8 +2,8 @@
 from epyseg.ta.GUI.pyta import TissueAnalyzer
 from PyQt5.QtWidgets import QApplication
 import sys
-import multiprocessing
-import platform
+# import multiprocessing
+# import platform
 
 if __name__ == '__main__':
     # mac OSX fix to test --> this does not work at all in my hands...

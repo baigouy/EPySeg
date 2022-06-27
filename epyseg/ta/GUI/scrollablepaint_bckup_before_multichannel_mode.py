@@ -1,19 +1,15 @@
 # channels seem be fixed --> cool
 # finalize whsed and corrections --> make sure they are channel dependent
 # check which channels are being restored by the new wshed within the paint arena
-
-# in set image add sliders for D and Z --> see how I can do that --> or do it directly in paint ????
-import traceback
-
 import matplotlib.pyplot as plt
 import numpy as np
 from PyQt5 import QtWidgets, QtCore, QtGui
 from PyQt5.QtCore import QSize, Qt
 from PyQt5.QtGui import QPalette, QKeySequence, QPainter
 from PyQt5.QtWidgets import QScrollArea, QVBoxLayout, QWidget, QSpinBox, QComboBox, QToolBar, QStatusBar, QLabel, \
-    QHBoxLayout, QAction, QSlider
+    QHBoxLayout, QAction
 import qtawesome as qta
-from PyQt5.QtCore import Qt, QTimer
+
 from epyseg.draw.shapes.freehand2d import Freehand2D
 from epyseg.draw.shapes.image2d import Image2D
 from epyseg.draw.shapes.rect2d import Rect2D
@@ -43,31 +39,12 @@ class scrollable_paint(QWidget):
         else:
             self.paint = custom_paint_panel
         layout = QVBoxLayout()
-
-        # delay dimensionality change update --> just to make sure it does not overwhelms the system upon slider change
-        # think about how to do that in a smart way -> maybe by changing the connect ???
-        # self.delayed_dimension_preview = QTimer()
-        # self.delayed_dimension_preview.setSingleShot(True)
-        # self.delayed_dimension_preview.timeout.connect(self.slider_dimension_value_changed)
-        self.dimension_sliders = []
         self.is_width_for_alternating = True
-        # add the possibility to browse dimensions
-        self.dimensions_container = QVBoxLayout() # this will contain all the browsable dimensions of the image
-        # fake add sliders here
-        # self.dim_slider_with_label1 = self.create_dim_slider(dimension='d', max_dim=16)
-        # self.dimensions_container.addLayout(self.dim_slider_with_label1)
-        # self.dim_slider_with_label2 = self.create_dim_slider(dimension='c', max_dim=3)
-        # self.dimensions_container.addLayout(self.dim_slider_with_label2)
-        # self.dim_slider_with_label3 = self.create_dim_slider(dimension='t', max_dim=22)
-        # self.dimensions_container.addLayout(self.dim_slider_with_label3)
-        # each of the sliders will be assoc to a single dim --> TODO
-        # maybe remove the slider for channels ???
         # same as the other with embed in scroll area
         self.scrollArea = QScrollArea()
         self.scrollArea.setBackgroundRole(QPalette.Dark)
         self.scrollArea.setWidget(self.paint)
         self.paint.scrollArea = self.scrollArea
-        layout.addLayout(self.dimensions_container)
         layout.addWidget(self.scrollArea)
         self.setLayout(layout)
         status_bar = QStatusBar()
@@ -205,10 +182,6 @@ class scrollable_paint(QWidget):
 
     def disableMouseTracking(self):
         self.paint.drawing_enabled = False
-
-
-    # def gather_indices_for_all_dimensions(self):
-        # loop through the content of an image ????
 
 
 
@@ -626,11 +599,6 @@ class scrollable_paint(QWidget):
         self.paint.set_image(img)# bug seems to be here
 
         img = self.paint.raw_image
-
-        self.update_image_dimensions()
-
-        # need also update the dimensions if any
-
         # print(type(img))
 
         # else I need also reset channels
@@ -642,56 +610,6 @@ class scrollable_paint(QWidget):
         # channels = self.paint.get_nb_channels()
         # self._update_channels(channels)
         # make it update also the channels
-    def _delete_layout_content(self, layout):
-        for i in reversed(range(layout.count())):
-            layout.itemAt(i).widget().setParent(None)
-
-    def update_image_dimensions(self):
-        self.dimension_sliders = []
-
-        for i in reversed(range(self.dimensions_container.count())):
-            # print(i)
-            # print(self.dimensions_container.itemAt(i))
-            # self.dimensions_container.itemAt(i).widget().setParent(None)
-            self._delete_layout_content(self.dimensions_container.itemAt(i))
-
-        if self.paint.raw_image is None:
-            return
-
-        # empty the content of the slider and refill it
-        try:
-            treat_channels_as_a_browsable_dimension = False
-            dimensions = self.paint.raw_image.get_dimensions_as_string()
-
-            # if not self.paint.raw_image.has_c():
-            #     nb_of_sliders = len(
-            #         self.paint.raw_image.shape) - 2  # or -3 it depends whether I wanna show all the channels at once or not ???
-            # else:
-            #     nb_of_sliders = len(
-            #         self.paint.raw_image.shape) - 2  # or -3 it depends whether I wanna show all the channels at once or not ???
-
-            # print(nb_of_sliders)
-
-            # create an image with plenty of sliders --> TODO
-            # make the handling of the image to be displayed directly by the code !!!
-
-            # then I need couple each slider to a dimension
-
-            # dimensions that must have a slider
-            # --> all dimensions but hw and maybe c must have a slider --> TODO
-            for dim in dimensions:
-                if dim == 'h' or dim == 'y' or dim == 'w' or dim == 'x' or (
-                        not treat_channels_as_a_browsable_dimension and dim == 'c'):
-                    # we skip dimensions
-                    continue
-                # print(dim, 'must have an assoicated slider')
-
-                # print(self.paint.raw_image.shape, ' toto ', )
-                self.dimensions_container.addLayout(self.create_dim_slider(dimension=dim, max_dim=self.paint.raw_image.shape[dimensions.index(dim)]))
-        except:
-            traceback.print_exc()
-
-
 
     def set_mask(self, mask):
         self.paint.set_mask(mask)
@@ -741,90 +659,6 @@ class scrollable_paint(QWidget):
         else:
             self.enable_shortcuts()
         # remove draw mode maybe and freeze shortcuts
-
-    def create_dim_slider(self, dimension=None, max_dim=1):
-        dim_slider_with_label1 = QHBoxLayout()
-        label_slider1 = QLabel()
-        if dimension is not None:
-            label_slider1.setText(dimension)
-        fake_dim_slider = QSlider(Qt.Horizontal)
-        fake_dim_slider.setMinimum(0)
-        fake_dim_slider.setMaximum(max_dim-1)
-        dim_slider_with_label1.addWidget(label_slider1)
-        dim_slider_with_label1.addWidget(fake_dim_slider)
-        # dim_slider_with_label1
-        # add a partial?
-        fake_dim_slider.valueChanged.connect(self.slider_dimension_value_changed)
-        # fake_dim_slider.valueChanged.connect(lambda x: self.delayed_dimension_preview.start(600))
-        fake_dim_slider.setObjectName(dimension)
-        self.dimension_sliders.append(fake_dim_slider)
-        return dim_slider_with_label1
-
-    def get_dim_value_by_name(self, label):
-        for slider in self.dimension_sliders:
-            if slider.objectName() == label:
-                return slider.value()
-        return None
-
-    # def get_dims_value_by_name(self, label):
-    #     for slider in self.dimension_sliders:
-    #         if slider.objectName() == label:
-    #             return slider.value()
-    #     return None
-
-    # p
-    def slider_dimension_value_changed(self):
-        # TODO --> do delay only if necessary
-        # self.delayed_dimension_preview.stop()
-        # self.delayed_dimension_preview.start(600)
-
-        # self.delayed_dimension_preview.timeout.connect
-
-        # if self.delayed_dimension_preview.dis
-
-        # TODO only allow this when the dimension changing is over
-        # if the dimension exists --> print it
-        # print(self.sender(), self.sender().objectName(), self.sender().value())
-        # print(self.sender(), self.sender().objectName())
-        # print(sender)
-
-        try:
-            # need change just the displayed image
-            if self.paint.raw_image.metadata['dimensions']:
-                # change the respective dim
-                # need all the spinner values to be recovered in fact
-                # and send the stuff
-                # print('dimension exists', self.objectName(),'--> changing it')
-
-                # need gather all the dimensions --> TODO
-
-                dimensions = self.paint.raw_image.metadata['dimensions']
-                position_h =  dimensions.index('h')
-                image_to_display = self.paint.raw_image
-                if position_h!=0:
-                    # loop for all the dimensions before
-                    # print('changing stuff')
-                    for pos_dim in range(0,position_h):
-                        dim = dimensions[pos_dim]
-                        value_to_set = self.get_dim_value_by_name(dim)
-                        if value_to_set == None:
-                            continue
-                        else:
-                            image_to_display = image_to_display[value_to_set]
-                        # if not dimensions[pos_dim]==self.sender().objectName():
-                        #     image_to_display = image_to_display[0]
-                        # else:
-                        #     image_to_display = image_to_display[self.sender().value()]
-
-                self.paint.set_display(image_to_display)
-
-        except:
-            traceback.print_exc()
-
-        # pass
-
-    # then have a single code to handle dynamically all the dimension changes !!! --> TODO
-
 
 # pas mal faut juste voir ce que je peux faire
 # peut etre permetre de mettre des custom panels
@@ -1031,9 +865,8 @@ if __name__ == '__main__':
         # do lengthy process
         # QApplication.restoreOverrideCursor()
 
-        w.set_image('/E/Sample_images/sample_images_FIJI/sample2.lsm')
-
-        # w.set_image('/E/Sample_images/sample_image_neurons_laurence_had/data_test/image.png')
+        w.set_image(
+            '/E/Sample_images/sample_image_neurons_laurence_had/data_test/image.png')
         # w.set_mask('/D/VirtualBox/book_chapter_image_segmentation_final_2021/new_figs/dataset_1/minimal_demo_sample_simplified_bckup_before_messing_with_two_seg_errors/1/handCorrection.tif')
 
         # w.setCursor(Qt.BlankCursor)

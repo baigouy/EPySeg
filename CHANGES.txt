@@ -1,9 +1,9 @@
-23/06/2022
--fixed a big bug in predict generator (that occurred under specific conditions only and when the tile overlap was set to non 0). It caused output size width or height to differ from input width/height.
--I'm thinking of moving to pyqt6 soon (this will fix EPySeg's embedded help/markdown)
--started adding unittests to make the code and development more robust (this is work in progress and will take a lot of time...)
+23-24/06/2022
+-fixed a big bug in predict generator (that occurred under specific conditions and only and when the tile overlap was not set to 0). It caused the output width/height to differ from the input one.
+-I'm thinking of moving to PyQt6 soon (this will fix EPySeg's embedded help/markdown)
+-started adding unit tests to make the code and development more robust (this is work in progress and will take a hell lot of time...)
 -added support for opening image www and/or local url (for tif related images, was already working for other types of images)
--improved the invert function, should work as expected now (hope this did not break things, but that is unlikely)
+-improved the invert function, should work fully as expected now (hope this did not break things, but that is unlikely)
 
 15/06/2022
 -added several new methods to the Img class (a full rewrite/reorganization would be useful some day) (e.g. save_as_tiff, one_hot_encoder, auto_scale, fill_holes, clean_blobs_below, ...)

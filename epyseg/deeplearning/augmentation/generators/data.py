@@ -8,7 +8,8 @@ from skimage import filters
 from skimage.util import random_noise
 from epyseg.binarytools.cell_center_detector import get_seeds
 from skimage.measure import label
-from epyseg.img import Img, white_top_hat, black_top_hat, mask_rows_or_columns, elastic_deform
+from epyseg.img import Img, white_top_hat, black_top_hat, mask_rows_or_columns, elastic_deform, \
+    create_random_intensity_graded_perturbation, apply_2D_gradient
 import random
 from scipy import ndimage
 from skimage import transform
@@ -49,7 +50,8 @@ class DataGenerator:
                                      'shuffle images along Z (2D + GT ignored)': None,
                                      'random_intensity_gamma_contrast': None,
                                      'high noise': None, 'stretch': stretch_range,
-                                     'elastic':None}
+                                     'elastic':None,
+                                     'graded_intensity_modification':None}
 
     augmentation_types_and_values = {'None': None, 'shear': shear_range[2], 'zoom': zoom_range[2],
                                      'rotate': rotation_range[2],
@@ -64,7 +66,8 @@ class DataGenerator:
                                      'high noise': None,
                                      'random_intensity_gamma_contrast': None,
                                      'stretch': 3.,
-                                     'elastic': None
+                                     'elastic': None,
+                                     'graded_intensity_modification': None
                                      }
 
     # TODO add also the elastic deforms
@@ -109,7 +112,8 @@ class DataGenerator:
                                                'low noise': self.low_noise, 'high noise': self.high_noise,
                                                'stretch': self.stretch,
                                                'random_intensity_gamma_contrast': self.random_intensity_gamma_contrast_changer,
-                                               'elastic': self.elastic}# added elastic deformation because can be very useful
+                                               'elastic': self.elastic,
+                                               'graded_intensity_modification':self.graded_intensity_modification}# added elastic deformation because can be very useful
 
         self.EXTRAPOLATION_MASKS = 1  # bicubic 0 # nearest # TODO keep like that because 3 makes really weird results for binary images
         self.is_predict_generator = is_predict_generator
@@ -1379,6 +1383,12 @@ class DataGenerator:
             out = orig
         return [scaling_factor], out
 
+    def graded_intensity_modification(self, orig, parameters, is_mask):
+        out = orig
+        if not is_mask:
+            out = apply_2D_gradient(orig,create_random_intensity_graded_perturbation(orig, off_centered=True))
+        return [], out
+
     def blur(self, orig, parameters, is_mask):
         # we just blur input and keep masks unchanged
         if parameters is None:
@@ -1585,8 +1595,7 @@ class DataGenerator:
 
     def invert(self, orig, parameters, is_mask):
         if not is_mask:
-            max = orig.max()
-            inverted_image = np.negative(orig) + max
+            inverted_image =Img.invert(orig)
         else:
             inverted_image = orig
         return [], inverted_image
@@ -2079,7 +2088,7 @@ if __name__ == '__main__':
     # SELECTED_AUG = [{'type': 'intensity'}, {'type': 'random_intensity_gamma_contrast'}]
     # SELECTED_AUG = [{'type': 'roll along Z (2D + GT ignored)'}, {'type': 'shuffle images along Z (2D + GT ignored)'}]
     # SELECTED_AUG = [{'type': 'mask_pixels'}] # not existing anymore will rather be an option
-    SELECTED_AUG = None
+    SELECTED_AUG = [{'type': 'graded_intensity_modification'}]
 
     normalization = {'method': Img.normalization_methods[7], 'range': [2, 99.8],
                      'individual_channels': True, 'clip': False}
@@ -2091,8 +2100,14 @@ if __name__ == '__main__':
     augmenter = DataGenerator(
         # 'D:/dataset1/tests_focus_projection', 'D:/dataset1/tests_focus_projection',
         # 'D:/dataset1/tests_focus_projection/proj', 'D:/dataset1/tests_focus_projection/proj/*/hand*.tif',
-        inputs='/E/Sample_images/sample_images_denoise_manue/210219/raw', # 3D input
-        outputs='/E/Sample_images/sample_images_denoise_manue/210219/raw/predict', # 2D ouput otherwise change model shape... below !!!!
+        # inputs='/E/Sample_images/sample_images_denoise_manue/210219/raw', # 3D input
+        # outputs='/E/Sample_images/sample_images_denoise_manue/210219/raw/predict', # 2D ouput otherwise change model shape... below !!!!
+        # input_channel_of_interest=0,
+        # comment the 2 next lines and restore the 3 above to get back to 3D
+        inputs='/E/Sample_images/sample_images_PA/trash_test_mem/mini/*.png',  # 3D input
+        input_channel_of_interest=1,
+        # outputs='/E/Sample_images/sample_images_denoise_manue/210219/raw/predict',
+        # 2D ouput otherwise change model shape... below !!!!
         # '/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/tests_focus_projection/proj', '/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/tests_focus_projection/proj/',
         # '/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/tests_focus_projection', '/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/tests_focus_projection',
         # '/home/aigouy/Bureau/last_model_not_sure_that_works/tmp', '/home/aigouy/Bureau/last_model_not_sure_that_works/tmp',
@@ -2101,9 +2116,9 @@ if __name__ == '__main__':
         # crop_parameters={'x1':512, 'y1':512, 'x2':796, 'y2':796},
         input_normalization=normalization,
         # shuffle=False, input_shape=[(None, None, None, None, 1)], output_shape=[(None, None, None, None, 1)],
-        shuffle=False, input_shape=[(None, None, None, None, 1)], output_shape=[(None, None, None, 1)], # 3D input and 2D output --> if not the case there will be errors !!!
+        # shuffle=False, input_shape=[(None, None, None, None, 1)], output_shape=[(None, None, None, 1)], # 3D input and 2D output --> if not the case there will be errors !!!
+        shuffle=False, input_shape=[(None, None, None, 1)], output_shape=[(None, None, None, 1)], # 3D input and 2D output --> if not the case there will be errors !!!
         augmentations=SELECTED_AUG,
-        input_channel_of_interest=0,
         output_channel_of_interest=0,
         # mask_dilations=7,
         # default_input_tile_width=2048, default_input_tile_height=1128,

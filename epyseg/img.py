@@ -65,11 +65,12 @@ def elastic_deform(image, displacement=None, axis=None, order=0, zoom=None, rota
     else:
         return X_deformed
 
+
 def read_file_from_url(url):
     try:
-        if isinstance(url,str):
+        if isinstance(url, str):
             if url.lower().startswith('file:'):
-                return url[7:]# trim file:// from name
+                return url[7:]  # trim file:// from name
         import requests
         resp = requests.get(url)
         bytes = io.BytesIO(resp.content)
@@ -77,13 +78,16 @@ def read_file_from_url(url):
         return bytes
     except:
         traceback.print_exc()
-        logger.error('could not load file from url '+str(url))
+        logger.error('could not load file from url ' + str(url))
+
 
 def avg_proj(image, axis=0):
     return np.mean(image, axis=axis)
 
+
 def max_proj(image, axis=0):  # z proj for a 3D image
     return np.max(image, axis=axis)
+
 
 # we check if the image is a binary image --> return True if yes, False otherwise
 def is_binary(image):
@@ -93,18 +97,24 @@ def is_binary(image):
         return True
     return image.size == np.count_nonzero((image == mn) | (image == mx))
 
+
 # try an auto norm method à la ImageJ --> somewhat the same idea as in https://github.com/imagej/ImageJ/blob/706f894269622a4be04053d1f7e1424094ecc735/ij/plugin/frame/ContrastAdjuster.java
 def auto_scale(img, individual_channels=True, min_px_count_in_percent=0.005):
     if not isinstance(img, np.ndarray):
         return img
 
     if len(img.shape) > 2 and individual_channels:
+        # nb the parent image also needs be converted to float otherwise I get errors
+        if img.dtype != np.float:
+            img = img.astype(np.float)
         for ch in range(img.shape[-1]):
             img[..., ch] = auto_scale(img[..., ch])
     else:
         # absolutely key --> KEEP!!!
 
-        img = img.astype(np.float)
+        # print('in therte')
+        if img.dtype != np.float:
+            img = img.astype(np.float)
         mn = float(img.min())
         mx = float(img.max())
         if mn == mx:
@@ -126,6 +136,8 @@ def auto_scale(img, individual_channels=True, min_px_count_in_percent=0.005):
         img = np.clip(img, mn, mx)
         img = (img - mn) / (mx - mn)
 
+        # print(mn, mx)
+
     return img
 
 
@@ -137,6 +149,7 @@ def _create_dir(output_name):
     # bug fix in case just a filename and no parent folder
     if output_folder:
         os.makedirs(output_folder, exist_ok=True)
+
 
 # Be careful this modifies the original image --> maybe offer a copy
 def fill_holes(img, fill_hole_below_this_size):
@@ -150,6 +163,7 @@ def fill_holes(img, fill_hole_below_this_size):
         mask = remove_small_holes(mask, area_threshold=fill_hole_below_this_size, connectivity=1, in_place=False)
         img[mask != 0] = img.max()
     return img
+
 
 # Be careful this modifies the original image --> maybe offer a copy
 def clean_blobs_below(img, size_of_obejcts_to_be_removed):
@@ -174,7 +188,7 @@ def to_stack(images):
     if isinstance(images[0], str):
         images = [Img(image) for image in images]
 
-    if len(images)==1:
+    if len(images) == 1:
         return images[0]
 
     # for iii, image in enumerate(images):
@@ -204,6 +218,7 @@ def fake_n_channels(image, n_channels=3):
     else:
         return image
 
+
 def has_metadata(im):
     '''
     checks if an image has metadata
@@ -212,12 +227,15 @@ def has_metadata(im):
     '''
     return hasattr(im, 'metadata')
 
+
 def numpy_to_PIL(im, force_RGB=True):
     img = Image.fromarray(im)
     return img
 
+
 def PIL_to_numpy(PIL_image):
     return np.array(PIL_image)
+
 
 def fig_to_numpy(fig, tight=True):
     '''
@@ -241,15 +259,37 @@ def fig_to_numpy(fig, tight=True):
     return im
 
 
+def convolve(img, kernel=np.array([[-1, -1, -1],
+                                   [-1, 8, -1],
+                                   [-1, -1, -1]])):
+    '''convolves an image (using scipy)
+
+    Parameters
+    ----------
+    kernel : np.array
+      a convolution kernel
+
+    Returns
+    -------
+    ndarray
+      a convolved image
+
+    '''
+
+    convolved = scipy.signal.convolve2d(img, kernel, 'valid')
+    return convolved
+
+
 # TODO check on the different oses maybe replace mtime by mtime_nano
 # https://docs.python.org/3/library/os.html#os.stat_result
 def get_file_creation_time(filename, return_datetime_object=False):
     fname = pathlib.Path(filename)
-    if isinstance(filename,str):
+    if isinstance(filename, str):
         # cannot get creation time from web
         if filename.lower().startswith('http') or filename.lower().startswith('file:'):
             try:
-                from urllib.request import urlopen # should always be a part of python --> so no need to intall it and no big deal if fails
+                from urllib.request import \
+                    urlopen  # should always be a part of python --> so no need to intall it and no big deal if fails
                 with urlopen(filename) as web_file:
                     return dict(web_file.getheaders())['Last-Modified']
             except:
@@ -277,7 +317,8 @@ def RGB_to_int24(RGBimg):
     :param RGBimg: image of type (h,w,3)
     :return: image (h,w) with 24 bits integers
     '''
-    RGB24 = (RGBimg[..., 0].astype(np.uint32) << 16) | (RGBimg[..., 1].astype(np.uint32) << 8) | RGBimg[..., 2].astype(np.uint32)
+    RGB24 = (RGBimg[..., 0].astype(np.uint32) << 16) | (RGBimg[..., 1].astype(np.uint32) << 8) | RGBimg[..., 2].astype(
+        np.uint32)
     return RGB24
 
 
@@ -291,6 +332,7 @@ def int24_to_RGB(RGB24):
     for c in range(RGBimg.shape[-1]):
         RGBimg[..., c] = (RGB24 >> ((RGBimg.shape[-1] - c - 1) * 8)) & 0xFF
     return RGBimg
+
 
 # dirty code --> can i improve it ??
 def _normalize_8bits(img, mode='min_max'):
@@ -307,8 +349,133 @@ def _normalize_8bits(img, mode='min_max'):
         pass
     return img
 
+# can act as a nice data augmentation
+def create_random_liner_gradient(img, pos_h=None, off_centered=True):
+    return create_2D_linear_gradient(img, min=random.uniform(0.16, 0.49), max=random.uniform(0.5, 1.), horizontal=random.choice([True, False]), min_is_top_or_left=random.choice([True, False]), pos_h=pos_h, off_centered=off_centered)
 
-# recode all the save anyway and deduplicate code!!!
+# create a gradient image that can be applied to any 2D array
+def create_2D_linear_gradient(img, min=0, max=1, horizontal=True, min_is_top_or_left=True, pos_h=None, off_centered=False):
+    if img is None:
+        return None
+    if not min_is_top_or_left:
+        min, max = max, min
+    if pos_h is None:
+        if len(img.shape) == 2:
+            width = img.shape[1]
+            height = img.shape[0]
+        else:
+            width = img.shape[-2]
+            height = img.shape[-3]
+    else:
+        width=img.shape[pos_h+1]
+        height=img.shape[pos_h]
+
+    if horizontal:
+        g =  np.tile(np.linspace(min, max, width), (height, 1))
+    else:
+        g = np.tile(np.linspace(min, max, height), (width, 1)).T
+    if off_centered:
+        if horizontal:
+            shift = random.randint(0,width)
+            axis = 1
+        else:
+            shift = random.randint(0, height)
+            axis = 0
+        g = np.roll(g, shift, axis=1)
+    return g
+
+def create_random_intensity_graded_perturbation(img, pos_h=None, off_centered=True):
+    function_to_run = random.choice([create_random_gaussian_gradient, create_random_liner_gradient])
+    centered = off_centered
+    if function_to_run == create_random_liner_gradient:
+        centered=False
+    return function_to_run(img, pos_h=pos_h, off_centered=centered)
+
+def create_random_gaussian_gradient(img, pos_h=None, off_centered=True):
+    if img is None:
+        return None
+    gaussian = gaussian_intensity_2D(img, sigma=random.uniform(0.2, 5.), mu=random.uniform(-2., 2.),pos_h=pos_h, off_centered=off_centered)
+
+    if gaussian.max()<0.6:
+        # signal too weak --> strecth it
+        gaussian = (gaussian - gaussian.min()) / (gaussian.max() - gaussian.min())
+    if gaussian.max()-gaussian.min()<0.3:
+        # increase range
+        # strecth the difference --> best is to renormalize it
+        gaussian = (gaussian-gaussian.min())/(gaussian.max()-gaussian.min())
+
+    gaussian = np.clip(gaussian,0.2,1.)
+    return gaussian
+
+
+# almost what I want --> but I have poor control on max an min values --> see how I can change that
+# nb it is a gaussian only when width = height but as a data aug all of this is fine for me...
+def gaussian_intensity_2D(img, sigma=1., mu=0., pos_h=None, off_centered=False):
+    if img is None:
+        return None
+    if pos_h is None:
+        if len(img.shape) == 2:
+            width = img.shape[1]
+            height = img.shape[0]
+        else:
+            width = img.shape[-2]
+            height = img.shape[-3]
+    else:
+        width = img.shape[pos_h + 1]
+        height = img.shape[pos_h]
+
+    x, y = np.meshgrid(np.linspace(-1, 1, width), np.linspace(-1, 1, height))
+    d = np.sqrt(x * x + y * y)
+    g = np.exp(-((d - mu) ** 2 / (2.0 * sigma ** 2)))
+
+    if off_centered:
+        axis = random.choice([0,1])
+        shift = random.randint(0,width if axis==0 else height)
+        g=np.roll(g, shift, axis=axis)
+    return g
+
+# will that always work --> need think about it but seems to work with 2D images (single and multi channel) and with 3D images single channel --> ok for now maybe need be smarter if I add even more dimensions
+def apply_2D_gradient(img,gradient2D):
+    # need get the dimensions
+    # find the matching two dimensions from the end and add stuff otherwise
+    # nb_of_dims_to_add_left = 0
+    # nb_of_dims_to_add_right = 0
+
+    if img is None or gradient2D is None:
+        logger.error('Image or gradient is None, gradient cannot be applied, sorry...')
+        return None
+    # need find the matching dimensions between the two then apply there
+    nb_of_dims_img = len(img.shape)
+    nb_of_dims_gradient = len(gradient2D.shape)
+
+    # print(nb_of_dims_img, nb_of_dims_gradient)
+
+    dim = 0
+    if nb_of_dims_img!=nb_of_dims_gradient and nb_of_dims_gradient<nb_of_dims_img:
+        # need add dims to gradient
+        for dim in range(0,nb_of_dims_img):
+            # we try to find the position where the dims match then apply the gradient to that
+            begin = nb_of_dims_img-dim-nb_of_dims_gradient
+            end = nb_of_dims_img-dim
+            # print('comp', gradient2D.shape, img.shape,  img.shape[begin:end],begin, end)
+            if gradient2D.shape == img.shape[begin:end]:
+                # print('position_found',dim)
+                break
+            # position_of_match = gradient2D.shape
+    
+    # print(dim)
+
+    # then apply it
+    for dm in range(dim):
+        gradient2D=gradient2D[..., np.newaxis]
+    for dm in range(nb_of_dims_img-len(gradient2D.shape)):
+        gradient2D=gradient2D[np.newaxis, ...]
+
+    img[:,...]=img[:,...]*gradient2D
+    # print('final shape',gradient2D.shape)
+    return img
+
+# need recode all the save anyway and deduplicate code!!!
 def save_as_tiff(img, output_name, print_file_name=False, ijmetadata='copy', mode='IJ'):
     '''saves the current image
 
@@ -373,7 +540,7 @@ def save_as_tiff(img, output_name, print_file_name=False, ijmetadata='copy', mod
             if not img.has_t():
                 out = out[np.newaxis, ...]
         else:
-            # print('othyer')
+            # print('other')
             # no dimension specified --> assume always the same order that is tzyxc --> TODO maybe ...tzyxc
             if out.ndim < 3:
                 out = out[..., np.newaxis]
@@ -483,8 +650,10 @@ def one_hot_encoder(img, remap_dict=None):  # , remap_dict=None):
     return one_hot_encoded
 
 
+# NB I could make a smarter version that takes just the channel of interest and the specific position into account ???? think about that
 # NB I ASSUME IMAGE IS hw or hwc and nothing else which may be wrong!!! but then conversion should take place before the image is passed there
-def toQimage(img, autofix_always_display2D=True, normalize=True):
+# z_behaviour='middle'
+def toQimage(img, autofix_always_display2D=True, normalize=True, z_behaviour=None):
     '''get a qimage from ndarray
 
     Returns
@@ -513,17 +682,36 @@ def toQimage(img, autofix_always_display2D=True, normalize=True):
     img = np.copy(img)  # need copy the array
 
     if autofix_always_display2D and dimensions is not None:
+        # original_shape = img.shape
         # probably need more fixes
-        if 't' in dimensions:
-            img = img[0]  # get first time point
+        # if 't' in dimensions:
+        #     img = img[0]  # get first time point
+        #
+        # # bug here cause my stuff is not very smart because the image is not having d as the first dimension...
+        # if 'd' in dimensions:
+        #     # if dimensions.index('d') != 0:
+        #     #     logger.error('xyzt images not supported, only xyz images are supported.')
+        #     #     return None
+        #     # reduce dimensionality --> take central image
+        #
+        #     print(dimensions.index('d'))
+        #     print(dimensions)
+        #     print(original_shape)
+        #
+        #     img = img[int(original_shape[dimensions.index('d')] / 2)]
+        # for all dimensions take first except for d --> take center -> the nb of dims can be infinite now
+        # for all dimensions before h --> do
+        # always take the first image in every dimension before the channels, except for z --> take the central channel in this case --> I dramatically changed and improved the behaviour compared to what it was before
+        if 'h' in dimensions and dimensions.index('h')!=0:
+            for dim in dimensions:
+                if dim=='h':
+                    break
+                # print(dim)
+                if ((dim!='d' and dim!='z') or z_behaviour!='middle'):
+                    img = img[0] # always take the first image execpt for Z stack
+                else:
+                    img = img[int(img.shape[0] / 2)]
 
-        # bug here cause my stuff is not very smart because the image is not having d as the first dimension...
-        if 'd' in dimensions:
-            if dimensions.index('d') != 0:
-                logger.error('xyzt images not supported, only xyz images are supported.')
-                return None
-            # reduce dimensionality --> take central image
-            img = img[int(img.shape[dimensions.index('d')] / 2)]
 
     if img.dtype != np.uint8:
         # just to remove the warning raised by img_as_ubyte
@@ -1619,27 +1807,6 @@ class Img(np.ndarray):  # subclass ndarray
 
         '''
         return skimage.transform.rescale(self, 1. / factor, preserve_range=True, anti_aliasing=False, multichannel=True)
-
-    # ideally should make it return an image but maybe too complicated --> ok for now let's wait for my python skills to improve
-    def convolve(self, kernel=np.array([[-1, -1, -1],
-                                        [-1, 8, -1],
-                                        [-1, -1, -1]])):
-        '''convolves an image (using scipy)
-
-        Parameters
-        ----------
-        kernel : np.array
-          a convolution kernel
-
-        Returns
-        -------
-        ndarray
-          a convolved image
-
-        '''
-
-        convolved = scipy.signal.convolve2d(self, kernel, 'valid')
-        return convolved
 
     def has_dimension(self, dim):
 
@@ -3440,24 +3607,36 @@ class ImageReader:
         # volume = np.stack([skimage.io.imread(img) for img in filePath],axis=0) # will take more memory but more elegant than before
         return to_stack(filePath)
 
+
 if __name__ == '__main__':
+
+    if False:
+        img = Img('https://samples.fiji.sc/new-lenna.jpg')[..., 0]
+        tst = convolve(img, kernel=[[-1, 0, 1],
+                                    [-1, 0, 1],
+                                    [-1, 0, 1]])
+        plt.imshow(tst)
+        plt.show()
 
     if True:
         # ok TODO --> do a master cleaning some day
         img = Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini_asym/*.png')
         print(img.shape)
         import sys
+
         sys.exit(0)
 
     if True:
         import timeit
+
         img = Img('/E/Sample_images/clara_tests_3D_mesh/E9 WT GM130V actinR 4.lsm')
         print(img.metadata)
         print(img.shape)
 
-
-        print(timeit.timeit(lambda: Img('/E/Sample_images/clara_tests_3D_mesh/E9 WT GM130V actinR 4.lsm'), number=50))# -->7.5 secs with meta
+        print(timeit.timeit(lambda: Img('/E/Sample_images/clara_tests_3D_mesh/E9 WT GM130V actinR 4.lsm'),
+                            number=50))  # -->7.5 secs with meta
         import sys
+
         sys.exit(0)
 
     if False:
@@ -3468,6 +3647,7 @@ if __name__ == '__main__':
         print(img.metadata)
         print(img.shape)
         import sys
+
         sys.exit(0)
 
     if True:
@@ -3529,4 +3709,5 @@ if __name__ == '__main__':
     if True:
         # now epyseg reads the image properly but IJ does not for the voxel size --> need hack it a bit in order to get the stuff done properly
         import sys
+
         sys.exit(0)

@@ -11,8 +11,11 @@ logger = TA_logger()
 # added intensity shifts to the minimal augmentation --> should make it more robust for masking
 # {'type': None},
 
+# TODO recode all of those... --> this is very depreacted and really need add the new graded intensity stuff because it's likely to strongly improve the efficiency of the model
+# TODO allow several modifs to be applied at the same time ...
+
 # I have recently modified the augmentation so that it takes into account the elastic deformation which is very good training I assume
-MINIMAL_AUGMENTATIONS = [{'type': None}, {'type': None},{'type': None},  {'type': 'zoom'}, {'type': 'blur'}, {'type': 'translate'}, {'type': 'rotate'},{'type': 'random_intensity_gamma_contrast'}, {'type': 'intensity'}, {'type': 'random_intensity_gamma_contrast'}, {'type': 'intensity'}, {'type':'elastic'}, {'type':'elastic'}]
+MINIMAL_AUGMENTATIONS = [{'type': None}, {'type': None},{'type': None},  {'type': 'zoom'}, {'type': 'blur'}, {'type': 'translate'}, {'type': 'rotate'},{'type': 'random_intensity_gamma_contrast'}, {'type': 'intensity'}, {'type': 'random_intensity_gamma_contrast'}, {'type': 'intensity'}, {'type':'elastic'}, {'type':'elastic'}, {'type': 'graded_intensity_modification'}, {'type': 'graded_intensity_modification'}]
 
 # MINIMAL_AUGMENTATIONS_WITH_ELASTIC= [{'type': None}, {'type': None},{'type': None}, {'type': 'zoom'}, {'type': 'blur'}, {'type': 'translate'}, {'type': 'rotate'},{'type': 'random_intensity_gamma_contrast'}, {'type': 'intensity'}, {'type': 'random_intensity_gamma_contrast'}, {'type': 'intensity'}, {'type':'elastic'}, {'type':'elastic'}, {'type':'elastic'}]
 
@@ -63,7 +66,7 @@ TRAINING_FOR_BEGINNING_LITTLE_INTERPOLATION =  [{'type': 'rotate (interpolation 
 
 NO_AUGMENTATION = [{'type': None}]
 
-TEST_AUGMENTATION = [{'type': 'elastic'}]#[{'type': 'invert'}]
+TEST_AUGMENTATION = [{'type': 'graded_intensity_modification'}]#[{'type': 'elastic'}]#[{'type': 'invert'}]
 
 SAFE_AUGMENTATIONS_FOR_SINGLE_PIXEL_WIDE = [{'type': None}, {'type': 'blur'}, {'type': 'translate'}, {'type': 'flip'}]
 

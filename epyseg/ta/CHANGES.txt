@@ -1,3 +1,6 @@
+27/06/2022
+-started adding support for multi-dimension browsing (not finalized --> work in progress)
+
 15/06/2022
 -added support for increasing contrast of displayed images (press C)
 -many changes applied to paint/display to build a binary GT editor for deep learning with a lot of automated stuff to help the user. I hope I didn't break anything in TA that shares this class...

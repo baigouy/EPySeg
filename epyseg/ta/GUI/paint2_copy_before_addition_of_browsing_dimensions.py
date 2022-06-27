@@ -258,8 +258,6 @@ class Createpaintwidget(QWidget):
             # sqqsdq
             # self.raw_image = Img(auto_threshold(self.raw_image),metadata=metadata)
             # self.set_image(self.raw_image)
-            # shall I do it for the displayed image only ???? --> probably smarter porbably shoudl do a get display image that is independent of all other functions and handles all dims
-            # very dumb --> needs be done just for the dipslayed image and nothing else and --> maybe get the image back from the screen directly --> would be smarted and better
             self.set_display(auto_scale(np.copy(self.raw_image)))
         except:
             traceback.print_exc()
@@ -1214,9 +1212,9 @@ if __name__ == '__main__':
 
     # w = Createpaintwidget(enable_shortcuts=True)
     w = overriding_apply(enable_shortcuts=True)
-    w.set_image('/E/Sample_images/sample_images_PA/trash_test_mem/mini (copie)/focused_Series012.png')
+    # w.set_image('/E/Sample_images/sample_images_PA/trash_test_mem/mini (copie)/focused_Series012.png')
     # w.set_image('/E/Sample_images/fluorescent_wings_spots_charroux/909dsRed/0.tif')
-    # w.set_image('/E/Sample_images/fluorescent_wings_spots_charroux/contoles_test_X1VK06/0.tif')
+    w.set_image('/E/Sample_images/fluorescent_wings_spots_charroux/contoles_test_X1VK06/0.tif')
     # w.set_mask('/E/Sample_images/sample_images_PA/trash_test_mem/mini (copie)/focused_Series012/handCorrection.png')
     # w.set_image(Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini (copie)/focused_Series012.png'))
 
