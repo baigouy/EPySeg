@@ -1787,82 +1787,83 @@ class Img(np.ndarray):  # subclass ndarray
         return self.metadata['dimensions'].index(dim)
 
     # TODO code this better
-    def pop(self, pause=1, lut='gray', interpolation=None, show_axis=False, preserve_AR=True):
-        '''pops up an image using matplot lib
-
-        Parameters
-        ----------
-        pause : int
-            time the image should be displayed
-
-        interpolation : string or None
-            interpolation for image display (e.g. 'bicubic', 'nearest', ...)
-
-        show_axis : boolean
-            TODO
-
-        preserve_AR : boolean
-            keep image AR upon display
-
-        '''
-
-        if self.ndim > 3:
-            logger.warning("too many dimensions can't pop image")
-            return
-
-        plt.ion()
-        plt.axis('off')
-        plt.margins(0)
-
-        plt.clf()
-        plt.axes([0, 0, 1, 1])
-
-        ax = plt.gca()
-        ax.get_xaxis().set_visible(False)  # this removes the ticks and numbers for x axis
-        ax.get_yaxis().set_visible(False)
-        ax.margins(0)
-
-        if self.ndim == 3 and self.shape[2] <= 2:
-            # create a 3 channel array from the 2 channel array image provided
-            rgb = np.concatenate(
-                (self[..., 0, np.newaxis], self[..., 1, np.newaxis], np.zeros_like(self[..., 0, np.newaxis])), axis=-1)
-            with warnings.catch_warnings():
-                warnings.simplefilter('ignore')
-                plt.imshow(img_as_ubyte(rgb), interpolation=interpolation)
-                # logger.debug("popping image method 1")
-        else:
-            if self.ndim == 2:
-                # if image is single channel display it as gray instead of with a color lut by default
-                with warnings.catch_warnings():
-                    warnings.simplefilter('ignore')
-                    plt.imshow(img_as_ubyte(self), cmap=lut, interpolation=interpolation)  # self.astype(np.uint8)
-                    # logger.debug("popping image method 2")
-            else:
-                # split channels if more than 3 channels maybe or remove the alpha channel ??? or not ??? see how to do that
-                if self.shape[2] == 3:
-                    with warnings.catch_warnings():
-                        warnings.simplefilter('ignore')
-                        plt.imshow(img_as_ubyte(self),
-                                   interpolation=interpolation)
-                        # logger.debug("popping image method 3")
-                else:
-                    for c in range(self.shape[2]):
-                        with warnings.catch_warnings():
-                            warnings.simplefilter('ignore')
-                            plt.imshow(img_as_ubyte(self[:, :, c]), cmap=lut, interpolation=interpolation)
-                            if c != self.shape[2] - 1:
-                                plt.show()
-                                plt.draw()
-                                plt.pause(pause)
-                            # logger.debug("popping image method 4")
-
-        if not preserve_AR:
-            ax.axis('tight')  # required to preserve AR but this necessarily adds a bit of white around the image
-        ax.axis('off')
-
-        plt.show()
-        plt.draw()
-        plt.pause(pause)
+    # deprecated --> upe pop instead
+    # def pop(self, pause=1, lut='gray', interpolation=None, show_axis=False, preserve_AR=True):
+    #     '''pops up an image using matplot lib
+    #
+    #     Parameters
+    #     ----------
+    #     pause : int
+    #         time the image should be displayed
+    #
+    #     interpolation : string or None
+    #         interpolation for image display (e.g. 'bicubic', 'nearest', ...)
+    #
+    #     show_axis : boolean
+    #         TODO
+    #
+    #     preserve_AR : boolean
+    #         keep image AR upon display
+    #
+    #     '''
+    #
+    #     if self.ndim > 3:
+    #         logger.warning("too many dimensions can't pop image")
+    #         return
+    #
+    #     plt.ion()
+    #     plt.axis('off')
+    #     plt.margins(0)
+    #
+    #     plt.clf()
+    #     plt.axes([0, 0, 1, 1])
+    #
+    #     ax = plt.gca()
+    #     ax.get_xaxis().set_visible(False)  # this removes the ticks and numbers for x axis
+    #     ax.get_yaxis().set_visible(False)
+    #     ax.margins(0)
+    #
+    #     if self.ndim == 3 and self.shape[2] <= 2:
+    #         # create a 3 channel array from the 2 channel array image provided
+    #         rgb = np.concatenate(
+    #             (self[..., 0, np.newaxis], self[..., 1, np.newaxis], np.zeros_like(self[..., 0, np.newaxis])), axis=-1)
+    #         with warnings.catch_warnings():
+    #             warnings.simplefilter('ignore')
+    #             plt.imshow(img_as_ubyte(rgb), interpolation=interpolation)
+    #             # logger.debug("popping image method 1")
+    #     else:
+    #         if self.ndim == 2:
+    #             # if image is single channel display it as gray instead of with a color lut by default
+    #             with warnings.catch_warnings():
+    #                 warnings.simplefilter('ignore')
+    #                 plt.imshow(img_as_ubyte(self), cmap=lut, interpolation=interpolation)  # self.astype(np.uint8)
+    #                 # logger.debug("popping image method 2")
+    #         else:
+    #             # split channels if more than 3 channels maybe or remove the alpha channel ??? or not ??? see how to do that
+    #             if self.shape[2] == 3:
+    #                 with warnings.catch_warnings():
+    #                     warnings.simplefilter('ignore')
+    #                     plt.imshow(img_as_ubyte(self),
+    #                                interpolation=interpolation)
+    #                     # logger.debug("popping image method 3")
+    #             else:
+    #                 for c in range(self.shape[2]):
+    #                     with warnings.catch_warnings():
+    #                         warnings.simplefilter('ignore')
+    #                         plt.imshow(img_as_ubyte(self[:, :, c]), cmap=lut, interpolation=interpolation)
+    #                         if c != self.shape[2] - 1:
+    #                             plt.show()
+    #                             plt.draw()
+    #                             plt.pause(pause)
+    #                         # logger.debug("popping image method 4")
+    #
+    #     if not preserve_AR:
+    #         ax.axis('tight')  # required to preserve AR but this necessarily adds a bit of white around the image
+    #     ax.axis('off')
+    #
+    #     plt.show()
+    #     plt.draw()
+    #     plt.pause(pause)
 
     def _pad_border_xy(self, *args, **kwargs):
         # will that work ??? --> yes that works and that is relatively simple to implement --> maybe this is the way to proceed for all functions --> MEGA TODO
