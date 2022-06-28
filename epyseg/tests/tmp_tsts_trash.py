@@ -7,7 +7,8 @@ from numpy.ma.testutils import assert_array_equal
 
 from epyseg.img import Img, to_stack, is_binary, convolve, create_2D_linear_gradient, save_as_tiff, apply_2D_gradient, \
     create_random_liner_gradient, gaussian_intensity_2D, create_random_gaussian_gradient, \
-    create_random_intensity_graded_perturbation, auto_scale
+    create_random_intensity_graded_perturbation, auto_scale, blend, \
+    blend_stack_channels_color_mode, pop
 from epyseg.utils.loadlist import loadlist
 import random
 
@@ -24,11 +25,87 @@ def invert(img):
 
 
 if __name__ == '__main__':
+    if True:
+        img = Img('/E/Sample_images/sample_images_FIJI/150707_WTstack.lsm')
+        # auto_scale(img)
+        pop(img)
+
+        img = Img('/E/Sample_images/sample_images_FIJI/AuPbSn40.jpg')
+        pop(img)
+
+        # ok but then where is the bug???
+
+        import sys
+        sys.exit(0)
+
+    if False:
+
+        # lsm format of Luts --> need create it
+        # I guess it's just linear until max is reached
+        # increment so that the value fits
+        # shall I ignore alpha
+        # generate it linearly from 0 to max
+        lut = [255, 0, 128, 0] # ça marche !!!
+        R = np.linspace(0, lut[0], 256, dtype=np.uint8)
+        G = np.linspace(0, lut[1], 256, dtype=np.uint8)
+        B = np.linspace(0, lut[2], 256, dtype=np.uint8)
+        # A = np.linspace(0, lut[3], 256, dtype=np.uint8)
+        lut = np.stack([R,G,B], axis=-1)
+        print(lut.shape)
+        print(lut)
+
+
+        import sys
+        sys.exit(0)
+    if True:
+        img = Img('/E/Sample_images/sample_images_different_sizes_and_bit_depth_and_nb_of_channels/Rat_Hippocampal_Neuron_5channels.tif')
+        img = Img('/E/Sample_images/sample_images_different_sizes_and_bit_depth_and_nb_of_channels/real_imageJ_image.tif')
+        img = Img('/E/Sample_images/sample_images_different_sizes_and_bit_depth_and_nb_of_channels/210219.lif_t000.tif')
+
+
+        # nb lsm luts are not recovered properly --> see how I can fix that
+        img = Img('/E/Sample_images/sample_images_FIJI/150707_WTstack.lsm')
+        # img = np.average(img, axis=-1)
+        # img = np.max(img, axis=-1)
+        print(img.metadata['LUTs'])
+
+        # img.metadata['LUTs']=None
+
+        # ça marche --> ok
+        img = blend_stack_channels_color_mode(img) # TODO --> do a blend with several images
+
+        # colors are ok --> so where is my bug ???
+        try:
+            plt.imshow(img/img.max())
+            plt.show()
+        except:
+            try:
+                plt.imshow(img[int(img.shape[0]/2)] / img[int(img.shape[0]/2)].max())
+                plt.show()
+            except:
+                pass
+
+        import sys
+        sys.exit(0)
+
+    if True:
+        img = Img('/E/Sample_images/sample_images_FIJI/AuPbSn40.jpg')
+        print(img.shape)
+        img = np.stack([img, img,img],axis=-1)
+        print(img.shape)
+        plt.imshow(img)
+        plt.show()
+
+        import sys
+        sys.exit(0)
 
     if True:
         tst = Img('/E/Sample_images/fluorescent_wings_spots_charroux/909dsRed/0.tif')
         tst = Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series012.png')
         tst = Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini/ON 290119.lif - Series002.tif') # this is super slow with this one --> make it literally unusable --> I need just get the displayed image only
+
+        # too slow --> never do this for such a big image
+
         try:
             plt.imshow(tst)
             plt.show()

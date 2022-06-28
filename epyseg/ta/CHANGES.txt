@@ -1,5 +1,11 @@
+28/06/2022
+-added color preview of multichannel images (uses IJ LUTs when available)
+-added support for LSM type of luts (that are lists, I assumed they are linear interpolation of the max value but in fact I don't know)
+-fix LUT loss upon Z/T or channel change, should work now...
+
 27/06/2022
 -started adding support for multi-dimension browsing (not finalized --> work in progress)
+-changed a bit the GT editor even though it probably still needs more love...
 
 15/06/2022
 -added support for increasing contrast of displayed images (press C)

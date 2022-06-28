@@ -410,7 +410,9 @@ class GT_editor(QtWidgets.QMainWindow):
                 try:
                     # if len(self.paint.paint.raw_image.shape)<=2:
                     #     self.paint.set_mask(np.zeros(shape=(*self.paint.paint.raw_image.shape,),dtype=np.uint8))
-                        self.paint.set_mask(np.zeros_like(self.paint.paint.raw_image,dtype=np.uint8))
+
+                        # print(self.paint.paint.raw_image.shape)
+                        self.paint.set_mask(np.zeros(shape=(self.paint.paint.raw_image.shape[0],self.paint.paint.raw_image.shape[1]),dtype=np.uint8))
                     # else:
                     #     self.paint.set_mask(np.zeros(shape=(*self.paint.paint.raw_image.shape[0:-1], 1), dtype=np.uint8))
                 except:

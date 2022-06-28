@@ -17,7 +17,7 @@ from PyQt5.QtCore import Qt, QTimer
 from epyseg.draw.shapes.freehand2d import Freehand2D
 from epyseg.draw.shapes.image2d import Image2D
 from epyseg.draw.shapes.rect2d import Rect2D
-from epyseg.img import Img, int24_to_RGB
+from epyseg.img import Img, int24_to_RGB, has_metadata
 from epyseg.ta.GUI.paint2 import Createpaintwidget
 
 # TODO --> could maybe add icons just below scroll if needed to add actions
@@ -584,7 +584,19 @@ class scrollable_paint(QWidget):
         # dqqsdqsdqsd
         # pass
         # try change channel if
-        self.paint.channelChange(i)
+
+
+        # tODO --> need at least to reactivate a bit that
+        # pass
+        # print('in channel change') # needs a fix
+        meta = None
+        try:
+            meta = self.paint.raw_image.metadata
+        except:
+            pass
+        self.paint.set_display(self.get_image_to_display_including_all_dims(), metadata=meta)
+        self.paint.channelChange(i, skip_update_display=True)
+
         # print('in channel change !!!')
         # if self.img is not None:
         #     # print('in', self.img.metadata)
@@ -645,6 +657,73 @@ class scrollable_paint(QWidget):
     def _delete_layout_content(self, layout):
         for i in reversed(range(layout.count())):
             layout.itemAt(i).widget().setParent(None)
+
+
+
+    # centralized version of the thing
+    def get_image_to_display_including_all_dims(self):
+        # print('in get_image_to_display_including_all_dims')
+        # returns the image to be displayed --> takes into account all the dimensions at once
+
+        #
+        # if self.raw_image is not None:
+        #     if i == 0:
+        #         self.set_display(self.raw_image)
+        #         self.channel = None
+        #         # print('original', self.img.metadata)
+        #     else:
+        #         # print('modified0', self.img.metadata)
+        #         # I need a hack when the image is single channel yet I need several masks for it !!!
+        #         if self.multichannel_mode and i - 1 >= self.raw_image.shape[-1]:
+        #             channel_img = self.raw_image.imCopy(c=0)  # if out of bonds load the first channel
+        #         else:
+        #             channel_img = self.raw_image.imCopy(c=i - 1)  # it's here that it is affected
+        #         self.channel = i - 1
+        #         # print('modified1', self.img.metadata)
+        #         # print('modified2', channel_img.metadata)
+        #         self.set_display(
+        #             channel_img)  # maybe do a set display instead rather --> easier to handle --> does a subest of the other
+        image_to_display = None
+        try:
+            # need change just the displayed image
+            if has_metadata(self.paint.raw_image) and self.paint.raw_image.metadata['dimensions']:
+                # change the respective dim
+                # need all the spinner values to be recovered in fact
+                # and send the stuff
+                # print('dimension exists', self.objectName(),'--> changing it')
+
+                # need gather all the dimensions --> TODO
+                dimensions = self.paint.raw_image.metadata['dimensions']
+                position_h = dimensions.index('h')
+                image_to_display = self.paint.raw_image
+                if position_h != 0:
+                    # loop for all the dimensions before
+                    # print('changing stuff')
+                    for pos_dim in range(0, position_h):
+                        dim = dimensions[pos_dim]
+                        value_to_set = self.get_dim_value_by_name(dim)
+                        if value_to_set == None:
+                            continue
+                        else:
+                            image_to_display = image_to_display[value_to_set]
+                        # if not dimensions[pos_dim]==self.sender().objectName():
+                        #     image_to_display = image_to_display[0]
+                        # else:
+                        #     image_to_display = image_to_display[self.sender().value()]
+                # self.paint.set_display(image_to_display)
+                channel_to_display = self.get_selected_channel()
+
+                # if force dimensions --> I need a hack even if
+                # hack for GT image editor --> where nb of channels are forced and do not necessarily match the channels of the image --> is that smart to put that here ???
+                if channel_to_display is not None and 'c' in dimensions:
+                    if self.paint.multichannel_mode and channel_to_display >= self.paint.raw_image.shape[-1]:
+                        image_to_display = image_to_display[..., 0]
+                    else:
+                        image_to_display=image_to_display[...,channel_to_display]
+                    # print(image_to_display.shape)
+        except:
+            traceback.print_exc()
+        return image_to_display
 
     def update_image_dimensions(self):
         self.dimension_sliders = []
@@ -787,37 +866,45 @@ class scrollable_paint(QWidget):
         # print(self.sender(), self.sender().objectName(), self.sender().value())
         # print(self.sender(), self.sender().objectName())
         # print(sender)
+        #
+        # try:
+        #     # need change just the displayed image
+        #     if self.paint.raw_image.metadata['dimensions']:
+        #         # change the respective dim
+        #         # need all the spinner values to be recovered in fact
+        #         # and send the stuff
+        #         # print('dimension exists', self.objectName(),'--> changing it')
+        #
+        #         # need gather all the dimensions --> TODO
+        #         dimensions = self.paint.raw_image.metadata['dimensions']
+        #         position_h =  dimensions.index('h')
+        #         image_to_display = self.paint.raw_image
+        #         if position_h!=0:
+        #             # loop for all the dimensions before
+        #             # print('changing stuff')
+        #             for pos_dim in range(0,position_h):
+        #                 dim = dimensions[pos_dim]
+        #                 value_to_set = self.get_dim_value_by_name(dim)
+        #                 if value_to_set == None:
+        #                     continue
+        #                 else:
+        #                     image_to_display = image_to_display[value_to_set]
+        #                 # if not dimensions[pos_dim]==self.sender().objectName():
+        #                 #     image_to_display = image_to_display[0]
+        #                 # else:
+        #                 #     image_to_display = image_to_display[self.sender().value()]
+        #         self.paint.set_display(image_to_display)
+        # except:
+        #     traceback.print_exc()
 
         try:
-            # need change just the displayed image
-            if self.paint.raw_image.metadata['dimensions']:
-                # change the respective dim
-                # need all the spinner values to be recovered in fact
-                # and send the stuff
-                # print('dimension exists', self.objectName(),'--> changing it')
-
-                # need gather all the dimensions --> TODO
-
-                dimensions = self.paint.raw_image.metadata['dimensions']
-                position_h =  dimensions.index('h')
-                image_to_display = self.paint.raw_image
-                if position_h!=0:
-                    # loop for all the dimensions before
-                    # print('changing stuff')
-                    for pos_dim in range(0,position_h):
-                        dim = dimensions[pos_dim]
-                        value_to_set = self.get_dim_value_by_name(dim)
-                        if value_to_set == None:
-                            continue
-                        else:
-                            image_to_display = image_to_display[value_to_set]
-                        # if not dimensions[pos_dim]==self.sender().objectName():
-                        #     image_to_display = image_to_display[0]
-                        # else:
-                        #     image_to_display = image_to_display[self.sender().value()]
-
-                self.paint.set_display(image_to_display)
-
+            meta = None
+            try:
+                meta = self.paint.raw_image.metadata
+            except:
+                pass
+            # metadata is required to get the luts properly
+            self.paint.set_display(self.get_image_to_display_including_all_dims(), metadata=meta)
         except:
             traceback.print_exc()
 

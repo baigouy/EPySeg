@@ -49,7 +49,9 @@ if __name__ == '__main__':
     app = QApplication(sys.argv)
 
     w = tascrollablepaint()  # ça marche --> permet de mettre des paint panels avec des proprietes particulieres --> assez facile en fait
-    w.set_image('/E/Sample_images/sample_images_PA/test_complete_wing_raphael/Optimized_projection_018.png')
+    # w.set_image('/E/Sample_images/sample_images_PA/test_complete_wing_raphael/Optimized_projection_018.png')
+    w.set_image('/E/Sample_images/sample_images_different_sizes_and_bit_depth_and_nb_of_channels/210219.lif_t000.tif')
+    w.set_mask('/E/Sample_images/sample_images_different_sizes_and_bit_depth_and_nb_of_channels/210219.lif_t000/handCorrection.tif')
     # w.set_image('/E/Sample_images/sample_images_PA/test_complete_wing_raphael/neo_mask.tif') # nb if alone it is causing a crash --> why # --> incomprehensible why bugs sometimes
     # w.set_mask('/E/Sample_images/sample_images_PA/test_complete_wing_raphael/neo_mask.tif')
 

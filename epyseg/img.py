@@ -20,7 +20,6 @@ from skimage.util import img_as_ubyte
 import scipy.signal  # convolution of images
 import numpy as np
 import json
-from PyQt5.QtGui import QImage
 from natsort import natsorted  # sort strings as humans would do
 import xml.etree.ElementTree as ET  # to handle xml metadata of images
 import base64
@@ -33,6 +32,7 @@ import pathlib
 import platform
 import datetime as dt
 import elasticdeform
+import sys
 
 
 # for future development
@@ -81,6 +81,32 @@ def read_file_from_url(url):
         logger.error('could not load file from url ' + str(url))
 
 
+# opens the image using my tool --> can be very useful
+def pop(img):
+    from PyQt5.QtWidgets import QApplication
+    from epyseg.ta.GUI.paint2 import Createpaintwidget
+    from epyseg.ta.GUI.scrollablepaint import scrollable_paint
+
+    app = QApplication(sys.argv)
+    class overriding_apply(Createpaintwidget):
+        def apply(self):
+            pass
+
+        def shift_apply(self):
+            pass
+
+        def ctrl_m_apply(self):
+            pass
+
+        def save(self):
+            pass
+
+    w = scrollable_paint(custom_paint_panel=overriding_apply())
+    w.set_image(img)
+    w.freeze(True) # prevent the user from chnaging and saving things # maybe at some point even hide these images
+    w.show()
+    app.exec_()
+
 def avg_proj(image, axis=0):
     return np.mean(image, axis=axis)
 
@@ -103,6 +129,7 @@ def auto_scale(img, individual_channels=True, min_px_count_in_percent=0.005):
     if not isinstance(img, np.ndarray):
         return img
 
+    # TODO make sure there is no better way to obtain tehe histo in order to do the processing be much faster
     if len(img.shape) > 2 and individual_channels:
         # nb the parent image also needs be converted to float otherwise I get errors
         if img.dtype != np.float:
@@ -462,7 +489,7 @@ def apply_2D_gradient(img,gradient2D):
                 # print('position_found',dim)
                 break
             # position_of_match = gradient2D.shape
-    
+
     # print(dim)
 
     # then apply it
@@ -653,7 +680,8 @@ def one_hot_encoder(img, remap_dict=None):  # , remap_dict=None):
 # NB I could make a smarter version that takes just the channel of interest and the specific position into account ???? think about that
 # NB I ASSUME IMAGE IS hw or hwc and nothing else which may be wrong!!! but then conversion should take place before the image is passed there
 # z_behaviour='middle'
-def toQimage(img, autofix_always_display2D=True, normalize=True, z_behaviour=None):
+# TODO clean this code and remove useless parts
+def toQimage(img, autofix_always_display2D=True, normalize=True, z_behaviour=None, metadata=None, preserve_alpha=False):
     '''get a qimage from ndarray
 
     Returns
@@ -661,7 +689,23 @@ def toQimage(img, autofix_always_display2D=True, normalize=True, z_behaviour=Non
     qimage
         a pyqt compatible image
     '''
-    qimage = None
+    # print('here1')
+
+    from PyQt5.QtGui import QImage # moved import here to make the class independent of pyqt
+    # qimage = None
+
+    luts = None
+    try:
+        luts = img.metadata['LUTs']
+    except:
+        pass
+    if metadata is not None:
+        try:
+            luts = metadata['LUTs']
+        except:
+            pass
+
+
 
     logger.debug('Creating a qimage from a numpy image')
     dimensions = None
@@ -676,6 +720,7 @@ def toQimage(img, autofix_always_display2D=True, normalize=True, z_behaviour=Non
             elif len(img.shape) == 3:
                 dimensions = 'hwc'
             else:
+                # could even go further --> assume up to tdhwc
                 logger.error('unknown image dimensions')
                 return
 
@@ -712,9 +757,11 @@ def toQimage(img, autofix_always_display2D=True, normalize=True, z_behaviour=Non
                 else:
                     img = img[int(img.shape[0] / 2)]
 
+    # print('here2')
 
     if img.dtype != np.uint8:
         # just to remove the warning raised by img_as_ubyte
+        # NB could do this per channel
         with warnings.catch_warnings():
             warnings.simplefilter('ignore')
             try:
@@ -730,18 +777,36 @@ def toQimage(img, autofix_always_display2D=True, normalize=True, z_behaviour=Non
                     logger.error('error converting image to 8 bits')
                     return None
 
+
+    # print('here')
+
     # KEEP UNCHANGED
     # DIRTY HACK FOR BUG https://doc.qt.io/qtforpython-5/PySide2/QtGui/QImage.html Warning  Painting on a QImage with the format Format_Indexed8 is not supported.
     if len(img.shape) == 2:
+
+        # print('in here sqdsqdq')
         # convert to RGB because of bug https://doc.qt.io/qtforpython-5/PySide2/QtGui/QImage.html Warning  Painting on a QImage with the format Format_Indexed8 is not supported.
-        tmp = np.zeros((*img.shape, 3), dtype=np.uint8)
-        tmp[..., 0] = img
-        tmp[..., 1] = img
-        tmp[..., 2] = img
-        img = tmp
-        del tmp
+        # tmp = np.zeros((*img.shape, 3), dtype=np.uint8)
+        # tmp[..., 0] = img
+        # tmp[..., 1] = img
+        # tmp[..., 2] = img
+        # img = tmp
+        # del tmp
+        img = np.stack([img, img, img], axis=-1)
+        # img = blend_stack_channels_color_mode(img)
+        if normalize:
+            img = _normalize_8bits(img)
+
+        bytesPerLine = 3 * img.shape[-2]
+
+        # qimage = QImage(img.data.tobytes(),  img.shape[-3], img.shape[-2], bytesPerLine, QImage.Format_RGB888) # --> bug fix but no display --> why ???
+        qimage = QImage(img.data.tobytes(), img.shape[-2], img.shape[-3], bytesPerLine,
+                        QImage.Format_RGB888)  # --> bug fix but no display --> why ???
+        return qimage
 
     bytesPerLine = img.strides[1]
+
+    # print(img.shape)
 
     if len(img.shape) == 3:
         # print('in here channels toqimage')
@@ -750,14 +815,24 @@ def toQimage(img, autofix_always_display2D=True, normalize=True, z_behaviour=Non
         logger.debug('Image has ' + str(nb_channels) + ' channels')
         # print('Image has ' + str(nb_channels) + ' channels')
 
+
+
         if nb_channels == 3:
             # print( img.shape, bytesPerLine)
 
+
+            # print('in there!!')
             # NB check that I haven't inverted stuff --> PB CANNOT LOAD 'ON 290119.lif - Series003.tif_t000.tif'
             # qimage = QImage(img.data,  img.shape[-2], img.shape[-3], bytesPerLine, QImage.Format_RGB888) # --> bug fix but no display --> why ???
 
             # bug fix is here
             # https://stackoverflow.com/questions/55468135/what-is-the-difference-between-an-opencv-bgr-image-and-its-reverse-version-rgb-i
+
+            if luts is not None:
+                try:
+                    img=blend_stack_channels_color_mode(img, luts=luts)
+                except:
+                    pass
 
             if normalize:
                 img = _normalize_8bits(img)
@@ -770,23 +845,30 @@ def toQimage(img, autofix_always_display2D=True, normalize=True, z_behaviour=Non
 
             # bug here --> why
         elif nb_channels < 3:
+            # print('in there')
+            # TODO clean this code!!
             # add n dimensions
-            bgra = np.zeros((img.shape[-3], img.shape[-2], 3), np.uint8, 'C')
-            if img.shape[2] >= 1:
-                bgra[..., 0] = img[..., 0]
-            if img.shape[2] >= 2:
-                bgra[..., 1] = img[..., 1]
-            if img.shape[2] >= 3:
-                bgra[..., 2] = img[..., 2]
+            try:
+                bgra = blend_stack_channels_color_mode(img, luts=luts)
+            except:
+                bgra = np.zeros((img.shape[-3], img.shape[-2], 3), np.uint8, 'C')
+                if img.shape[2] >= 1:
+                    bgra[..., 0] = img[..., 0]
+                if img.shape[2] >= 2:
+                    bgra[..., 1] = img[..., 1]
+                if img.shape[2] >= 3:
+                    bgra[..., 2] = img[..., 2]
             bytesPerLine = 3 * bgra.shape[-2]
             if normalize:
                 bgra = _normalize_8bits(bgra)
             qimage = QImage(bgra.data.tobytes(), img.shape[-2], img.shape[-3], bytesPerLine, QImage.Format_RGB888)
         else:
             # this does not make sense to handle ARGB in science but when I deactivate this all my images are black --> WHY
-            if nb_channels == 4:
+            # I really need to keep this for the alpha images of the mask but maybe still clean this code
+            if nb_channels == 4 and preserve_alpha:
                 # if False:
                 bgra = np.zeros((img.shape[-3], img.shape[-2], 4), np.uint8, 'C')
+                # bgra[..., 0:3] = img[..., 0:3]
                 bgra[..., 0] = img[..., 0]
                 bgra[..., 1] = img[..., 1]
                 bgra[..., 2] = img[..., 2]
@@ -795,8 +877,9 @@ def toQimage(img, autofix_always_display2D=True, normalize=True, z_behaviour=Non
                     bgra[..., 3] = img[..., 3]
                 else:
                     bgra[..., 3].fill(255)
-                if normalize:
-                    bgra = _normalize_8bits(bgra)
+                # since this is a mask I don't wanna change anything to it !!!
+                # if normalize:
+                #     bgra = _normalize_8bits(bgra)
                 bytesPerLine = 4 * bgra.shape[-2]
                 qimage = QImage(bgra.data.tobytes(), img.shape[-2], img.shape[-3], bytesPerLine,
                                 QImage.Format_ARGB32)
@@ -805,18 +888,24 @@ def toQimage(img, autofix_always_display2D=True, normalize=True, z_behaviour=Non
                 # logger.error("not implemented yet!!!!, too many channels")
                 # best here is to average all the channels --> good idea
                 # print(img.shape)
-                bgra = np.average(img, axis=-1)
-
-                # print(img.shape)
-                tmp = np.zeros((*bgra.shape, 3), dtype=np.uint8)
-                tmp[..., 0] = bgra
-                tmp[..., 1] = bgra
-                tmp[..., 2] = bgra
-                bgra = tmp
-                del tmp
-                # pb can't be drawn over --> need force it to be RGB
-                # qimage = QImage(img.data.tobytes(), img.shape[1], img.shape[0], bytesPerLine,
-                #        QImage.Format_Indexed8)
+                try:
+                    # allow display of the image as imageJ would do
+                    # shall I do the same with 4 channels images ???
+                    bgra = blend_stack_channels_color_mode(img,luts=luts)
+                except:
+                    bgra = np.average(img, axis=-1) # should I max it ??? ideally at some point I should use all the colors
+                    # could try a blend with all the colors too ???
+                    # print(img.shape)
+                    # tmp = np.zeros((*bgra.shape, 3), dtype=np.uint8)
+                    # tmp[..., 0] = bgra
+                    # tmp[..., 1] = bgra
+                    # tmp[..., 2] = bgra
+                    # bgra = tmp
+                    # del tmp
+                    bgra = np.stack([bgra, bgra, bgra], axis=-1).astype(np.uint8)
+                    # pb can't be drawn over --> need force it to be RGB
+                    # qimage = QImage(img.data.tobytes(), img.shape[1], img.shape[0], bytesPerLine,
+                    #        QImage.Format_Indexed8)
 
                 if normalize:
                     bgra = _normalize_8bits(bgra)
@@ -1005,6 +1094,84 @@ def blend(bg, fg, alpha=0.3, mask_or_forbidden_colors=None):
 
     return blended
 
+# very dumb because this is just an avg so far
+# since I normalize the channels it is a bit different from the average
+# smarter would be to make it with colors --> TODO
+# def blend_stack_channels(img):
+#     final_image = np.zeros_like(img,shape=(*img.shape[:-1],), dtype=float)
+#     for ch in range(img.shape[-1]):
+#         try:
+#             tmp = (img[..., ch] - img[..., ch].min()) / (img[..., ch].max() - img[..., ch].min())
+#         except:
+#             try:
+#                 tmp = img[..., ch]/img[..., ch].max()
+#             except:
+#                 tmp = img[...,ch]
+#         final_image = final_image+1./img.shape[-1]*tmp
+#     return final_image
+
+# try apply a lut to that and then blend the RGB image --> much smarter in the end
+def blend_stack_channels_color_mode(img, luts=None):
+    from epyseg.ta.luts.lut_minimal_test import apply_lut
+    from epyseg.ta.luts.lut_minimal_test import PaletteCreator
+
+    # print('tmp',img.shape)
+    if len(img.shape)==2:
+        return np.stack([img,img,img], axis=-1)
+
+    # default_LUTs = ['RED','GREEN','BLUE','CYAN','MAGENTA','YELLOW','BROWN','GRAY']
+    default_LUTs = ['RED','GREEN','BLUE','CYAN','MAGENTA','YELLOW','GRAY']
+    lutcreator = PaletteCreator()
+
+    # random.seed(16)
+    final_image = np.zeros_like(img,shape=(*img.shape[:-1],3), dtype=float)
+    # print(img.metadata['LUTs'])
+    if luts is None:
+        try:
+            luts = img.metadata['LUTs']
+            # print(luts)
+            # for lut in luts:
+            #     print(lut)
+        except:
+            # luts not found --> ignoring
+            pass
+    for ch in range(img.shape[-1]):
+        # tmp = img[..., ch]
+        tmp = img[..., ch].astype(float)
+
+        # print(tmp.min(), tmp.max()) # force ignore div by 0 errors
+        # with warnings.catch_warnings():
+        #     warnings.simplefilter('ignore')
+        min = tmp.min()
+        max = tmp.max()
+        if min!=max:
+            tmp = (tmp - min) / (max - min)
+        else:
+            if max!=0:
+                tmp = tmp/max
+        # need convert each image to smthg with colors --> TODO
+
+
+        if luts is not None:
+
+            # print(luts[ch].shape)
+
+
+            tmp = apply_lut(tmp,luts[ch], convert_to_RGB=True)
+        else:
+            # create a lut with a random color maybe and with a seed so that it is always the same
+            # I need create linear luts or random ones
+            # or apply a set of luts then all white as in imageJ --> smart idea...
+            try:
+                lut = default_LUTs[ch]
+            except:
+                lut='GRAY'
+            lut = lutcreator.create3(lutcreator.list[lut])
+            tmp = apply_lut(tmp, lut, convert_to_RGB=True)
+            # red green blue cyan magenta yellow grey...
+
+        final_image = final_image+1./img.shape[-1]*tmp
+    return final_image
 
 # TODO maybe add range and dtype check at some point
 # NB if auto --> match directly to the image with the max nb of channels/dimensions
@@ -2340,83 +2507,6 @@ class Img(np.ndarray):  # subclass ndarray
     @staticmethod
     def RGB_to_BRG(rgb):
         return rgb[..., [2, 0, 1]]
-
-    # TODO code that better and make a version that directly takes images
-    # assume images must be 2D or 2D + color --> see how to do that!!!
-    # buggy and deprecated --> use toQimage
-    # def getQimage(self):
-    #     '''get a qimage from ndarray
-    #
-    #     Returns
-    #     -------
-    #     qimage
-    #         a pyqt compatible image
-    #     '''
-    #     logger.debug('Creating a qimage from a numpy image')
-    #     img = self
-    #     dims = []
-    #     for d in self.metadata['dimensions']:
-    #         if d in ['w', 'h', 'c', 'x', 'y']:
-    #             dims.append(slice(None))
-    #         else:
-    #             dims.append(0)
-    #     img = img[tuple(dims)]
-    #     img = np.ndarray.copy(img)  # need copy the array
-    #
-    #     if img.dtype != np.uint8:
-    #         # just to remove the warning raised by img_as_ubyte
-    #         with warnings.catch_warnings():
-    #             warnings.simplefilter('ignore')
-    #             try:
-    #                 # need manual conversion of the image so that it can be read as 8 bit or alike
-    #                 # force image between 0 and 1 then do convert
-    #                 img = img_as_ubyte((img - img.min()) / (img.max() - img.min()))
-    #             except:
-    #                 print('error converting image to 8 bits')
-    #                 return None
-    #
-    #     bytesPerLine = img.strides[0]
-    #
-    #     if self.has_c() and self.get_dimension('c') is not None and self.get_dimension('c') != 0:
-    #         nb_channels = self.get_dimension('c')
-    #         logger.debug('Image has ' + str(nb_channels) + ' channels')
-    #
-    #         if nb_channels == 3:
-    #             qimage = QImage(img.data, self.get_width(), self.get_height(), bytesPerLine,
-    #                             QImage.Format_RGB888)
-    #         elif nb_channels < 3:
-    #             # add n dimensions
-    #             bgra = np.zeros((self.get_height(), self.get_width(), 3), np.uint8, 'C')
-    #             if img.shape[2] >= 1:
-    #                 bgra[..., 0] = img[..., 0]
-    #             if img.shape[2] >= 2:
-    #                 bgra[..., 1] = img[..., 1]
-    #             if img.shape[2] >= 3:
-    #                 bgra[..., 2] = img[..., 2]
-    #             qimage = QImage(bgra.data, self.get_width(), self.get_height(), bgra.strides[0], QImage.Format_RGB888)
-    #         else:
-    #             if nb_channels == 4:
-    #                 bgra = np.zeros((self.get_height(), self.get_width(), 4), np.uint8, 'C')
-    #                 bgra[..., 0] = img[..., 0]
-    #                 bgra[..., 1] = img[..., 1]
-    #                 bgra[..., 2] = img[..., 2]
-    #                 if img.shape[2] >= 4:
-    #                     logger.debug('using 4th numpy color channel as alpha for qimage')
-    #                     bgra[..., 3] = img[..., 3]
-    #                 else:
-    #                     bgra[..., 3].fill(255)
-    #                 qimage = QImage(bgra.data, self.get_width(), self.get_height(), bgra.strides[0],
-    #                                 QImage.Format_ARGB32)
-    #             else:
-    #                 # TODO
-    #                 logger.error("not implemented yet!!!!, too many channels")
-    #     else:
-    #         qimage = QImage(img.data, self.get_width(), self.get_height(), bytesPerLine,
-    #                         QImage.Format_Indexed8)
-    #         # required to allow creation of a qicon --> need keep
-    #         for i in range(256):
-    #             qimage.setColor(i, QColor(i, i, i).rgb())
-    #     return qimage
 
     @staticmethod
     def interpolation_free_rotation(img, angle=90):

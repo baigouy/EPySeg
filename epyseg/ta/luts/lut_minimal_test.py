@@ -97,6 +97,10 @@ def list_availbale_luts(return_matplot_lib_luts_in_separate_database=False):
     hash_pal["YELLOW_PALE"] = "34,34,4"
     hash_pal["PURPLE_HOT"] = "34,36,34"
     hash_pal["PURPLE"] = "3,0,3"
+    hash_pal["MAGENTA_HOT"] = "34,36,34"  # same as purple_hot but can be useful
+    hash_pal["MAGENTA"] = "3,0,3" # same as purple but can be useful
+    hash_pal["CYAN"] = "0,3,3"
+    hash_pal["CYAN_HOT"] = "36,34,34"
     hash_pal["PM3D"] = "7,5,15"
     hash_pal["HSV"] = "3,2,2"
     hash_pal["HSV2"] = "7,5,15"
@@ -780,11 +784,58 @@ def __show_lut(lut, title=None):
     plt.show()
 
 
+def lsm_LUT_to_numpy(lut):
+    '''
+    converts LSM lut to lut
+    :param lut:
+    :return:
+    '''
+    R = np.linspace(0, lut[0], 256, dtype=np.uint8)
+    G = np.linspace(0, lut[1], 256, dtype=np.uint8)
+    B = np.linspace(0, lut[2], 256, dtype=np.uint8)
+    # A = np.linspace(0, lut[3], 256, dtype=np.uint8)
+    lut = np.stack([R, G, B], axis=-1)
+    # print(lut.shape)
+    # print(lut)
+    return lut
+
 def R_G_B_lut_to_int24_lut(lut):
     if lut is None:
         return None
-    return lut[..., 0].astype(np.uint32) << 16 | lut[..., 1].astype(np.uint32) << 8 | lut[..., 2].astype(
-        np.uint32).astype(np.uint32)
+
+    # see how to handle LUTs from the lsm that is of the shape:[[255, 0, 0, 0], [0, 0, 255, 0], [0, 255, 0, 0]]
+    # print('lut',lut)
+    # [255, 0, 0, 0]
+    # probably just need to expand it linearly so that the final is the given value
+
+
+    if isinstance(lut, list):
+        # lsm format of Luts --> need create it
+        # I guess it's just linear until max is reached
+        # increment so that the value fits
+        # shall I ignore alpha
+        # generate it linearly from 0 to max
+
+
+        # print('lsm lut')
+        lut = lsm_LUT_to_numpy(lut)
+        # lut = None
+        # print(lut)
+
+
+
+
+
+
+
+    if lut.shape[-1]==3:
+        # channels last
+        return lut[..., 0].astype(np.uint32) << 16 | lut[..., 1].astype(np.uint32) << 8 | lut[..., 2].astype(
+            np.uint32).astype(np.uint32)
+    else:
+        # channels first # by default imageJ luts are channel first and mine are channel last!!
+        return lut[0,...].astype(np.uint32) << 16 | lut[1,...].astype(np.uint32) << 8 | lut[2,...].astype(
+            np.uint32).astype(np.uint32)
 
 
 # probably need change the conversion for global to be sure that I fit within the bounds --> TODO
@@ -953,6 +1004,27 @@ if __name__ == '__main__':
     import matplotlib
     matplotlib.use('TkAgg')
 
+    if True:
+        # lsm type of Lut --> may need be changed
+        lut = [255,128,255]
+        lut = lsm_LUT_to_numpy(lut)
+        print(lut)
+        print(type(lut))
+        img = create_ramp(300, 1800, lut)
+        plt.imshow(img)
+        plt.show()
+        import sys
+        sys.exit(0)
+
+    if True:
+        lutcreator = PaletteCreator()
+        lut = lutcreator.create3(lutcreator.list['MAGENTA_HOT']) #MAGENTA --> create it --> PURPLE instead
+
+        img = create_ramp(300, 1800,lut)  # maybe ask at some point for the bg color --> TODO but almost all ok in fact
+        plt.imshow(img)
+        plt.show()
+        import sys
+        sys.exit(0)
 
     if True:
         lutcreator = PaletteCreator()

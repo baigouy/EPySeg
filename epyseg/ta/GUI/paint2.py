@@ -1,5 +1,4 @@
 # TODO mauybe hide green pointer if mouse is out of the image --> dangerous
-
 # NB this will ultimately become the one and only paint widget in the app --> all others or most of them should disappear and be replaced by that
 # TODO need add the save but only for the mask edit item!!!
 import os.path
@@ -24,10 +23,10 @@ from epyseg.tools.logger import TA_logger # logging
 logger = TA_logger()
 
 class Createpaintwidget(QWidget):
-
+    auto_convert_float_to_binary_threshold = 0.4
     # maybe store
-
     def __init__(self, enable_shortcuts=False): #, methods_overriding=None
+
         super().__init__()
         #
         # if methods_overriding is not None:
@@ -65,6 +64,7 @@ class Createpaintwidget(QWidget):
         self.force_cursor_visible = False # required to force activate cursor to be always visible
         self.save_file_name=None
         self.multichannel_mode = False
+
         # self.multi_channel_editor_n_save = False
         # TODO add sortcuts
 
@@ -195,8 +195,6 @@ class Createpaintwidget(QWidget):
             logger.warning('No selection found --> nothing to do')
             return coords_of_selection
 
-
-
         self.set_mask(np.zeros_like(mask))
         self.update()
 
@@ -252,7 +250,7 @@ class Createpaintwidget(QWidget):
     # def suppr_pressed(self):
 
     def increase_contrast(self):
-        print('increasing contrast')
+        # print('increasing contrast')
         try:
             # metadata = self.raw_image.metadata
             # sqqsdq
@@ -260,11 +258,21 @@ class Createpaintwidget(QWidget):
             # self.set_image(self.raw_image)
             # shall I do it for the displayed image only ???? --> probably smarter porbably shoudl do a get display image that is independent of all other functions and handles all dims
             # very dumb --> needs be done just for the dipslayed image and nothing else and --> maybe get the image back from the screen directly --> would be smarted and better
-            self.set_display(auto_scale(np.copy(self.raw_image)))
+
+            # maybe do this only on the displayed image --> using convert_qimage_to_numpy or do something that gets the image to be displayed including the channels
+            # or do a tool that will recover the image of interest with channels and also the rest of the dimensions --> MEGA TODO !!!
+            print('auto-increase contrast')
+            # hack to preserve luts --> TODO
+            copy = auto_scale(np.copy(self.raw_image))
+            meta = None
+            try:
+                meta=self.raw_image.metadata
+            except:
+                pass
+            # print(self.raw_image.metadata)
+            self.set_display(copy, metadata=meta)
         except:
             traceback.print_exc()
-
-
 
     def grab_screen_shot(self):
             # screenshot = QPixmap.grabWindow(self.winId())
@@ -314,10 +322,10 @@ class Createpaintwidget(QWidget):
         self.maskVisible = not self.maskVisible
         self.update()
 
-    def set_display(self, display):
+    def set_display(self, display, metadata=None):
         # this actually sets the displayed image --> different from set imlage, can be used to show channels instead or stuff like that instead of the actula imge
-        if isinstance(display,np.ndarray):
-            display = toQimage(display)
+        if isinstance(display, np.ndarray):
+            display = toQimage(display, metadata=metadata)
         self.image = display
         self.update()
 
@@ -405,8 +413,14 @@ class Createpaintwidget(QWidget):
     def get_raw_image(self):
         return self.raw_image
 
+    def binarize(self, mask, auto_convert_float_to_binary=auto_convert_float_to_binary_threshold, force=False):
+        if auto_convert_float_to_binary and (mask.max() <= 1 or force):
+            # print('autoconvert')
+            mask = mask > auto_convert_float_to_binary
+        return mask
+
     # do I need that ??? maybe yes if I just wanna change the mask
-    def set_mask(self, mask, auto_convert_float_to_binary=0.4):
+    def set_mask(self, mask, auto_convert_float_to_binary=auto_convert_float_to_binary_threshold):
         if isinstance(mask, str):
             self.save_file_name = mask
             # self.image_path = img# maybe this image path can be used for saving, could also be provided serparately
@@ -429,13 +443,14 @@ class Createpaintwidget(QWidget):
             # auto convert float deep learning masks to binary --> maybe this should be a parameter ...
             # print('tada', auto_convert_float_to_binary, mask.max())
 
-            if auto_convert_float_to_binary and mask.max()<=1:
-                # print('autoconvert')
-                mask = mask>auto_convert_float_to_binary
+            mask = self.binarize(mask, auto_convert_float_to_binary=auto_convert_float_to_binary)
+
+
+            # print('mask.shape',mask.shape)
             # convert mask to a mask
             # self.imageDraw = QtGui.QImage(self.image.size(), QtGui.QImage.Format_ARGB32)
             # self.imageDraw.fill(QtCore.Qt.transparent)
-            self.imageDraw = toQimage(Img(self.createRGBA(mask), dimensions='hwc')) #.getQimage()  # marche pas car besoin d'une ARGB
+            self.imageDraw = toQimage(Img(self.createRGBA(mask), dimensions='hwc'),preserve_alpha=True) #.getQimage()  # marche pas car besoin d'une ARGB
             self.raw_user_drawing = QtGui.QImage(self.imageDraw.size(), QtGui.QImage.Format_ARGB32)
             self.raw_user_drawing.fill(QtCore.Qt.transparent) # somehow this is really required to have an empty image otherwise it is not --> ??? why
         self.update()
@@ -549,6 +564,7 @@ class Createpaintwidget(QWidget):
 
         # how can I do that in a simpler way ???
         # bug somewhere in qimage --> fix it some day --> due to bgra instead of RGBA
+        # assumes image has just the first
         RGBA[handCorrection != 0, 0] = blue # b
         # RGBA[..., 1] = handCorrection
         RGBA[handCorrection != 0, 1] = green # g
@@ -579,36 +595,47 @@ class Createpaintwidget(QWidget):
     # def get_nb_channels(self):
     #     if self.
 
-
+    # depreacted --> ideally should not be used
     # TODO--> maybe implement a multi channel save -> TODO
-    def channelChange(self, i):
+    # skip
+    def channelChange(self, i, skip_update_display=False):
         # update displayed image depending on channel
         # dqqsdqsdqsd
         # pass
         # try change channel if
 
         # print('in channel change !!!')
+        # if image_to_display is None:
+        #     image_to_display = self.raw_image
         if self.raw_image is not None:
             # print('in', self.img.metadata)
             # if self.Stack.currentIndex() == 0:
                 # need copy the image --> implement that
                 # print(self.img[..., i].copy())
                 # print(self.img[..., i])
-                if i == 0:
+                if i == 0 and not skip_update_display:
                     self.set_display(self.raw_image)
                     self.channel = None
                     # print('original', self.img.metadata)
                 else:
-                    # print('modified0', self.img.metadata)
-                    # I need a hack when the image is single channel yet I need several masks for it !!!
-                    if self.multichannel_mode and i-1>=self.raw_image.shape[-1]:
-                        channel_img = self.raw_image.imCopy(c=0) # if out of bonds load the first channel
-                    else:
-                        channel_img = self.raw_image.imCopy(c=i - 1)  # it's here that it is affected
+                    if not skip_update_display:
+                        # print('modified0', self.img.metadata)
+                        # I need a hack when the image is single channel yet I need several masks for it !!!
+                        meta = None
+                        try:
+                            meta = self.raw_image
+                        except:
+                            pass
+                        if self.multichannel_mode and i-1>=self.raw_image.shape[-1]:
+                            channel_img = self.raw_image.imCopy(c=0) # if out of bonds load the first channel
+                        else:
+                            channel_img = self.raw_image.imCopy(c=i - 1)  # it's here that it is affected
+                        self.set_display(
+                                channel_img, metadata=meta)  # maybe do a set display instead rather --> easier to handle --> does a subest of the other
                     self.channel = i-1
                     # print('modified1', self.img.metadata)
                     # print('modified2', channel_img.metadata)
-                    self.set_display(channel_img) # maybe do a set display instead rather --> easier to handle --> does a subest of the other
+
                     if self.multichannel_mode:
                         if self.raw_mask is not None:
                             # print('multichannel_mode', self.multichannel_mode)
@@ -779,6 +806,21 @@ class Createpaintwidget(QWidget):
         drawn_mask[min_y:max_y, min_x:max_x][first_y:min(first_y + (bounds[1] - bounds[0]) + 1, minished.shape[0]),first_x:min(first_x + (bounds[3] - bounds[2]) + 1, minished.shape[1])] = minished[first_y:min(first_y + (bounds[1] - bounds[0]) + 1, minished.shape[0]), first_x:min(first_x + (bounds[3] - bounds[2]) + 1, minished.shape[1])]
         self.set_mask(drawn_mask)
 
+    def force_consistent_range(self, img, auto_convert_float_to_binary=auto_convert_float_to_binary_threshold):
+        # for ch in range(img.shape[-1]):
+        #     tmp = img[...,ch]
+        #     min = tmp.min()
+        #     max = tmp.max()
+        #     # if min!=max:
+        #         # change range of the stuff
+        #         # print('error in range')
+        #     if max<=1.0:
+        #         print('error in range')
+        #     print(min, max)
+        #     print(min, max)
+        # img = 
+        return self.binarize(img, auto_convert_float_to_binary=auto_convert_float_to_binary, force=True)
+
     def save_mask(self, multichannel_save=False, forced_nb_of_channels=None):
         # print('saving to ....' + self.save_file_name)
         if self.save_file_name is not None:
@@ -796,8 +838,10 @@ class Createpaintwidget(QWidget):
                     if self.raw_mask is not None:
                         # print('quick saving edited mask')
                         # Img(self.raw_mask, dimensions='hwc').save(self.save_file_name)
+
                         if len(self.raw_mask.shape)>2:
-                            Img(self.raw_mask, dimensions='hwc').save(self.save_file_name)
+                            # I need check all channels have the same normalization
+                            Img(self.force_consistent_range(self.raw_mask).astype(np.uint8)*255, dimensions='hwc').save(self.save_file_name)
                         else:
                             Img(self.raw_mask, dimensions='hw').save(self.save_file_name)
                         return
@@ -840,6 +884,9 @@ class Createpaintwidget(QWidget):
     #         mask_out = np.zeros_like(mask, shape=(*mask.shape, self.raw_image.shape[-1]))
     #         mask_out[..., self.channel] = mask
     #         Img(mask_out, dimensions='hwc').save(self.save_file_name)
+
+
+
 
 
     # this is the local seeded watershed à la TA
