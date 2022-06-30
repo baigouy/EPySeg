@@ -1,3 +1,7 @@
+29/06/2022
+-may have fixed a HUGE multiprocessing BUG linked to python copying the entire memory when using multiprocessing (i.e. if tf was in mem, it'll try to copy it and create huge slowdown and GPU errors). I had to make tf and EZDeepLearning imports local and also call gc to make sure it is removed from memory... (see also https://stackoverflow.com/questions/55277138/tensorflow-keras-multiprocessing-results-in-lack-of-gpu-memory)
+-moved from pyQT5 to QtPy (hope this did not break things)
+
 28/06/2022
 -added color preview of multichannel images (uses IJ LUTs when available)
 -added support for LSM type of luts (that are lists, I assumed they are linear interpolation of the max value but in fact I don't know)

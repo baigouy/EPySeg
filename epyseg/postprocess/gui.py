@@ -2,11 +2,14 @@
 # if output is not 0 --> then use min max as 0 1
 # if none --> remove all parameters
 
-from PyQt5.QtWidgets import QDialog, QDoubleSpinBox, QToolTip, QPushButton, QDialogButtonBox
-from PyQt5.QtWidgets import QApplication, QGridLayout
-from PyQt5.QtWidgets import QSpinBox, QComboBox, QVBoxLayout, QLabel, QCheckBox, QGroupBox
-from PyQt5.QtCore import Qt, QPoint
-from PyQt5 import QtWidgets, QtCore
+import os
+from epyseg.settings.global_settings import set_UI # set the UI to be used py qtpy
+set_UI()
+from qtpy.QtWidgets import QDialog, QDoubleSpinBox, QToolTip, QPushButton, QDialogButtonBox
+from qtpy.QtWidgets import QApplication, QGridLayout
+from qtpy.QtWidgets import QSpinBox, QComboBox, QVBoxLayout, QLabel, QCheckBox, QGroupBox
+from qtpy.QtCore import Qt, QPoint
+from qtpy import QtWidgets, QtCore
 import sys
 from epyseg.deeplearning.docs.doc2html import markdown_file_to_html
 from epyseg.tools.logger import TA_logger # logging

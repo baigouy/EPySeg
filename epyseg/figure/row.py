@@ -25,12 +25,15 @@
 
 # panel1D --> orientation --> hor/ver
 # panel2D --> more stuff and same size required
-from PyQt5 import QtWidgets
+import os
+from epyseg.settings.global_settings import set_UI # set the UI to be used py qtpy
+set_UI()
+from qtpy import QtWidgets
 
 from epyseg.draw.shapes.image2d import Image2D
 from epyseg.draw.shapes.point2d import Point2D
 from epyseg.draw.shapes.rect2d import Rect2D
-from PyQt5.QtCore import QPointF, QRectF
+from qtpy.QtCore import QPointF, QRectF
 # logger
 # from epyseg.ezfig import MyWidget
 # from epyseg.figure import fig_tools

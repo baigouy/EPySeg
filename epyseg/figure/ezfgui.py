@@ -35,12 +35,15 @@
 # create a dynamic demo with an easy possibility to launch it so that the user can easily learn things/could have a demo tab
 # see how to serialize everything --> maybe in the form of a script
 # --> would be very easy to do I guess
+import os
+from epyseg.settings.global_settings import set_UI # set the UI to be used py qtpy
+set_UI()
 import copy
 import traceback
 
-from PyQt5 import QtWidgets, QtCore, QtGui
-from PyQt5.QtGui import QColor, QTextCursor, QTextCharFormat
-from PyQt5.QtWidgets import QApplication, QStackedWidget, QWidget, QTabWidget, QScrollArea, QVBoxLayout, QPushButton, \
+from qtpy import QtWidgets, QtCore, QtGui
+from qtpy.QtGui import QColor, QTextCursor, QTextCharFormat
+from qtpy.QtWidgets import QApplication, QStackedWidget, QWidget, QTabWidget, QScrollArea, QVBoxLayout, QPushButton, \
     QGridLayout, QTextBrowser, QFrame, QProgressBar, QGroupBox, QAction
 import qtawesome as qta
 import logging
@@ -100,8 +103,12 @@ class EZFIG_GUI(QtWidgets.QMainWindow):
 
     def initUI(self):
 
-        screen = QApplication.desktop().screenNumber(QApplication.desktop().cursor().pos())
-        centerPoint = QApplication.desktop().screenGeometry(screen).center()
+        try:
+            screen = QApplication.desktop().screenNumber(QApplication.desktop().cursor().pos())
+            centerPoint = QApplication.desktop().screenGeometry(screen).center()
+        except:
+            from qtpy.QtGui import QGuiApplication
+            centerPoint = QGuiApplication.primaryScreen().geometry().center()
 
         # should fit in 1024x768 (old computer screens)
         window_width = 900

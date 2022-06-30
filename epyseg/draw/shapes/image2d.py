@@ -23,12 +23,14 @@
 
 # the only advantage I see for rect2D vs qrectf is that they allow for rotation ????
 # see how to best handle that ???
-
+import os
+from epyseg.settings.global_settings import set_UI # set the UI to be used py qtpy
+set_UI()
 import numpy as np
 import matplotlib.pyplot as plt
-from PyQt5 import QtGui
-from PyQt5.QtGui import QPainter, QColor
-from PyQt5.QtSvg import QSvgGenerator
+from qtpy import QtGui
+from qtpy.QtGui import QPainter, QColor
+from qtpy.QtSvg import QSvgGenerator
 import os
 from epyseg.draw.shapes.line2d import Line2D
 from epyseg.draw.shapes.point2d import Point2D
@@ -40,7 +42,7 @@ from epyseg.draw.shapes.txt2d import TAText2D
 from epyseg.figure.fig_tools import preview
 # from epyseg.figure import fig_tools
 from epyseg.img import Img, toQimage
-from PyQt5.QtCore import QRectF, QPointF, QSize, QRect
+from qtpy.QtCore import QRectF, QPointF, QSize, QRect
 # from sympy import nsolve, exp, Symbol
 # logger
 from epyseg.tools.logger import TA_logger
@@ -715,7 +717,8 @@ class Image2D(Rect2D):
     # NB THIS CODE IS BASED ON THE EZFIG SAVE CODE --> ANY CHANGE MADE HERE MAY ALSO BE MADE TO THE OTHER
     # best here would be for image to keep original size if nothing is specified
     # could also make it return a qimage for display in pyTA
-    qualities = [QPainter.NonCosmeticDefaultPen,  QPainter.SmoothPixmapTransform, QPainter.TextAntialiasing,QPainter.Antialiasing,QPainter.HighQualityAntialiasing]
+    # qualities = [QPainter.NonCosmeticDefaultPen,  QPainter.SmoothPixmapTransform, QPainter.TextAntialiasing,QPainter.Antialiasing,QPainter.HighQualityAntialiasing]
+    qualities = [  QPainter.SmoothPixmapTransform, QPainter.TextAntialiasing,QPainter.Antialiasing]
 
     def save(self, path, filetype=None, title=None, description=None, svg_dpi=SVG_INKSCAPE, quality=qualities[-1]):
         # if path is None or not isinstance(path, str):

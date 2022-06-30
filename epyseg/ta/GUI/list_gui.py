@@ -1,7 +1,10 @@
 # support list for writing or not stuff
-from PyQt5 import QtCore, QtWidgets
-from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QWidget, QAbstractItemView, QListWidget, QVBoxLayout, QListWidgetItem, QToolBar, \
+import os
+from epyseg.settings.global_settings import set_UI # set the UI to be used py qtpy
+set_UI()
+from qtpy import QtCore, QtWidgets
+from qtpy.QtCore import Qt
+from qtpy.QtWidgets import QWidget, QAbstractItemView, QListWidget, QVBoxLayout, QListWidgetItem, QToolBar, \
     QToolButton, \
     QLabel, QAction
 import pyperclip as clip
@@ -408,7 +411,7 @@ if __name__ == '__main__':
     # TODO add a main method so it can be called directly
     # maybe just show a canvas and give it interesting props --> TODO --> really need fix that too!!!
     import sys
-    from PyQt5.QtWidgets import QApplication
+    from qtpy.QtWidgets import QApplication
 
     # should probably have his own scroll bar embedded somewhere
 

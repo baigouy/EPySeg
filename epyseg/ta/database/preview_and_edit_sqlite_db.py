@@ -16,13 +16,16 @@
 
 # ça marche mais faut le rendre un peu plus smart
 
+import os
+from epyseg.settings.global_settings import set_UI # set the UI to be used py qtpy
+set_UI()
 import numpy as np
 import sqlite3
 # import pandas as pd
-# from PyQt5 import QtSql
-# from PyQt5.QtCore import Qt
-from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QWidget, QApplication, QTableWidgetItem, QPushButton, QVBoxLayout
+# from qtpy import QtSql
+# from qtpy.QtCore import Qt
+from qtpy.QtCore import Qt
+from qtpy.QtWidgets import QWidget, QApplication, QTableWidgetItem, QPushButton, QVBoxLayout
 
 from epyseg.ta.database.sql_column_name_dialog import SQL_column_name_and_type
 from epyseg.utils.loadlist import loadlist, smart_TA_list

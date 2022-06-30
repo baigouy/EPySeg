@@ -18,15 +18,16 @@
 # should I have linear panel and 2D panel and give them different rules panel1D panel2D #dans panel2D ttes les images doivent avoir la meme taille. Panel1D --> c'est un peu une row en fait
 
 # single row size is ok --> the bug only occurs when several rows are combined --> do a rapid demo sample
-
-# panel1D --> orientation --> hor/ver
+import os
+from epyseg.settings.global_settings import set_UI # set the UI to be used py qtpy
+set_UI()# panel1D --> orientation --> hor/ver
 # panel2D --> more stuff and same size required
 import random
 
 from epyseg.draw.shapes.image2d import Image2D
 from epyseg.draw.shapes.point2d import Point2D
 from epyseg.draw.shapes.rect2d import Rect2D
-from PyQt5.QtCore import QPointF, QRectF
+from qtpy.QtCore import QPointF, QRectF
 # from sympy import nsolve, exp, Symbol
 # logger
 # from epyseg.figure import fig_tools

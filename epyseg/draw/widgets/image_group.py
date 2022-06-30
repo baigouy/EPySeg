@@ -1,5 +1,8 @@
+import os
+from epyseg.settings.global_settings import set_UI # set the UI to be used py qtpy
+set_UI()
 from epyseg.draw.shapes.rect2d import Rect2D
-from PyQt5.QtCore import QPointF, QRectF
+from qtpy.QtCore import QPointF, QRectF
 # logger
 from epyseg.tools.logger import TA_logger
 

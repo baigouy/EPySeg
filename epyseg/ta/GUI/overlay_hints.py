@@ -1,6 +1,9 @@
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QPalette, QPainter, QBrush, QColor, QPen, QFontMetrics
-from PyQt5.QtWidgets import QWidget
+import os
+from epyseg.settings.global_settings import set_UI # set the UI to be used py qtpy
+set_UI()
+from qtpy.QtCore import Qt
+from qtpy.QtGui import QPalette, QPainter, QBrush, QColor, QPen, QFontMetrics
+from qtpy.QtWidgets import QWidget
 
 
 class Overlay(QWidget):
@@ -8,7 +11,7 @@ class Overlay(QWidget):
     def __init__(self, parent=None):
         QWidget.__init__(self, parent)
         palette = QPalette(self.palette())
-        palette.setColor(palette.Background, Qt.transparent)
+        # palette.setColor(palette.Background, Qt.transparent) # change due to a shift to the qtpy paradigm
         self.setPalette(palette)
 
     def paintEvent(self, event):

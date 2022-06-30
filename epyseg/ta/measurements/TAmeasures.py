@@ -251,6 +251,9 @@ def TAMeasurements(file_or_list, __forced_orig=None, __forced_cells=None, __forc
             from functools import partial
             import sys
             import multiprocessing
+            import gc
+            # given that python copies all the content of the memory for multiprocessing, it's probably a good idea to clean it up
+            gc.collect()
             # import platform
             #
             # if platform.system() == "Darwin":

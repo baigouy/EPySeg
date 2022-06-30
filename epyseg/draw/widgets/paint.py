@@ -1,12 +1,19 @@
-from PyQt5.QtCore import QRect, QTimer
-from PyQt5.QtGui import QPixmap
-from PyQt5.QtWidgets import QWidget
+import os
+from epyseg.settings.global_settings import set_UI # set the UI to be used py qtpy
+set_UI()
+import sys
+
+
+
+from qtpy.QtCore import QRect, QTimer
+from qtpy.QtGui import QPixmap
+from qtpy.QtWidgets import QWidget
 
 from epyseg.draw.shapes.rect2d import Rect2D
 from epyseg.draw.shapes.square2d import Square2D
 from epyseg.draw.widgets.vectorial import VectorialDrawPane
-from PyQt5.QtWidgets import qApp, QMenu, QApplication
-from PyQt5 import QtCore, QtGui
+from qtpy.QtWidgets import QMenu, QApplication
+from qtpy import QtCore, QtGui
 
 from epyseg.img import toQimage
 from epyseg.tools.logger import TA_logger # logging
@@ -149,7 +156,7 @@ class Createpaintwidget(QWidget):
         quitAct = cmenu.addAction("Quit")
         action = cmenu.exec_(self.mapToGlobal(event.pos()))
         if action == quitAct:
-            qApp.quit()
+            sys.exit(0)
 
     def updateButtonCount(self):
         self.clickCount = 1

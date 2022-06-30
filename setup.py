@@ -34,12 +34,14 @@ setuptools.setup(
         "czifile",
         # "h5py", # should be installed with tensorflow gpu so do I need it ??? # probably better to remove it to avoid intsalling erroneous versions that are incompatible with tensorflow... similarly do I really need to have numpy it will be installed with tf anyways??? --> just try
         "Markdown",
-        "matplotlib",
+        "matplotlib>=3.5.2", #  required to have matplotlib support of pyqt6 --> which will be used by default
         "numpy",
         "numpydoc",
         "Pillow",
-        "PyQt5", # PyQt5==5.15.4    PyQt5-Qt5==5.15.2 # check versions are ok!!!
-        "PyQtWebEngine", #PyQtWebEngine==5.15.4 PyQtWebEngine-Qt5==5.15.2
+        # "PyQt5", # PyQt5==5.15.4    PyQt5-Qt5==5.15.2 # check versions are ok!!!
+        "PyQt6", # PyQt5==5.15.4    PyQt5-Qt5==5.15.2 # check versions are ok!!!
+        # "PyQtWebEngine", #PyQtWebEngine==5.15.4 PyQtWebEngine-Qt5==5.15.2
+        "PyQt6-WebEngine", #PyQtWebEngine==5.15.4 PyQtWebEngine-Qt5==5.15.2
         "read-lif",
         "scikit-image>=0.18.1", #scikit-image==0.18.1
         "scipy", # scipy==1.6.3
@@ -56,6 +58,7 @@ setuptools.setup(
         "prettytable", # for SQL preview in pyTA
         "pyperclip", # for pyta lists
         "sklearn", # for pyTA contour sorting deprecated (remove ?)
+        "QtPy>=2.1.0", # from now on this is how I would handle the pyqt/pyside integration
         # "sympy" # TODO add this if I finally use it in EZF
         # six==1.15.0
     ],

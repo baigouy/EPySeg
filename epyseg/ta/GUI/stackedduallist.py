@@ -1,10 +1,11 @@
 # e QStackedWidget and put all possible widgets into the stack. When selecting an item, just call setCurrentWidget
 
-
-
+import os
+from epyseg.settings.global_settings import set_UI # set the UI to be used py qtpy
+set_UI()
 # this is a class with two lists
 
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QStackedWidget
+from qtpy.QtWidgets import QWidget, QVBoxLayout, QStackedWidget
 from epyseg.utils.loadlist import loadlist
 from epyseg.ta.GUI.list_gui import ListGUI
 
@@ -88,7 +89,7 @@ if __name__ == '__main__':
     # TODO add a main method so it can be called directly
     # maybe just show a canvas and give it interesting props --> TODO --> really need fix that too!!!
     import sys
-    from PyQt5.QtWidgets import QApplication, QWidget, QWidget
+    from qtpy.QtWidgets import QApplication, QWidget, QWidget
 
     # should probably have his own scroll bar embedded somewhere
 

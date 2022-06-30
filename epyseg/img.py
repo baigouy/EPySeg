@@ -83,7 +83,10 @@ def read_file_from_url(url):
 
 # opens the image using my tool --> can be very useful
 def pop(img):
-    from PyQt5.QtWidgets import QApplication
+    import os
+    from epyseg.settings.global_settings import set_UI  # set the UI to be used py qtpy
+    set_UI()
+    from qtpy.QtWidgets import QApplication
     from epyseg.ta.GUI.paint2 import Createpaintwidget
     from epyseg.ta.GUI.scrollablepaint import scrollable_paint
 
@@ -691,7 +694,10 @@ def toQimage(img, autofix_always_display2D=True, normalize=True, z_behaviour=Non
     '''
     # print('here1')
 
-    from PyQt5.QtGui import QImage # moved import here to make the class independent of pyqt
+    import os
+    from epyseg.settings.global_settings import set_UI  # set the UI to be used py qtpy
+    set_UI()
+    from qtpy.QtGui import QImage # moved import here to make the class independent of pyqt
     # qimage = None
 
     luts = None

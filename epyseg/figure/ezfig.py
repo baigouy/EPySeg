@@ -212,16 +212,18 @@ painter.restore();
 
 
 # TODO faire un draw selection --> TODO
-
+import os
+from epyseg.settings.global_settings import set_UI # set the UI to be used py qtpy
+set_UI()
 import sys
 import traceback
 import copy # used to clone class instances
 
-from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtCore import QSize, QRect, QRectF, QPoint
-from PyQt5.QtGui import QPainter, QColor
-from PyQt5.QtSvg import QSvgGenerator
-from PyQt5.QtWidgets import QMenu
+from qtpy import QtCore, QtGui, QtWidgets
+from qtpy.QtCore import QSize, QRect, QRectF, QPoint
+from qtpy.QtGui import QPainter, QColor
+from qtpy.QtSvg import QSvgGenerator
+from qtpy.QtWidgets import QMenu
 
 from epyseg.draw.shapes.freehand2d import Freehand2D
 from epyseg.draw.shapes.scalebar import ScaleBar

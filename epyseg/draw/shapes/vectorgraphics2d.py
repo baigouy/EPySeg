@@ -34,14 +34,17 @@
 # https://matplotlib.org/3.2.2/gallery/subplots_axes_and_figures/gridspec_multicolumn.html#sphx-glr-gallery-subplots-axes-and-figures-gridspec-multicolumn-py
 # https://matplotlib.org/3.2.2/api/_as_gen/matplotlib.pyplot.figure.html
 # https://matplotlib.org/3.2.2/api/matplotlib_configuration_api.html#matplotlib.rcParams
+import os
+from epyseg.settings.global_settings import set_UI # set the UI to be used py qtpy
+set_UI()
 import traceback
 
-from PyQt5.QtSvg import QSvgRenderer
+from qtpy.QtSvg import QSvgRenderer
 
 from epyseg.draw.shapes.rect2d import Rect2D
 from epyseg.draw.shapes.txt2d import TAText2D
 from epyseg.img import Img
-from PyQt5.QtCore import QRectF
+from qtpy.QtCore import QRectF
 import base64
 from PIL import Image
 import matplotlib.pyplot as plt

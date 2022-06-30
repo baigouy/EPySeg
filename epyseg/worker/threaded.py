@@ -1,7 +1,10 @@
 # from https://www.learnpyqt.com/courses/concurrent-execution/multithreading-pyqt-applications-qthreadpool/
-
-from PyQt5.QtWidgets import *
-from PyQt5.QtCore import *
+import os
+from epyseg.settings.global_settings import set_UI # set the UI to be used py qtpy
+set_UI()
+from qtpy.QtCore import Signal
+from qtpy.QtWidgets import *
+from qtpy.QtCore import *
 import traceback, sys
 
 
@@ -24,10 +27,10 @@ class WorkerSignals(QObject):
         `int` indicating % progress
 
     '''
-    finished = pyqtSignal()
-    error = pyqtSignal(tuple)
-    result = pyqtSignal(object)
-    progress = pyqtSignal(int)
+    finished = Signal()
+    error = Signal(tuple)
+    result = Signal(object)
+    progress = Signal(int)
 
 
 class Worker(QRunnable):
@@ -56,7 +59,7 @@ class Worker(QRunnable):
         # Add the callback to our kwargs
         self.kwargs['progress_callback'] = self.signals.progress
 
-    @pyqtSlot()
+    @Slot()
     def run(self):
         '''
         Initialise the runner function with passed args, kwargs.

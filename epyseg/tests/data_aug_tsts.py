@@ -8,7 +8,7 @@ from epyseg.img import mask_rows_or_columns
 import numpy as np
 
 
-class TestSum(unittest.TestCase):
+class TestDataAug(unittest.TestCase):
 
     # tmp = Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series012.png')
     # self.assertIsInstance(tmp, Img)

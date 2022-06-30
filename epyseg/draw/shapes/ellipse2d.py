@@ -1,6 +1,9 @@
-from PyQt5 import QtWidgets
-from PyQt5.QtCore import QPoint, QPointF, Qt, QRectF
-from PyQt5.QtGui import QBrush, QPen, QColor, QTransform
+import os
+from epyseg.settings.global_settings import set_UI # set the UI to be used py qtpy
+set_UI()
+from qtpy import QtWidgets
+from qtpy.QtCore import QPoint, QPointF, Qt, QRectF
+from qtpy.QtGui import QBrush, QPen, QColor, QTransform
 
 from epyseg.tools.logger import TA_logger
 

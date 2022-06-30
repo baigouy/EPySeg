@@ -1,3 +1,6 @@
+29/06/2022
+-moved to QtPy instead of PyQt for more flexible GUI handling and removed the hassle of having to rewrite the entire code (hope this did not break things...)
+
 23-24/06/2022
 -fixed a big bug in predict generator (that occurred under specific conditions and only and when the tile overlap was not set to 0). It caused the output width/height to differ from the input one.
 -I'm thinking of moving to PyQt6 soon (this will fix EPySeg's embedded help/markdown)

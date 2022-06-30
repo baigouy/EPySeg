@@ -1,10 +1,12 @@
 # enter a SQL col name --> if name is not valid then forget about it...
 # maybe also need enter the type of the new column --> ????
 
-
+import os
+from epyseg.settings.global_settings import set_UI # set the UI to be used py qtpy
+set_UI()
 import sys
-from PyQt5 import QtCore
-from PyQt5.QtWidgets import QDialog, QPlainTextEdit, QVBoxLayout, QApplication, QDialogButtonBox, QSpinBox, QLabel, \
+from qtpy import QtCore
+from qtpy.QtWidgets import QDialog, QPlainTextEdit, QVBoxLayout, QApplication, QDialogButtonBox, QSpinBox, QLabel, \
     QLineEdit, QComboBox
 import re
 

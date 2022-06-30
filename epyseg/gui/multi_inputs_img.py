@@ -1,5 +1,8 @@
+import os
+from epyseg.settings.global_settings import set_UI # set the UI to be used py qtpy
+set_UI()
 # will ultimately allow to load several inputs/outputs models
-from PyQt5.QtWidgets import QWidget, QApplication, QGridLayout, QScrollArea, QVBoxLayout, QGroupBox, QPushButton
+from qtpy.QtWidgets import QWidget, QApplication, QGridLayout, QScrollArea, QVBoxLayout, QGroupBox, QPushButton
 from epyseg.gui.open import OpenFileOrFolderWidget
 import sys
 from epyseg.tools.logger import TA_logger # logging

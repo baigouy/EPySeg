@@ -1,19 +1,21 @@
 # channels seem be fixed --> cool
 # finalize whsed and corrections --> make sure they are channel dependent
 # check which channels are being restored by the new wshed within the paint arena
-
+import os
+from epyseg.settings.global_settings import set_UI # set the UI to be used py qtpy
+set_UI()
 # in set image add sliders for D and Z --> see how I can do that --> or do it directly in paint ????
 import traceback
 
 import matplotlib.pyplot as plt
 import numpy as np
-from PyQt5 import QtWidgets, QtCore, QtGui
-from PyQt5.QtCore import QSize, Qt
-from PyQt5.QtGui import QPalette, QKeySequence, QPainter
-from PyQt5.QtWidgets import QScrollArea, QVBoxLayout, QWidget, QSpinBox, QComboBox, QToolBar, QStatusBar, QLabel, \
+from qtpy import QtWidgets, QtCore, QtGui
+from qtpy.QtCore import QSize, Qt
+from qtpy.QtGui import QPalette, QKeySequence, QPainter
+from qtpy.QtWidgets import QScrollArea, QVBoxLayout, QWidget, QSpinBox, QComboBox, QToolBar, QStatusBar, QLabel, \
     QHBoxLayout, QAction, QSlider
 import qtawesome as qta
-from PyQt5.QtCore import Qt, QTimer
+from qtpy.QtCore import Qt, QTimer
 from epyseg.draw.shapes.freehand2d import Freehand2D
 from epyseg.draw.shapes.image2d import Image2D
 from epyseg.draw.shapes.rect2d import Rect2D
@@ -740,33 +742,34 @@ class scrollable_paint(QWidget):
         # empty the content of the slider and refill it
         try:
             treat_channels_as_a_browsable_dimension = False
-            dimensions = self.paint.raw_image.get_dimensions_as_string()
+            if has_metadata(self.paint.raw_image):
+                dimensions = self.paint.raw_image.get_dimensions_as_string()
 
-            # if not self.paint.raw_image.has_c():
-            #     nb_of_sliders = len(
-            #         self.paint.raw_image.shape) - 2  # or -3 it depends whether I wanna show all the channels at once or not ???
-            # else:
-            #     nb_of_sliders = len(
-            #         self.paint.raw_image.shape) - 2  # or -3 it depends whether I wanna show all the channels at once or not ???
+                # if not self.paint.raw_image.has_c():
+                #     nb_of_sliders = len(
+                #         self.paint.raw_image.shape) - 2  # or -3 it depends whether I wanna show all the channels at once or not ???
+                # else:
+                #     nb_of_sliders = len(
+                #         self.paint.raw_image.shape) - 2  # or -3 it depends whether I wanna show all the channels at once or not ???
 
-            # print(nb_of_sliders)
+                # print(nb_of_sliders)
 
-            # create an image with plenty of sliders --> TODO
-            # make the handling of the image to be displayed directly by the code !!!
+                # create an image with plenty of sliders --> TODO
+                # make the handling of the image to be displayed directly by the code !!!
 
-            # then I need couple each slider to a dimension
+                # then I need couple each slider to a dimension
 
-            # dimensions that must have a slider
-            # --> all dimensions but hw and maybe c must have a slider --> TODO
-            for dim in dimensions:
-                if dim == 'h' or dim == 'y' or dim == 'w' or dim == 'x' or (
-                        not treat_channels_as_a_browsable_dimension and dim == 'c'):
-                    # we skip dimensions
-                    continue
-                # print(dim, 'must have an assoicated slider')
+                # dimensions that must have a slider
+                # --> all dimensions but hw and maybe c must have a slider --> TODO
+                for dim in dimensions:
+                    if dim == 'h' or dim == 'y' or dim == 'w' or dim == 'x' or (
+                            not treat_channels_as_a_browsable_dimension and dim == 'c'):
+                        # we skip dimensions
+                        continue
+                    # print(dim, 'must have an assoicated slider')
 
-                # print(self.paint.raw_image.shape, ' toto ', )
-                self.dimensions_container.addLayout(self.create_dim_slider(dimension=dim, max_dim=self.paint.raw_image.shape[dimensions.index(dim)]))
+                    # print(self.paint.raw_image.shape, ' toto ', )
+                    self.dimensions_container.addLayout(self.create_dim_slider(dimension=dim, max_dim=self.paint.raw_image.shape[dimensions.index(dim)]))
         except:
             traceback.print_exc()
 
@@ -918,7 +921,7 @@ class scrollable_paint(QWidget):
 
 if __name__ == '__main__':
     import sys
-    from PyQt5.QtWidgets import QApplication
+    from qtpy.QtWidgets import QApplication
 
 
     # hand drawing panel

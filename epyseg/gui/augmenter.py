@@ -1,15 +1,17 @@
+import os
+from epyseg.settings.global_settings import set_UI # set the UI to be used py qtpy
+set_UI()
 import json
-
-from PyQt5.QtCore import QPoint
-from PyQt5.QtGui import QIcon
-from PyQt5.QtWidgets import QApplication, QGridLayout, QComboBox, QLabel, \
+from qtpy.QtCore import QPoint
+from qtpy.QtGui import QIcon
+from qtpy.QtWidgets import QApplication, QGridLayout, QComboBox, QLabel, \
     QDoubleSpinBox, QDialog, QDialogButtonBox, QPushButton, QToolTip
 
 from epyseg.deeplearning.augmentation.generators.data import DataGenerator
 from epyseg.deeplearning.docs.doc2html import markdown_file_to_html
 from epyseg.dialogs.opensave import openDirectoryDialog
 import sys
-from PyQt5 import QtCore
+from qtpy import QtCore
 
 
 class DataAugmentationGUI(QDialog):

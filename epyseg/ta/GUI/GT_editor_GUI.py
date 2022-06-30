@@ -15,17 +15,19 @@
 # TODO --> maybe do a version with two lists so that the user can also load the GT even if the GT is not having a generic name ???
 # or shall I look in more folder sur as GT ou ground truth ou predict
 import os
+from epyseg.settings.global_settings import set_UI # set the UI to be used py qtpy
+set_UI()
 import os.path
 import traceback
 from functools import partial
-from PyQt5.QtWidgets import QProgressBar, \
+from qtpy.QtWidgets import QProgressBar, \
     QLabel, QMessageBox
-from PyQt5.QtGui import QPixmap, QPainter
-from PyQt5.QtWidgets import QStackedWidget
-from PyQt5.QtWidgets import QGridLayout, QPushButton, QFrame
-from PyQt5.QtGui import QIcon
-from PyQt5.QtWidgets import QApplication
-from PyQt5 import QtWidgets, QtCore, QtGui
+from qtpy.QtGui import QPixmap, QPainter
+from qtpy.QtWidgets import QStackedWidget
+from qtpy.QtWidgets import QGridLayout, QPushButton, QFrame
+from qtpy.QtGui import QIcon
+from qtpy.QtWidgets import QApplication
+from qtpy import QtWidgets, QtCore, QtGui
 
 from epyseg.draw.shapes.freehand2d import Freehand2D
 from epyseg.draw.shapes.image2d import Image2D
@@ -66,8 +68,12 @@ class GT_editor(QtWidgets.QMainWindow):
 
     def initUI(self):
         # this is a timer to delay the preview updates upon spin valuechanged
-        screen = QApplication.desktop().screenNumber(QApplication.desktop().cursor().pos())
-        centerPoint = QApplication.desktop().screenGeometry(screen).center()
+        try:
+            screen = QApplication.desktop().screenNumber(QApplication.desktop().cursor().pos())
+            centerPoint = QApplication.desktop().screenGeometry(screen).center()
+        except:
+            from qtpy.QtGui import QGuiApplication
+            centerPoint = QGuiApplication.primaryScreen().geometry().center()
 
         # should fit in 1024x768 (old computer screens)
         window_width = 1024

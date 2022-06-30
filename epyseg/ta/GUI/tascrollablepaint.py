@@ -31,8 +31,11 @@ class tascrollablepaint(scrollable_paint):
 
 
 if __name__ == '__main__':
+    import os
+    from epyseg.settings.global_settings import set_UI  # set the UI to be used py qtpy
+    set_UI()
     import sys
-    from PyQt5.QtWidgets import QApplication
+    from qtpy.QtWidgets import QApplication
     if False:
         app = QApplication(sys.argv)
         qimage = toQimage(Img('/E/Sample_images/sample_images_PA/test_complete_wing_raphael/neo_mask.tif'))

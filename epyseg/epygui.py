@@ -1,8 +1,10 @@
-# from PyQt5.QtWebEngineWidgets import QWebEngineView
-# ImportError: /usr/lib/x86_64-linux-gnu/libQt5Network.so.5: undefined symbol: _ZN15QIPAddressUtils8toStringER7QStringPh, version Qt_5 --> fix is here https://stackoverflow.com/questions/37876987/cannot-import-qtwebkitwidgets-in-pyqt5
+# from qtpy.QtWebEngineWidgets import QWebEngineView
+# ImportError: /usr/lib/x86_64-linux-gnu/libQt5Network.so.5: undefined symbol: _ZN15QIPAddressUtils8toStringER7QStringPh, version Qt_5 --> fix is here https://stackoverflow.com/questions/37876987/cannot-import-qtwebkitwidgets-in-qtpy
 # need set the version of QT to avoid issues too
 # or remove the help
 import os
+from epyseg.settings.global_settings import set_UI # set the UI to be used py qtpy
+set_UI()
 os.environ['SM_FRAMEWORK'] = 'tf.keras'  # set env var for changing the segmentation_model framework
 # uncomment the two lines below to force cpu
 # os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"   # see issue #152
@@ -18,21 +20,21 @@ import traceback
 import json
 from epyseg.deeplearning.augmentation.meta import MetaAugmenter
 from epyseg.gui.augmenter import DataAugmentationGUI
-from PyQt5.QtWidgets import QListWidgetItem, QAbstractItemView, QSpinBox, QComboBox, QProgressBar, \
+from qtpy.QtWidgets import QListWidgetItem, QAbstractItemView, QSpinBox, QComboBox, QProgressBar, \
     QVBoxLayout, QHBoxLayout, QLabel, QCheckBox, QRadioButton, QButtonGroup, QGroupBox, \
     QTextBrowser, QToolTip, QDoubleSpinBox
-from PyQt5.QtCore import Qt, QThreadPool, QPoint
-from PyQt5.QtGui import QColor, QTextCharFormat, QTextCursor
-from PyQt5.QtWidgets import QGridLayout, QListWidget, QFrame, QTabWidget
+from qtpy.QtCore import Qt, QThreadPool, QPoint
+from qtpy.QtGui import QColor, QTextCharFormat, QTextCursor
+from qtpy.QtWidgets import QGridLayout, QListWidget, QFrame, QTabWidget
 from epyseg.gui.open import OpenFileOrFolderWidget
-from PyQt5.QtWidgets import QApplication
-from PyQt5 import QtWidgets, QtCore
+from qtpy.QtWidgets import QApplication
+from qtpy import QtWidgets, QtCore
 from epyseg.worker.threaded import Worker
 from epyseg.gui.img import image_input_settings
 from epyseg.tools.qthandler import XStream, QtHandler
 from epyseg.gui.pyqtmarkdown import PyQT_markdown
 from epyseg.img import Img
-from PyQt5.QtWidgets import QPushButton, QWidget
+from qtpy.QtWidgets import QPushButton, QWidget
 from epyseg.deeplearning.deepl import EZDeepLearning
 from epyseg.tools.logger import TA_logger # logging
 
@@ -40,10 +42,13 @@ DEBUG = False  # set to True if GUI crashes
 
 logger = TA_logger()
 
-from PyQt5.Qt import PYQT_VERSION_STR
+from qtpy.QtCore import PYQT_VERSION_STR
 if PYQT_VERSION_STR<'6':
     # get code ready for pyqt6 where hi dpi is enabled by default
-    QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)  # high DPI fix
+    try:
+        QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)  # high DPI fix
+    except:
+        pass
 
 # TODO enable that soon TODO connect CARE now and enable that --> need better training for CARE though...
 ENABLE_MINI_GUI = False # no never allow this and remove all related code
@@ -91,6 +96,7 @@ class EPySeg(QWidget):
 
         self.blinker = Blinker()
 
+        # MEGA TODO THAT SEEMS TO BE THE PB I FACE WHEN USING MULTIPROCESSING --> THIS STUFF SHOULD RATHER BE CREATED ONLY WHEN NEEDED --> SEE HOW TO DO THAT PROPERLY THEN CHECK IT ALSO ON OS X, see also check MT_tests.py ????
         self.deepTA = EZDeepLearning()  #use_cpu=True # init empty model
         if ok and augment:
             self.minimalUI()
@@ -1135,8 +1141,12 @@ class EPySeg(QWidget):
         self.setLayout(self.log_and_main_layout)
 
         try:
-            screen = QApplication.desktop().screenNumber(QApplication.desktop().cursor().pos())
-            centerPoint = QApplication.desktop().screenGeometry(screen).center()
+            try:
+                screen = QApplication.desktop().screenNumber(QApplication.desktop().cursor().pos())
+                centerPoint = QApplication.desktop().screenGeometry(screen).center()
+            except:
+                from qtpy.QtGui import QGuiApplication
+                centerPoint = QGuiApplication.primaryScreen().geometry().center()
             self.setGeometry(QtCore.QRect(centerPoint.x() - self.width(), centerPoint.y() - self.height(), self.width(),
                                           self.height()))
         except:

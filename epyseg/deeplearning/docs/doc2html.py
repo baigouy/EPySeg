@@ -1,6 +1,9 @@
+import os
+from epyseg.settings.global_settings import set_UI # set the UI to be used py qtpy
+set_UI()
 import webbrowser
-from PyQt5.QtCore import QPoint
-from PyQt5.QtWidgets import QToolTip
+from qtpy.QtCore import QPoint
+from qtpy.QtWidgets import QToolTip
 from markdown import markdown
 
 import os

@@ -100,15 +100,16 @@
 
 # COULD TRY DETECT VERTICES NUMBA
 
-
-# TODO --> get started
+import os
+from epyseg.settings.global_settings import set_UI # set the UI to be used py qtpy
+set_UI()# TODO --> get started
 
 # should be fairly easy except the part where I do restore the wshed mask, but even that shouldn't be that hard to do
 # maybe neighborhood can be easy because it would help identifying cell divisions from cells entering into the frame
 # do some coding in a simple way
 import traceback
 import matplotlib.pyplot as plt
-from PyQt5.QtWidgets import QApplication
+from qtpy.QtWidgets import QApplication
 from numba import njit, jit
 from epyseg.img import Img, RGB_to_int24, int24_to_RGB
 from epyseg.ta.tracking.rapid_detection_of_vertices import neighbors8

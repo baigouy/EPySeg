@@ -1,6 +1,9 @@
+import os
+from epyseg.settings.global_settings import set_UI # set the UI to be used py qtpy
+set_UI()
 from math import sqrt
 
-from PyQt5.QtCore import QRectF
+from qtpy.QtCore import QRectF
 
 from epyseg.draw.shapes.circle2d import *
 from epyseg.tools.logger import TA_logger

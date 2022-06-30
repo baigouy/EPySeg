@@ -9,7 +9,7 @@ from numpy.ma.testutils import assert_array_equal
 from epyseg.img import Img, is_binary, fill_holes, clean_blobs_below, RGB_to_int24, int24_to_RGB
 import numpy as np
 
-class TestSum(unittest.TestCase):
+class TestImgs(unittest.TestCase):
 
     def test_open_local_img(self):
         tmp = Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series012.png')

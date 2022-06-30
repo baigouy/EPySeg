@@ -1,4 +1,7 @@
-from PyQt5.QtCore import QTimer
+import os
+from epyseg.settings.global_settings import set_UI # set the UI to be used py qtpy
+set_UI()
+from qtpy.QtCore import QTimer
 
 
 class Blinker:

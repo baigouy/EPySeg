@@ -1,6 +1,9 @@
-from PyQt5 import QtGui, QtWidgets
-from PyQt5.QtCore import Qt, QMimeData
-from PyQt5.QtWidgets import QTableWidget, QApplication, QAbstractItemView
+import os
+from epyseg.settings.global_settings import set_UI # set the UI to be used py qtpy
+set_UI()
+from qtpy import QtGui, QtWidgets
+from qtpy.QtCore import Qt, QMimeData
+from qtpy.QtWidgets import QTableWidget, QApplication, QAbstractItemView
 
 
 class MyTableWidget(QTableWidget):

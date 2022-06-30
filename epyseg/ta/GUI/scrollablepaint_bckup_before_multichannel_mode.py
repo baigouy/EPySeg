@@ -3,10 +3,13 @@
 # check which channels are being restored by the new wshed within the paint arena
 import matplotlib.pyplot as plt
 import numpy as np
-from PyQt5 import QtWidgets, QtCore, QtGui
-from PyQt5.QtCore import QSize, Qt
-from PyQt5.QtGui import QPalette, QKeySequence, QPainter
-from PyQt5.QtWidgets import QScrollArea, QVBoxLayout, QWidget, QSpinBox, QComboBox, QToolBar, QStatusBar, QLabel, \
+import os
+from epyseg.settings.global_settings import set_UI # set the UI to be used py qtpy
+set_UI()
+from qtpy import QtWidgets, QtCore, QtGui
+from qtpy.QtCore import QSize, Qt
+from qtpy.QtGui import QPalette, QKeySequence, QPainter
+from qtpy.QtWidgets import QScrollArea, QVBoxLayout, QWidget, QSpinBox, QComboBox, QToolBar, QStatusBar, QLabel, \
     QHBoxLayout, QAction
 import qtawesome as qta
 
@@ -665,7 +668,7 @@ class scrollable_paint(QWidget):
 
 if __name__ == '__main__':
     import sys
-    from PyQt5.QtWidgets import QApplication
+    from qtpy.QtWidgets import QApplication
 
 
     # hand drawing panel

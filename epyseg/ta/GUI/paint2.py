@@ -1,17 +1,18 @@
 # TODO mauybe hide green pointer if mouse is out of the image --> dangerous
 # NB this will ultimately become the one and only paint widget in the app --> all others or most of them should disappear and be replaced by that
 # TODO need add the save but only for the mask edit item!!!
-import os.path
+import os
+from epyseg.settings.global_settings import set_UI # set the UI to be used py qtpy
+set_UI()
 import traceback
-
-from PyQt5.QtGui import QKeySequence
+from qtpy.QtGui import QKeySequence
 from skimage.measure import label, regionprops
-from PyQt5.QtCore import QRect, QTimer, Qt
-from PyQt5.QtWidgets import QWidget, QApplication, QMessageBox
+from qtpy.QtCore import QRect, QTimer, Qt
+from qtpy.QtWidgets import QWidget, QApplication, QMessageBox
 from epyseg.dialogs.opensave import saveFileDialog
 from epyseg.draw.widgets.vectorial import VectorialDrawPane
-from PyQt5.QtWidgets import qApp, QMenu
-from PyQt5 import QtCore, QtGui, QtWidgets
+from qtpy.QtWidgets import QMenu
+from qtpy import QtCore, QtGui, QtWidgets
 from epyseg.img import toQimage, Img, get_white_bounds, RGB_to_int24, is_binary, auto_scale, save_as_tiff
 from epyseg.ta.measurements.measurements3D.get_point_on_surface_if_centroid_is_bad import point_on_surface
 from epyseg.ta.segmentation.neo_wshed import wshed
@@ -392,7 +393,7 @@ class Createpaintwidget(QWidget):
                     self.image = toQimage(img[0])
                     self.raw_image = img[0]  #
                     # same as set mask --> how to do that
-                    self.imageDraw = toQimage(Img(self.createRGBA(img[1]), dimensions='hwc'))#.getQimage()
+                    self.imageDraw = toQimage(Img(self.createRGBA(img[1]), dimensions='hwc'),preserve_alpha=True)#.getQimage()
                     self.raw_user_drawing = QtGui.QImage(self.imageDraw.size(), QtGui.QImage.Format_ARGB32)
                     self.raw_user_drawing.fill(QtCore.Qt.transparent)
 
@@ -525,7 +526,12 @@ class Createpaintwidget(QWidget):
         width = qimage.width()
         height = qimage.height()
         image_pointer = qimage.bits() # creates a deep copy --> this is what I want
-        image_pointer.setsize(qimage.byteCount())
+        try:
+            image_pointer.setsize(qimage.sizeInBytes()) # qt6 version of the stuff
+        except:
+            image_pointer.setsize(qimage.byteCount())
+
+
         # arr = np.array(image_pointer,copy=True).reshape(height, width, 4)
         arr = np.array(image_pointer).reshape(height, width, 4)
         return arr
@@ -1094,7 +1100,7 @@ class Createpaintwidget(QWidget):
         quitAct = cmenu.addAction("Quit")
         action = cmenu.exec_(self.mapToGlobal(event.pos()))
         if action == quitAct:
-            qApp.quit()
+            sys.exit(0)
 
     def updateButtonCount(self):
         self.clickCount = 1
@@ -1233,7 +1239,7 @@ if __name__ == '__main__':
     # TODO add a main method so it can be called directly
     # maybe just show a canvas and give it interesting props --> TODO --> really need fix that too!!!
     import sys
-    from PyQt5.QtWidgets import QApplication
+    from qtpy.QtWidgets import QApplication
     from matplotlib import pyplot as plt
 
     # should probably have his own scroll bar embedded somewhere

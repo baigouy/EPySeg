@@ -1,12 +1,15 @@
 # ça marche enfin et c'est pas trop dur à faire --> je peux améliorer ça je pense!!!
+import os
+from epyseg.settings.global_settings import set_UI # set the UI to be used py qtpy
+set_UI()
 import sys
 from time import sleep
 
-from PyQt5.QtCore import QObject, QThread, pyqtSignal, Qt
+from qtpy.QtCore import QObject, QThread, Signal, Qt
 # Snip...
 
 # Step 1: Create a worker class
-from PyQt5.QtWidgets import QMainWindow, QApplication, QWidget, QLabel, QPushButton, QVBoxLayout
+from qtpy.QtWidgets import QMainWindow, QApplication, QWidget, QLabel, QPushButton, QVBoxLayout
 import traceback
 
 from epyseg.tools.early_stopper_class import early_stop
@@ -15,14 +18,14 @@ from epyseg.tools.logger import TA_logger # logging
 logger = TA_logger()
 
 class FakeWorker2(QObject):
-    # loop = pyqtSignal(object)
-    # progress = pyqtSignal(int)
-    # finished = pyqtSignal()
+    # loop = Signal(object)
+    # progress = Signal(int)
+    # finished = Signal()
 
-    finished = pyqtSignal()
-    error = pyqtSignal(tuple)
-    result = pyqtSignal(object)
-    progress = pyqtSignal(int)
+    finished = Signal()
+    error = Signal(tuple)
+    result = Signal(object)
+    progress = Signal(int)
 
     def __init__(self, fn, *args, **kwargs):
         # QThread.__init__(self)
@@ -61,14 +64,14 @@ class FakeWorker2(QObject):
 
 
 class Worker2(QThread):
-    # loop = pyqtSignal(object)
-    # progress = pyqtSignal(int)
-    # finished = pyqtSignal()
+    # loop = Signal(object)
+    # progress = Signal(int)
+    # finished = Signal()
 
-    finished = pyqtSignal()
-    error = pyqtSignal(tuple)
-    result = pyqtSignal(object)
-    progress = pyqtSignal(int)
+    finished = Signal()
+    error = Signal(tuple)
+    result = Signal(object)
+    progress = Signal(int)
 
     def __init__(self, fn, *args, **kwargs):
         QThread.__init__(self)
@@ -156,8 +159,8 @@ class Worker2(QThread):
 
     #
 # class Worker(QObject):
-#     finished = pyqtSignal()
-#     progress = pyqtSignal(int)
+#     finished = Signal()
+#     progress = Signal(int)
 #
 #     def run(self):
 #         """Long-running task."""

@@ -1,7 +1,10 @@
 #https://docs.python.org/2/library/operator.html
 
+import os
+from epyseg.settings.global_settings import set_UI # set the UI to be used py qtpy
+set_UI()
 from epyseg.draw.shapes.rect2d import Rect2D
-from PyQt5.QtCore import QPointF, QRectF
+from qtpy.QtCore import QPointF, QRectF
 # logger
 from epyseg.tools.logger import TA_logger
 from epyseg.figure.row import Row  # KEEP Really required to avoid circular imports
@@ -327,7 +330,7 @@ if __name__ == '__main__':
 
 
     # print('#'*20)
-    # from PyQt5.QtCore import QRectF, QPointF
+    # from qtpy.QtCore import QRectF, QPointF
     # test = QRectF(0,0,411,512)
     # print(test)
     # test.setX(414) # --> fucks width --> need reput it in correct position

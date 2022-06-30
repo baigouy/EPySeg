@@ -1,10 +1,13 @@
+import os
+from epyseg.settings.global_settings import set_UI # set the UI to be used py qtpy
+set_UI()
 import traceback
 from timeit import default_timer as time
-from PyQt5.QtCore import QSize, QTimer
+from qtpy.QtCore import QSize, QTimer
 from natsort import natsorted
 import glob
-from PyQt5.QtGui import QIcon
-from PyQt5.QtWidgets import QPushButton, QWidget, QLineEdit, QApplication, QGridLayout, QStyle, QLabel
+from qtpy.QtGui import QIcon
+from qtpy.QtWidgets import QPushButton, QWidget, QLineEdit, QApplication, QGridLayout, QStyle, QLabel
 from epyseg.dialogs.opensave import openFileNameDialog, openDirectoryDialog
 import sys
 import os

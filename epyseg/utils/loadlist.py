@@ -297,6 +297,9 @@ def list_processor(lst, processing_fn, multithreading=True, progress_callback=No
                                 output_file_name=name_processor_function_for_saving, reverse=False)
         print(processing_fn)
     if multithreading:
+        import gc
+        # given that python copies all the content of the memory for multiprocessing, it's probably a good idea to clean it up
+        gc.collect()
         with Pool(processes=nb_procs) as pool:
             for i, _ in enumerate(tqdm(pool.imap_unordered(processing_fn, lst), total=len(lst))):
                 if early_stop.stop:

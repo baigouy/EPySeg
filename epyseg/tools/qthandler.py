@@ -1,7 +1,9 @@
 # modified from https://stackoverflow.com/questions/24469662/how-to-redirect-logger-output-into-pyqt-text-widget
-
+import os
+from epyseg.settings.global_settings import set_UI # set the UI to be used py qtpy
+set_UI()
 import sys
-from PyQt5 import QtCore, QtGui, QtWidgets
+from qtpy import QtCore, QtGui, QtWidgets
 import logging
 
 class QtHandler(logging.Handler):
@@ -20,7 +22,7 @@ class QtHandler(logging.Handler):
 class XStream(QtCore.QObject):
     _stdout = None
     _stderr = None
-    messageWritten = QtCore.pyqtSignal(str)
+    messageWritten = QtCore.Signal(str)
 
     def flush(self):
         pass

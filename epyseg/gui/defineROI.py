@@ -1,5 +1,8 @@
-from PyQt5.QtCore import QRect
-from PyQt5.QtWidgets import QApplication, QGridLayout, QLabel, QSpinBox, QDialog, QDialogButtonBox, QCheckBox, QFrame
+import os
+from epyseg.settings.global_settings import set_UI # set the UI to be used py qtpy
+set_UI()
+from qtpy.QtCore import QRect
+from qtpy.QtWidgets import QApplication, QGridLayout, QLabel, QSpinBox, QDialog, QDialogButtonBox, QCheckBox, QFrame
 import sys
 from epyseg.tools.logger import TA_logger # logging
 

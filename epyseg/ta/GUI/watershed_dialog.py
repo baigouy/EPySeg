@@ -1,9 +1,10 @@
 import sys
 
-
-#https://doc.qt.io/qtforpython/PySide2/QtWidgets/QDialogButtonBox.html
-from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QDialog, QVBoxLayout, QDialogButtonBox, QPushButton, QWidget, QHBoxLayout, QLabel, \
+import os
+from epyseg.settings.global_settings import set_UI # set the UI to be used py qtpy
+set_UI()#https://doc.qt.io/qtforpython/PySide2/QtWidgets/QDialogButtonBox.html
+from qtpy.QtCore import Qt
+from qtpy.QtWidgets import QDialog, QVBoxLayout, QDialogButtonBox, QPushButton, QWidget, QHBoxLayout, QLabel, \
     QDoubleSpinBox, QCheckBox, QSpinBox, QApplication
 
 

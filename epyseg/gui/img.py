@@ -1,3 +1,6 @@
+import os
+from epyseg.settings.global_settings import set_UI # set the UI to be used py qtpy
+set_UI()
 import traceback
 import logging
 from itertools import zip_longest
@@ -6,15 +9,15 @@ from epyseg.gui.defineROI import DefineROI
 from epyseg.utils.loadlist import loadlist
 from epyseg.postprocess.gui import PostProcessGUI
 from epyseg.uitools.blinker import Blinker
-from PyQt5.QtWidgets import QDialog, QDialogButtonBox, QPushButton, QToolTip, QHBoxLayout
-from PyQt5.QtWidgets import QWidget, QApplication, QGridLayout, QTabWidget
-from PyQt5 import QtCore
+from qtpy.QtWidgets import QDialog, QDialogButtonBox, QPushButton, QToolTip, QHBoxLayout
+from qtpy.QtWidgets import QWidget, QApplication, QGridLayout, QTabWidget
+from qtpy import QtCore
 from epyseg.deeplearning.augmentation.generators.data import DataGenerator
 from epyseg.gui.open import OpenFileOrFolderWidget
 from epyseg.gui.preview import crop_or_preview
-from PyQt5.QtWidgets import QSpinBox, QComboBox, QVBoxLayout, QLabel, QCheckBox, QRadioButton, QButtonGroup, QGroupBox, \
+from qtpy.QtWidgets import QSpinBox, QComboBox, QVBoxLayout, QLabel, QCheckBox, QRadioButton, QButtonGroup, QGroupBox, \
     QDoubleSpinBox
-from PyQt5.QtCore import Qt, QPoint
+from qtpy.QtCore import Qt, QPoint
 from epyseg.img import Img
 import sys
 import json

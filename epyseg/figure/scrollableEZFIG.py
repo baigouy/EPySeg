@@ -13,11 +13,13 @@
 # finalize whsed and corrections --> make sure they are channel dependent
 # check which channels are being restored by the new wshed within the paint arena
 # à faire
-
-from PyQt5 import QtWidgets, QtCore, QtGui
-from PyQt5.QtCore import QSize, Qt
-from PyQt5.QtGui import QPalette
-from PyQt5.QtWidgets import QScrollArea, QVBoxLayout, QWidget, QToolBar, QStatusBar, QHBoxLayout, QAction
+import os
+from epyseg.settings.global_settings import set_UI # set the UI to be used py qtpy
+set_UI()
+from qtpy import QtWidgets, QtCore, QtGui
+from qtpy.QtCore import QSize, Qt
+from qtpy.QtGui import QPalette
+from qtpy.QtWidgets import QScrollArea, QVBoxLayout, QWidget, QToolBar, QStatusBar, QHBoxLayout, QAction
 import qtawesome as qta
 from epyseg.draw.shapes.image2d import Image2D
 from epyseg.figure.ezfig import MyWidget
@@ -659,7 +661,7 @@ if __name__ == '__main__':
     # TODO add a main method so it can be called directly
     # maybe just show a canvas and give it interesting props --> TODO --> really need fix that too!!!
     import sys
-    from PyQt5.QtWidgets import QApplication
+    from qtpy.QtWidgets import QApplication
 
     # should probably have his own scroll bar embedded somewhere
 

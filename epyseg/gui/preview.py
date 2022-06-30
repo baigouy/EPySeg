@@ -1,5 +1,8 @@
-from PyQt5.QtCore import QRect, Qt, QRectF
-from PyQt5.QtWidgets import QWidget, QApplication, QGridLayout, QScrollArea
+import os
+from epyseg.settings.global_settings import set_UI # set the UI to be used py qtpy
+set_UI()
+from qtpy.QtCore import QRect, Qt, QRectF
+from qtpy.QtWidgets import QWidget, QApplication, QGridLayout, QScrollArea
 from epyseg.draw.shapes.square2d import Square2D
 from epyseg.draw.widgets.paint import Createpaintwidget
 from epyseg.img import Img

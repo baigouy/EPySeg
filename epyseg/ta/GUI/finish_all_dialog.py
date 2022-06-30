@@ -1,10 +1,13 @@
 #!/usr/bin/python
 # -'''- coding: utf-8 -'''-
 
+import os
+from epyseg.settings.global_settings import set_UI # set the UI to be used py qtpy
+set_UI()
 import sys
 
-from PyQt5 import QtCore
-from PyQt5.QtWidgets import QDialog, QPlainTextEdit, QVBoxLayout, QApplication, QDialogButtonBox, QSpinBox, QLabel, \
+from qtpy import QtCore
+from qtpy.QtWidgets import QDialog, QPlainTextEdit, QVBoxLayout, QApplication, QDialogButtonBox, QSpinBox, QLabel, \
     QCheckBox
 
 

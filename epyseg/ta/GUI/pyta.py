@@ -88,22 +88,26 @@ sys.setrecursionlimit(10000)
 # https://doc.qt.io/qt-5/macos-issues.html --> again a lot of mac specific crap...  but good thing is right click is supported
 # set taskbar icon https://stackoverflow.com/questions/1551605/how-to-set-applications-taskbar-icon-in-windows-7/1552105#1552105
 
-import os
-import os.path
 import traceback
+import gc
+import os.path
+import os
+from epyseg.settings.global_settings import set_UI # set the UI to be used py qtpy
+set_UI()
 from functools import partial
-from PyQt5.QtWidgets import QComboBox, QProgressBar, \
+from qtpy.QtWidgets import QWidget # --> somehow here it's always converted to pyQT6 in unitest for unknown reason
+from qtpy.QtWidgets import QComboBox, QProgressBar, \
     QVBoxLayout, QLabel, QTextBrowser, QGroupBox, QDoubleSpinBox, QCheckBox, \
     QRadioButton, QButtonGroup, QDialogButtonBox, QDialog, QHBoxLayout, QScrollArea, QMessageBox
-from PyQt5.QtGui import QPalette, QPixmap, QColor, QPainter, QBrush, QPen, QFontMetrics, QTextCursor, \
+from qtpy.QtGui import QPalette, QPixmap, QColor, QPainter, QBrush, QPen, QFontMetrics, QTextCursor, \
     QTextCharFormat
-from PyQt5.QtWidgets import QStackedWidget
-from PyQt5.QtWidgets import QWidget, QGridLayout, QPushButton, QFrame, QTabWidget
-from PyQt5.QtGui import QIcon
-from PyQt5.QtWidgets import QApplication
-from PyQt5 import QtWidgets, QtCore, QtGui
-from PyQt5.QtCore import Qt, QTimer, QThreadPool
-from epyseg.deeplearning.deepl import EZDeepLearning
+from qtpy.QtWidgets import QStackedWidget
+# print(os.environ['QT_API'])
+from qtpy.QtWidgets import QGridLayout, QPushButton, QFrame, QTabWidget
+from qtpy.QtGui import QIcon
+from qtpy.QtWidgets import QApplication
+from qtpy import QtWidgets, QtCore, QtGui
+from qtpy.QtCore import Qt, QTimer, QThreadPool
 from epyseg.dialogs.opensave import saveFileDialog
 from epyseg.img import Img, blend, to_stack, mask_colors
 from epyseg.ta.GUI.denoise_recursion_dialog import DenoiseRecursionDialog
@@ -142,13 +146,18 @@ from epyseg.ta.deep.create_model_for_projection import \
 from epyseg.worker.fake import FakeWorker
 from epyseg.worker.threaded import Worker
 
+DEBUG = False
+
 logger = TA_logger()
 
 # allow high dpi scaling only on systems that support it it's really cool and I should have this in all main classes of PyQT stuff
-from PyQt5.Qt import PYQT_VERSION_STR
+from qtpy.QtCore import PYQT_VERSION_STR
 if PYQT_VERSION_STR<'6':
     # get code ready for pyqt6 where hi dpi is enabled by default
-    QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)  # high DPI fix
+    try:
+        QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)  # high DPI fix
+    except:
+        pass
 
 # can I create an on the fly stuff ??? for the masterdb
 # maybe just for one command --> maybe that is the smartest way of doing this
@@ -163,13 +172,16 @@ __AUTHOR__ = 'Benoit Aigouy'
 __NAME__ = 'PyTA: Python Tissue Analyzer'
 __EMAIL__ = 'baigouy@gmail.com'
 
-DEBUG = False
 
 class TissueAnalyzer(QtWidgets.QMainWindow):
     # stop_threads = False
 
     def __init__(self, parent=None):
         super().__init__(parent)
+
+        # for unit test debugging
+        # raise Exception
+
         self.initUI()
 
         # global early_stop
@@ -183,8 +195,15 @@ class TissueAnalyzer(QtWidgets.QMainWindow):
         delayed_preview_update.timeout.connect(self.preview_changed)
 
         self.master_db = None  # will store the master db if exists # need close it otherwise # if fast enough --> just do it on the fly maybe --> see how I can do that
-        screen = QApplication.desktop().screenNumber(QApplication.desktop().cursor().pos())
-        centerPoint = QApplication.desktop().screenGeometry(screen).center()
+
+        try:
+            screen = QApplication.desktop().screenNumber(QApplication.desktop().cursor().pos())
+            centerPoint = QApplication.desktop().screenGeometry(screen).center()
+        except:
+            from qtpy.QtGui import QGuiApplication
+            centerPoint = QGuiApplication.primaryScreen().geometry().center()
+
+        # print(centerPoint)
 
         # should fit in 1024x768 (old computer screens)
         window_width = 900
@@ -1264,6 +1283,7 @@ class TissueAnalyzer(QtWidgets.QMainWindow):
         # TODO need add checks to make sure the stuff is loading properly
         # print('in here2')
         # deepTA = EZDeepLearning(use_cpu=self.force_CPU_check.isChecked())
+        from epyseg.deeplearning.deepl import EZDeepLearning # required to avoid multiprocessing errors --> import must not be global for tf and EZDeep
         deepTA = EZDeepLearning()
         # deepTA.load_or_build(            model='/E/Sample_images/sample_images_pyta/test_merged_model.h5')  # TODO --> replace this by online model --> TODO
 
@@ -1312,7 +1332,8 @@ class TissueAnalyzer(QtWidgets.QMainWindow):
         # add all of these files to the next list
         self.list.get_list(1).add_to_list(processed_images, check_if_supported=False)
 
-        del deepTA
+        del deepTA # required to avoid multiprocessing errors
+        gc.collect() # required to avoid multiprocessing errors
         # shall I add helps that guide the user through it
         # pass
         # TODO --> try implement that --> maybe it's a good idea
@@ -2081,6 +2102,7 @@ class TissueAnalyzer(QtWidgets.QMainWindow):
         SIZE_FILTER = None  # 100 # set to 100 to get rid of cells having pixel area < 100 pixels
 
         # deepTA = EZDeepLearning(use_cpu=self.force_CPU_check.isChecked())
+        from epyseg.deeplearning.deepl import EZDeepLearning # required to avoid multiprocessing errors --> import must not be global for tf and EZDeep
         deepTA = EZDeepLearning()
 
         # check whether that would work or not
@@ -2100,7 +2122,8 @@ class TissueAnalyzer(QtWidgets.QMainWindow):
         # surface_projection_pyta(deepTA, lst,
         #                         save_raw_image=save_raw_image, channel=self.paint.get_selected_channel())
 
-        del deepTA
+        del deepTA # required to avoid multiprocessing errors
+        gc.collect() # required to avoid multiprocessing errors
         # run update to load mask if exists
 
         # pas mal mais vraiment besoin d'une progress bar...

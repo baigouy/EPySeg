@@ -1,9 +1,14 @@
 # pip install PyQtWebEngine or  'PyQtWebEngine==5.13.0'  + 'PyQt5==5.13.0' # version need be in sync with pyt otherwise there is a bug
+import os
+from epyseg.settings.global_settings import set_UI # set the UI to be used py qtpy
+set_UI()
+# from qtpy.QtCore import PYQT_VERSION_STR
+# print(PYQT_VERSION_STR)
 from markdown import markdown  # nb not all markdown is supported, but it's not so bad...
-from PyQt5.QtWebEngineWidgets import QWebEngineView
-from PyQt5.QtWidgets import QVBoxLayout, QTabWidget
-from PyQt5.QtWidgets import QApplication
-from PyQt5.QtWidgets import QWidget
+from qtpy.QtWebEngineWidgets import QWebEngineView
+from qtpy.QtWidgets import QVBoxLayout, QTabWidget
+from qtpy.QtWidgets import QApplication
+from qtpy.QtWidgets import QWidget
 import os
 
 

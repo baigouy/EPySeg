@@ -28,10 +28,13 @@
     # ça marche super en fait et c'est vraiment facile
 
 # computes the rescaling factor so that images get rescaled to fit the desired dimension --> much smarter that way than using brute force!!!
-import sys
 
-from PyQt5 import QtWidgets
-from PyQt5.QtCore import QRectF
+import os
+from epyseg.settings.global_settings import set_UI # set the UI to be used py qtpy
+set_UI()
+import sys
+from qtpy import QtWidgets
+from qtpy.QtCore import QRectF
 
 
 # nb the pb asssumes AR is kept constant which is true for images but not with panels containing images and incompressible space between them --> need some extra computation then
@@ -772,17 +775,17 @@ if __name__ == '__main__':
 
         # desired width = 128
         # real example from columns --> with space 3
-        # size of inner elm PyQt5.QtCore.QRectF(0.0, 0.0, 6.491758918437604, 49.188463457232196)
-        # size of inner elm PyQt5.QtCore.QRectF(9.491758918437604, 0.0, 118.50824108156237, 42.42126355836911)
+        # size of inner elm qtpy.QtCore.QRectF(0.0, 0.0, 6.491758918437604, 49.188463457232196)
+        # size of inner elm qtpy.QtCore.QRectF(9.491758918437604, 0.0, 118.50824108156237, 42.42126355836911)
         # <class 'epyseg.figure.row.Row'>
-        # PyQt5.QtCore.QRectF(0.0, 0.0, 127.99999999999997, 49.188463457232196)
+        # qtpy.QtCore.QRectF(0.0, 0.0, 127.99999999999997, 49.188463457232196)
 
         # with space 0
-        #size of inner elm PyQt5.QtCore.QRectF(0.0, 0.0, 7.348408669130177, 45.49171603236653)
-        # size of inner elm PyQt5.QtCore.QRectF(7.348408669130176, 0.0, 120.65159133086982, 45.49171603236654)
+        #size of inner elm qtpy.QtCore.QRectF(0.0, 0.0, 7.348408669130177, 45.49171603236653)
+        # size of inner elm qtpy.QtCore.QRectF(7.348408669130176, 0.0, 120.65159133086982, 45.49171603236654)
         # <class 'epyseg.figure.row.Row'>
-        # PyQt5.QtCore.QRectF(0.0, 0.0, 128.0, 45.49171603236654)
-        # if I put them to sameheight --> then with size 3 --> PyQt5.QtCore.QRectF(0.0, 0.0, 145.9477387942681, 49.188463457232196) --> not 128 anymore --> need resize it
+        # qtpy.QtCore.QRectF(0.0, 0.0, 128.0, 45.49171603236654)
+        # if I put them to sameheight --> then with size 3 --> qtpy.QtCore.QRectF(0.0, 0.0, 145.9477387942681, 49.188463457232196) --> not 128 anymore --> need resize it
         # need change the height from there one by one so that I reach 128 in width again
 
 

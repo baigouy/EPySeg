@@ -28,9 +28,11 @@
 # en fait le panel serait 2D sinon mieux vaut utiliser une vbox ou une hbox
 # puis-je aussi faire un systeme de grid ??? pas si facile avec des images
 
-
+import os
+from epyseg.settings.global_settings import set_UI # set the UI to be used py qtpy
+set_UI()
 from epyseg.draw.shapes.rect2d import Rect2D
-from PyQt5.QtCore import QPointF, QRectF
+from qtpy.QtCore import QPointF, QRectF
 
 from epyseg.figure.fig_tools import preview
 from epyseg.figure.row import Row

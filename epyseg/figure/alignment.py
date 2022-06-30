@@ -1,7 +1,10 @@
 # align objects left right top or bottom
 # maybe just need methods and not even a class
 # logger
-from PyQt5.QtCore import QRectF
+import os
+from epyseg.settings.global_settings import set_UI # set the UI to be used py qtpy
+set_UI()
+from qtpy.QtCore import QRectF
 
 from epyseg.draw.shapes.point2d import Point2D
 from epyseg.tools.logger import TA_logger

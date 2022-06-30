@@ -1,11 +1,14 @@
-from PyQt5 import QtCore
-from PyQt5.QtCore import QPointF, QRect
-from PyQt5.QtGui import QTextDocument, QTextOption
-from PyQt5.QtGui import QPainter, QImage, QColor, QFont
+import os
+from epyseg.settings.global_settings import set_UI # set the UI to be used py qtpy
+set_UI()
+from qtpy import QtCore
+from qtpy.QtCore import QPointF, QRect
+from qtpy.QtGui import QTextDocument, QTextOption
+from qtpy.QtGui import QPainter, QImage, QColor, QFont
 import sys
-from PyQt5 import QtGui
-from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QApplication
+from qtpy import QtGui
+from qtpy.QtCore import Qt
+from qtpy.QtWidgets import QApplication
 from epyseg.draw.shapes.rect2d import Rect2D
 # log errors
 from epyseg.tools.logger import TA_logger

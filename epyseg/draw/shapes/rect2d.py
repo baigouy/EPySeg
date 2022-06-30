@@ -2,9 +2,11 @@
 # TODO offer shear and scale at the level of the stuff
 # Offer set to with also
 # si double click sur une image --> edit it # offer drawing of shapes etc
-
-from PyQt5.QtCore import QPointF, QRectF, Qt
-from PyQt5.QtGui import QBrush, QPen, QColor, QTransform
+import os
+from epyseg.settings.global_settings import set_UI # set the UI to be used py qtpy
+set_UI()
+from qtpy.QtCore import QPointF, QRectF, Qt
+from qtpy.QtGui import QBrush, QPen, QColor, QTransform
 
 from epyseg.tools.logger import TA_logger
 

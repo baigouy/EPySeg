@@ -1,6 +1,9 @@
+import os
+from epyseg.settings.global_settings import set_UI # set the UI to be used py qtpy
+set_UI()
 #import argparse # later maybe allow arguments
 from epyseg.epygui import EPySeg
-from PyQt5.QtWidgets import QApplication
+from qtpy.QtWidgets import QApplication
 import sys
 
 if __name__ == '__main__':

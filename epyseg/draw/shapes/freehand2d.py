@@ -1,9 +1,12 @@
-from PyQt5 import QtCore
-from PyQt5.QtCore import QPointF, Qt
-from PyQt5.QtGui import QPainter, QBrush, QPen, QImage, QColor
+import os
+from epyseg.settings.global_settings import set_UI # set the UI to be used py qtpy
+set_UI()
+from qtpy import QtCore
+from qtpy.QtCore import QPointF, Qt
+from qtpy.QtGui import QPainter, QBrush, QPen, QImage, QColor
 # from epyseg.draw.shapes.polygon2d import Polygon2D
-# from PyQt5.Qt
-# from PyQt5.Qt import (QPaintEngine, QPaintDevice,  QTransform, QBrush)
+# from qtpy.Qt
+# from qtpy.Qt import (QPaintEngine, QPaintDevice,  QTransform, QBrush)
 from epyseg.draw.shapes.polygon2d import Polygon2D
 from epyseg.draw.shapes.polyline2d import PolyLine2D
 

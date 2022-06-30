@@ -1,4 +1,7 @@
-from PyQt5 import QtCore
+import os
+from epyseg.settings.global_settings import set_UI # set the UI to be used py qtpy
+set_UI()
+from qtpy import QtCore
 from epyseg.draw.shapes.polygon2d import Polygon2D
 from epyseg.draw.shapes.line2d import Line2D
 from epyseg.draw.shapes.rect2d import Rect2D
@@ -9,7 +12,7 @@ from epyseg.draw.shapes.freehand2d import Freehand2D
 from epyseg.draw.shapes.point2d import Point2D
 from epyseg.draw.shapes.polyline2d import PolyLine2D
 from epyseg.draw.shapes.image2d import Image2D
-from PyQt5.QtCore import QPointF, QRectF
+from qtpy.QtCore import QPointF, QRectF
 from epyseg.tools.logger import TA_logger # logging
 logger = TA_logger()
 

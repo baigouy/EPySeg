@@ -1,13 +1,14 @@
 # TODO need handle tracking and need break buttons to stop the loop
-
-# none of the label drawings is great --> ignore t for now or maybe add it to the vectorial draw pane but do not allow edit and save of this and move it with the image!!!
+import os
+from epyseg.settings.global_settings import set_UI # set the UI to be used py qtpy
+set_UI()# none of the label drawings is great --> ignore t for now or maybe add it to the vectorial draw pane but do not allow edit and save of this and move it with the image!!!
 import traceback
 from functools import partial
 import numpy as np
-from PyQt5 import QtWidgets, QtGui, QtCore
-from PyQt5.QtCore import QRect, Qt, QSize
-from PyQt5.QtGui import QPalette
-from PyQt5.QtWidgets import QApplication, QGridLayout, QScrollArea, QLabel, QVBoxLayout, QDialog, QStyle, \
+from qtpy import QtWidgets, QtGui, QtCore
+from qtpy.QtCore import QRect, Qt, QSize
+from qtpy.QtGui import QPalette
+from qtpy.QtWidgets import QApplication, QGridLayout, QScrollArea, QLabel, QVBoxLayout, QDialog, QStyle, \
     QStyleOptionTitleBar, QMessageBox, QDialogButtonBox
 # from deprecated_demos.ta.wshed import Wshed
 from epyseg.ta.segmentation.neo_wshed import wshed
@@ -824,8 +825,14 @@ class ImgDisplayWindow(QDialog):
         )
 
         # geometry = app.desktop().availableGeometry()
-        geometry = QtWidgets.QDesktopWidget().availableGeometry()
-        geometry.setHeight(geometry.height() - (titleBarHeight*2))
+        # geometry = QtWidgets.QDesktopWidget().availableGeometry()
+        # geometry.setHeight(geometry.height() - (titleBarHeight*2))
+        try:
+            geometry = QtWidgets.QDesktopWidget().availableGeometry()
+            geometry.setHeight(geometry.height() - (titleBarHeight * 2))
+        except:
+            from qtpy.QtGui import QGuiApplication
+            geometry = QGuiApplication.primaryScreen().geometry()
 
         dialog.setGeometry(geometry)
         # end show full screen without maximizing

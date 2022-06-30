@@ -1,32 +1,36 @@
 import os
-
+from epyseg.settings.global_settings import set_UI # set the UI to be used py qtpy
+set_UI()
 os.environ['SM_FRAMEWORK'] = 'tf.keras'  # set env var for changing the segmentation_model framework
 import sys
 from epyseg.uitools.blinker import Blinker
 import logging
 import traceback
 from epyseg.deeplearning.deepl import EZDeepLearning
-from PyQt5.QtWidgets import QListWidgetItem, QAbstractItemView, QSpinBox, QComboBox, QProgressBar, \
+from qtpy.QtWidgets import QListWidgetItem, QAbstractItemView, QSpinBox, QComboBox, QProgressBar, \
     QVBoxLayout, QHBoxLayout, QLabel, QCheckBox, QRadioButton, QButtonGroup, QGroupBox, \
     QTextBrowser, QToolTip, QDoubleSpinBox
-from PyQt5.QtCore import Qt, QThreadPool, QPoint, QRect
-from PyQt5.QtGui import QColor, QTextCharFormat, QTextCursor, QPixmap, QIcon
-from PyQt5.QtWidgets import QGridLayout, QListWidget, QFrame, QTabWidget
+from qtpy.QtCore import Qt, QThreadPool, QPoint, QRect
+from qtpy.QtGui import QColor, QTextCharFormat, QTextCursor, QPixmap, QIcon
+from qtpy.QtWidgets import QGridLayout, QListWidget, QFrame, QTabWidget
 from epyseg.gui.open import OpenFileOrFolderWidget
-from PyQt5.QtWidgets import QApplication
-from PyQt5 import QtWidgets, QtCore, QtGui
+from qtpy.QtWidgets import QApplication
+from qtpy import QtWidgets, QtCore, QtGui
 from epyseg.tools.qthandler import XStream, QtHandler
 from epyseg.gui.pyqtmarkdown import PyQT_markdown
 # from epyseg.img import Img
-from PyQt5.QtWidgets import QPushButton, QWidget
+from qtpy.QtWidgets import QPushButton, QWidget
 from epyseg.tools.logger import TA_logger # logging
 
 logger = TA_logger()
 
-from PyQt5.Qt import PYQT_VERSION_STR
+from qtpy.QtCore import PYQT_VERSION_STR
 if PYQT_VERSION_STR<'6':
     # get code ready for pyqt6 where hi dpi is enabled by default
-    QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)  # high DPI fix
+    try:
+        QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)  # high DPI fix
+    except:
+        pass
 
 DEBUG = True  # set to True if GUI crashes
 __MAJOR__ = 0
@@ -284,8 +288,12 @@ class DeepTools(QWidget):
         self.setLayout(log_and_main_layout)
 
         try:
-            screen = QApplication.desktop().screenNumber(QApplication.desktop().cursor().pos())
-            centerPoint = QApplication.desktop().screenGeometry(screen).center()
+            try:
+                screen = QApplication.desktop().screenNumber(QApplication.desktop().cursor().pos())
+                centerPoint = QApplication.desktop().screenGeometry(screen).center()
+            except:
+                from qtpy.QtGui import QGuiApplication
+                centerPoint = QGuiApplication.primaryScreen().geometry().center()
             self.setGeometry(QtCore.QRect(centerPoint.x() - self.width(), centerPoint.y() - self.height(), self.width(),
                                           self.height()))
         except:
