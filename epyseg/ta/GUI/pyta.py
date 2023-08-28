@@ -138,7 +138,7 @@ from epyseg.ta.tracking.tracking_error_detector_and_fixer import help_user_corre
 from epyseg.ta.tracking.tracking_yet_another_approach_pyramidal_registration_n_neo_swapping_correction import \
     track_cells_dynamic_tissue
 from epyseg.ta.GUI.input_text_dialog import QPlainTextInputDialog
-from epyseg.ta.deep.fixed_script_yonit import run_seg
+from epyseg.ta.deep.fixed_script_yonit import run_segmentation
 from epyseg.tools.logger import TA_logger  # logging
 from epyseg.ta.deep.create_model_for_projection import \
     create_surface_projection_denoise_and_height_map_combinatorial_model
@@ -166,7 +166,7 @@ if PYQT_VERSION_STR<'6':
 __MAJOR__ = 1
 __MINOR__ = 0
 __MICRO__ = 0
-__RELEASE__ = 'b'  # https://www.python.org/dev/peps/pep-0440/#public-version-identifiers --> alpha beta, ...
+__RELEASE__ = 'c'  # https://www.python.org/dev/peps/pep-0440/#public-version-identifiers --> alpha beta, ...
 __VERSION__ = ''.join([str(__MAJOR__), '.', str(__MINOR__), '.'.join([str(__MICRO__)]) if __MICRO__ != 0 else '', __RELEASE__])
 __AUTHOR__ = 'Benoit Aigouy'
 __NAME__ = 'PyTA: Python Tissue Analyzer'
@@ -2107,7 +2107,7 @@ class TissueAnalyzer(QtWidgets.QMainWindow):
 
         # check whether that would work or not
 
-        run_seg(deepTA=deepTA, INPUT_FOLDER=lst, IS_TA_OUTPUT_MODE=IS_TA_OUTPUT_MODE,
+        run_segmentation(deepTA=deepTA, INPUT_FOLDER=lst, IS_TA_OUTPUT_MODE=IS_TA_OUTPUT_MODE,
                 progress_callback=progress_callback,
                 input_channel_of_interest=input_channel_of_interest, TILE_WIDTH=TILE_WIDTH, TILE_HEIGHT=TILE_HEIGHT,
                 TILE_OVERLAP=TILE_OVERLAP, EPYSEG_PRETRAINING=EPYSEG_PRETRAINING, SIZE_FILTER=SIZE_FILTER)
