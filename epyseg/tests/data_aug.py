@@ -3,7 +3,7 @@
 import unittest
 
 from numpy.ma.testutils import assert_array_equal
-
+from epyseg.deeplearning.augmentation.generators.data_augmentation_2 import tst_all_augs
 from epyseg.img import mask_rows_or_columns
 import numpy as np
 
@@ -38,6 +38,9 @@ class TestDataAug(unittest.TestCase):
                                                [-1, -1, -1],
                                                [-1, 32, -1]]))
 
+    # test
+    def test_all_augmentations(self):
+        tst_all_augs()
 
 if __name__ == '__main__':
     unittest.main()

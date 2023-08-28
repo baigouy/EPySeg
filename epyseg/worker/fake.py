@@ -1,34 +1,25 @@
 import os
-from epyseg.settings.global_settings import set_UI # set the UI to be used py qtpy
+from epyseg.settings.global_settings import set_UI
 set_UI()
 
 from qtpy.QtWidgets import *
 from qtpy.QtCore import Qt, QFileSystemWatcher, QSettings, Signal
-
 from qtpy.QtCore import *
 import traceback
 import sys
 
 
 class WorkerSignals(QObject):
-    '''
+    """
     Defines the signals available from a running worker thread.
 
-    Supported signals are:
+    Signals:
+        finished: No data
+        error: Tuple (exctype, value, traceback.format_exc())
+        result: Any data returned from processing
+        progress: Integer indicating % progress
+    """
 
-    finished
-        No data
-
-    error
-        `tuple` (exctype, value, traceback.format_exc() )
-
-    result
-        `object` data returned from processing, anything
-
-    progress
-        `int` indicating % progress
-
-    '''
     finished = Signal()
     error = Signal(tuple)
     result = Signal(object)
@@ -36,21 +27,19 @@ class WorkerSignals(QObject):
 
 
 class FakeWorker(QObject):
-    '''
-    FakeWorker
+    """
+    FakeWorker class.
 
-    :param callback: The function callback to run on this worker thread. Supplied args and
-                     kwargs will be passed through to the runner.
-    :type callback: function
-    :param args: Arguments to pass to the callback function
-    :param kwargs: Keywords to pass to the callback function
-
-    '''
+    Args:
+        fn (function): The function callback to run on this worker thread. Supplied args and kwargs will be passed through to the runner.
+        args: Arguments to pass to the callback function
+        kwargs: Keywords to pass to the callback function
+    """
 
     def __init__(self, fn, *args, **kwargs):
         super(FakeWorker, self).__init__()
 
-        # Store constructor arguments (re-used for processing)
+        # Store constructor arguments (reused for processing)
         self.fn = fn
         self.args = args
         self.kwargs = kwargs
@@ -61,11 +50,9 @@ class FakeWorker(QObject):
 
     @Slot()
     def run(self):
-        '''
-        Initialise the runner function with passed args, kwargs.
-        '''
-
-        # Retrieve args/kwargs here; and fire processing using them
+        """
+        Initialize the runner function with passed args and kwargs.
+        """
         try:
             result = self.fn(*self.args, **self.kwargs)
         except:
@@ -78,5 +65,7 @@ class FakeWorker(QObject):
             self.signals.finished.emit()  # Done
 
     def start(self):
+        """
+        Start the worker thread by running the callback function.
+        """
         self.run()
-

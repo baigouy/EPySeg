@@ -8,7 +8,7 @@ from epyseg.tools.early_stopper_class import early_stop
 os.environ['SM_FRAMEWORK'] = 'tf.keras'  # set env var for changing the segmentation_model framework
 import traceback
 import matplotlib.pyplot as plt
-from epyseg.img import Img
+from epyseg.img import Img, reassemble_tiles, linear_to_2D_tiles
 from epyseg.deeplearning.augmentation.generators.data import DataGenerator
 import numpy as np
 import tensorflow as tf
@@ -1468,12 +1468,12 @@ class EZDeepLearning:
                     #     '''
 
                     # bug preventing the stuff is there
-                    # ordered_tiles = Img.linear_to_2D_tiles(result[j], crop_parameters[j])
-                    ordered_tiles = Img.linear_to_2D_tiles(result, crop_parameters[j])
+                    # ordered_tiles = linear_to_2D_tiles(result[j], crop_parameters[j])
+                    ordered_tiles = linear_to_2D_tiles(result, crop_parameters[j])
 
                     # 2D image
                     if len(cur_output_shape) == 4:
-                        reconstructed_tile = Img.reassemble_tiles(ordered_tiles, crop_parameters[j])
+                        reconstructed_tile = reassemble_tiles(ordered_tiles, crop_parameters[j])
 
                         # print('reconstructed_tile',reconstructed_tile.shape, crop_parameters[j])
 
@@ -1533,7 +1533,7 @@ class EZDeepLearning:
                             del reconstructed_tile
                     else:
                         # 3D image
-                        reconstructed_tile = Img.reassemble_tiles(ordered_tiles, crop_parameters[j], three_d=True)
+                        reconstructed_tile = reassemble_tiles(ordered_tiles, crop_parameters[j], three_d=True)
                         # run post process directly on the image if available
                         if cur_output_shape[-1] != 7 and (post_process_algorithm is not None or (
                                 isinstance(post_process_algorithm, str) and 'imply' in post_process_algorithm)):
@@ -1726,14 +1726,14 @@ class EZDeepLearning:
                 #     '''
 
                 # bug preventing the stuff is there
-                # ordered_tiles = Img.linear_to_2D_tiles(result[j], crop_parameters[j])
-                ordered_tiles = Img.linear_to_2D_tiles(result, crop_parameters[j])
+                # ordered_tiles = linear_to_2D_tiles(result[j], crop_parameters[j])
+                ordered_tiles = linear_to_2D_tiles(result, crop_parameters[j])
 
 
 
                 # 2D image
                 if len(cur_output_shape) == 4:
-                    reconstructed_tile = Img.reassemble_tiles(ordered_tiles, crop_parameters[j])
+                    reconstructed_tile = reassemble_tiles(ordered_tiles, crop_parameters[j])
 
                     # print('reconstructed_tile.shape',reconstructed_tile.shape)
 
@@ -1799,7 +1799,7 @@ class EZDeepLearning:
                         final_output.append(reconstructed_tile)
                 else:
                     # 3D image
-                    reconstructed_tile = Img.reassemble_tiles(ordered_tiles, crop_parameters[j], three_d=True)
+                    reconstructed_tile = reassemble_tiles(ordered_tiles, crop_parameters[j], three_d=True)
                     # run post process directly on the image if available
                     if cur_output_shape[-1] != 7 and (post_process_algorithm is not None or (
                             isinstance(post_process_algorithm, str) and 'imply' in post_process_algorithm)):
@@ -2494,7 +2494,7 @@ if __name__ == '__main__':
 
     # metaAugmenter = MetaAugmenter.get_epithelia_data_augmenter()
     #
-    # optimizer = 'adam'  # 'adadelta' # 'adam' #Adam() #keras.optimizers.Adam() #Adam(lr=1e-4) #optimizer='rmsprop' #'sgd' #keras.optimizers.SGD(learning_rate=learning_rate_fn)
+    # optimizer = 'adam'  # 'adadelta' # 'adam' #Adam() #keras.optimizers.Adam() #Adam(learning_rate=1e-4) #optimizer='rmsprop' #'sgd' #keras.optimizers.SGD(learning_rate=learning_rate_fn)
     # loss = sm.losses.jaccard_loss #'binary_crossentropy'  # 'binary_crossentropy' #'categorical_crossentropy' #'mean_squared_error'#'mean_squared_error' #sm.losses.bce_jaccard_loss #'binary_crossentropy' #'mean_squared_error'
     # metrics = [sm.metrics.iou_score] # 'accuracy' # ['binary_accuracy'] #[sm.metrics.iou_score] #['accuracy'] ['binary_accuracy'] ['mae']
     #

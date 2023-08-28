@@ -8,7 +8,6 @@
 
 # TODO --> ask for what model weigths to use for surface projection --> offer between the 3 models pushed --> results will depend a lot on the model!!!
 
-
 '''
 error track cells static tissue not showing progress even though it's working properly...
 
@@ -127,7 +126,7 @@ from epyseg.ta.minimal_code_surf_proj_pyTA import surface_projection_pyta
 # from epyseg.ta.pyqt_test_threads_instead_of_threadpool import Worker2, FakeWorker2
 from epyseg.ta.GUI.stackedduallist import dualList
 from epyseg.ta.GUI.tascrollablepaint import tascrollablepaint
-from epyseg.ta.luts.lut_minimal_test import list_availbale_luts, apply_lut, PaletteCreator
+from epyseg.ta.luts.lut_minimal_test import list_available_luts, apply_lut, PaletteCreator
 from epyseg.ta.segmentation.neo_wshed import wshed
 from epyseg.ta.measurements.TAmeasures import TAMeasurements
 from epyseg.ta.tracking.local_to_track_correspondance import add_localID_to_trackID_correspondance_in_DB
@@ -159,7 +158,8 @@ if PYQT_VERSION_STR<'6':
     except:
         pass
 
-# can I create an on the fly stuff ??? for the masterdb
+# can I create an on the fly stuff ?
+# ?? for the masterdb
 # maybe just for one command --> maybe that is the smartest way of doing this
 # and plot only for the table
 
@@ -466,7 +466,7 @@ class TissueAnalyzer(QtWidgets.QMainWindow):
 
         # populate LUTs --> once for good at the beginning of the table
         self.lut_combo = QComboBox()
-        available_luts = list_availbale_luts()
+        available_luts = list_available_luts()
         for lut in available_luts:
             self.lut_combo.addItem(lut)
 

@@ -18,56 +18,33 @@ class My_saver_callback(tf.keras.callbacks.Callback):
     def __init__(self, save_output_name, deepTA, epochs=None, keep_n_best=5, output_folder_for_models=None,
                  monitor='loss', verbose=0, save_best_only=False, save_training_log=True, keep_best_validation=True,
                  save_weights_only=False, progress_callback=None):
-        '''init saver callback
+        """
+        Initialize the SaverCallback.
 
-        Parameters
-        ----------
-        save_output_name : string
-            generic name for model saving
+        Parameters:
+            save_output_name (str): Generic name for model saving.
+            deepTA: The deep learning tool.
+            epochs (int): Total number of epochs (required to display progress).
+            keep_n_best (int): Number of best models (lower loss) to keep during training.
+            output_folder_for_models (str): Folder where models should be saved.
+            monitor (str): Loss to monitor (could be 'loss' or 'val_loss' if validation set exists).
+            verbose (int): Verbosity level.
+            save_best_only (bool): If True, only saves the best model (overrides keep_n_best).
+            save_training_log (bool): If True, saves the training log containing losses and metrics outputs.
+            keep_best_validation (bool): If True, keeps the best model (lowest loss) on validation.
+            save_weights_only (bool): If True, only saves weights, not the entire model and optimizer.
+            progress_callback: Anything to display progress.
 
-        deepTA : deep learning tool
-
-
-        epochs : int
-            total nb of epochs (required to display progress)
-
-        keep_n_best : int
-            number of best models (lower loss) to keep during training
-
-        output_folder_for_models : string
-            folder where models should be saved
-
-        monitor : str
-            loss to monitor (could be loss or val_loss if validation set exists)
-
-        verbose : int
-            verbose level
-
-        save_best_only : boolean
-            if True only saves the best model (overrides keep_n_best)
-
-        save_training_log :  boolean
-            if True saves training log (containing losses and metrics outputs along with the epoch nb, useful for plots)
-
-        keep_best_validation :  boolean
-            keeps best model (lowest loss) on validation
-
-        save_weights_only : boolean
-            only save weights not model and optimizer
-
-        progress_callback : anything to display progress
-            dipslays progress
-
-        '''
-
+        """
         self.save_weights_only = save_weights_only
         self.output_folder_for_models = output_folder_for_models
         self.save_output_name = save_output_name
+
         if self.output_folder_for_models is not None:
             if not os.path.exists(self.output_folder_for_models):
                 os.makedirs(self.output_folder_for_models, exist_ok=True)
             self.save_output_name = os.path.join(self.output_folder_for_models, self.save_output_name)
-        # print('joined path', self.save_output_name)
+
         self.deepTA = deepTA
         self.epochs = epochs
         self.keep_n_best = keep_n_best
@@ -78,12 +55,21 @@ class My_saver_callback(tf.keras.callbacks.Callback):
         self.keep_best_validation = keep_best_validation
         self.best_val_loss = 10000
         self.progress_callback = progress_callback
+
         if self.save_best_only:
             self.keep_n_best = 1  # only keep the best
+
         self.stop_me = False
         self.best_model = None
 
     def on_train_begin(self, logs={}):
+        """
+        Function called at the beginning of training.
+
+        Parameters:
+            logs (dict): Dictionary containing the training metrics and logs.
+        """
+
         self.best_loss = 1_000_000  # keeps the best/lowest loss value
         self.losses = []
         self.accs = []
@@ -94,25 +80,72 @@ class My_saver_callback(tf.keras.callbacks.Callback):
         self.loss_n_filename = {}
 
         if self.save_training_log:
-            # save raw log for plot purpose
+            """
+            If save_training_log is enabled, create an empty log file with the name save_output_name + '.log'.
+            """
             open(self.save_output_name + '.log', 'w+').close()
 
     def on_train_end(self, logs={}):
+        """
+        Function called at the end of training.
+
+        Parameters:
+            logs (dict): Dictionary containing the training metrics and logs.
+
+        Returns:
+            None
+        """
+
         return
 
     def on_epoch_begin(self, epoch, logs={}):
-        self.start_time = timer()
+        """
+        Function called at the beginning of each epoch.
+
+        Parameters:
+            epoch (int): The current epoch number.
+            logs (dict): Dictionary containing the training metrics and logs.
+
+        Returns:
+            None
+        """
+
+        self.start_time = timer()  # Record the start time of the epoch
+
         try:
             if self.progress_callback is not None and self.epochs is not None:
-                self.progress_callback.emit((epoch / self.epochs) * 100)
+                self.progress_callback.emit((epoch / self.epochs) * 100)  # Update the progress callback (if available)
             else:
-                logger.info(str((epoch / self.epochs) * 100) + '%')
+                logger.info(
+                    str((epoch / self.epochs) * 100) + '%')  # Log the progress (if progress callback is not available)
         except:
             pass
+
         return
 
     # in fact need store rename first then run stuff
     def get_save_name(self, epoch, value):
+        """
+        This method returns a formatted string representing the save name for a given epoch and value.
+
+        Parameters:
+        - self: a reference to the instance of the class that the method belongs to
+        - epoch: an integer representing the epoch value
+        - value: a float representing the value
+
+        Returns:
+        - save_name: a string representing the formatted save name
+
+        """
+
+        # This line returns a string that combines the following elements:
+        # - The value of 'self.save_output_name', which is a string stored in the instance variable 'save_output_name'.
+        # - '-ep%04d-l%0.6f.h5' is a format string that specifies the format of the remaining elements.
+        #     - '%04d' formats the epoch value (an integer) with 4 digits, zero-padded if necessary.
+        #     - '%0.6f' formats the value (a float) with 6 digits after the decimal point.
+        # - The values inside the parentheses following the format string are the values to be substituted into the format string.
+        #     - (epoch + 1) is the epoch value incremented by 1.
+        #     - value is the original value passed as an argument.
         return self.save_output_name + '-ep%04d-l%0.6f.h5' % (epoch + 1, value)
 
     def on_epoch_end(self, epoch, logs={}):
@@ -284,6 +317,11 @@ class My_saver_callback(tf.keras.callbacks.Callback):
                                 new_index = self.best_kept.index(val)
                                 real_new_index = len(self.best_kept) - new_index - 1
                                 save_file_name2 = self.save_output_name + '-' + str(real_new_index) + '.h5'
+
+                                # print('tada',new_index, real_new_index, save_file_name2)
+                                # print(val)
+                                # print(os.path.exists(save_file_name2), os.path.exists(self.loss_n_filename[val]))
+
                                 try:
                                     # bug fix to prevent filling google drive bin
                                     open(save_file_name2,
@@ -291,7 +329,35 @@ class My_saver_callback(tf.keras.callbacks.Callback):
                                 except:
                                     pass
                                 # os.rename seems to cause a crash if file already exists on windows os see https://stackoverflow.com/questions/45636341/is-it-wise-to-remove-files-using-os-rename-instead-of-os-remove-in-python
-                                os.replace(self.loss_n_filename[val], save_file_name2)
+
+                                # print(self.loss_n_filename,self.loss_n_filename[val],save_file_name2)
+                                # print(os.path.exists(save_file_name2), os.path.exists(self.loss_n_filename[val])) # the dest exists but not the source --> why is that ????
+
+
+                                # somehow there is a random bug here but no clue why
+                                try:
+                                    os.replace(self.loss_n_filename[val], save_file_name2)
+                                except:
+                                    logger.error('this should never have been reached trying ultimate rescue solution')
+                                    print('tada',new_index, real_new_index, save_file_name2)
+                                    print(val)
+                                    print(self.best_kept)
+                                    print(updates)
+                                    # print(os.path.exists(save_file_name2), os.path.exists(self.loss_n_filename[val]))
+                                    print(self.loss_n_filename,self.loss_n_filename[val],save_file_name2)
+                                    print(os.path.exists(save_file_name2), os.path.exists(self.loss_n_filename[val])) # the dest exists but not the source --> why is that ????
+                                    #
+                                    # somehow there is a random bug here but no clue why
+                                    print('renaming 2', self.loss_n_filename[val], 'to', save_file_name2)
+                                    traceback.print_exc()
+                                    if not self.save_weights_only:
+                                        self.model.save(save_file_name2)
+                                    else:
+                                        self.model.save_weights(save_file_name2)
+                                    # try:
+                                    #     os.replace(self.loss_n_filename[val], save_file_name2)
+                                    # except:
+                                    #     pass
 
                                 # print('renaming 2', self.loss_n_filename[val], 'to', save_file_name2)
 

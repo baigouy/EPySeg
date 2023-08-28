@@ -1,49 +1,3 @@
-# faire un GT creator --> just takes a ROI of the image with the mask and store it in a folder
-# --> maybe do that --> not that hard to do
-
-# ça marche avec les recursions --> c'est vraiment parfait maintenant
-# idealement faudrait voir si je peux augmenter l'execution du reassignment mais entre le warping et la swap correction c'est parfait et pas de big swapping --> really good in fact!!!
-# juste finalizer ce code
-
-
-# TODO try the matching either based on translation using mermaid warp or on overlap between the two images --> really try the two scenarios
-# maybe also use that to identify segmentation errors
-# maybe try to run the wshed locally
-# try a dynamic fixer of the thing
-
-# --> give it a try to all !!! --> TODO
-# maybe that is the game changer --> TODO
-# still use the first image of pyTA epyseg to compute the wshed of the image --> TODO
-# and could use the seeds from the stuff
-
-
-# really try both configs --> I'm almost done!!!
-
-# code that at home
-# flip my flies
-
-# --> get the warped file and get the stuff
-# identify new cells !!!
-
-# can I transform waping into a velocity stuff
-# read the warped image and try to match into onto the new image --> if that works then I'm done
-#
-
-# open the mask
-# open the warped mask of the other or the warped tracks and get the mapping
-# how can I convert the phi file to translations --> if I can do that then all will be easy
-# think about it --> TODO
-#
-
-# need get the mask
-# def
-
-# translation matrix can easily be obtained from the warped segmentation mask and the corresponding image
-# --> apply same translation to all pixels with the same color ???
-# need think about that
-# need convert phi to translation
-# remove white and compute translation
-# need apply warp everytime --> just try if can be loaded or not
 import os.path
 import traceback
 
@@ -87,50 +41,62 @@ from epyseg.ta.tracking.tracking_error_detector_and_fixer import find_vertices, 
 from epyseg.tools.early_stopper_class import early_stop
 from epyseg.utils.loadlist import loadlist
 
+def match_by_max_overlap(name_t1, name_t0, channel_of_interest=None, assigned_IDs=[], recursive_assignment=True, warp_using_mermaid_if_map_is_available=True, pre_register=True):
+    """
+    Match cells between two timepoints based on maximizing overlap.
 
-# TODO --> need pre register
-def match_by_max_overlap(name_t1, name_t0, channel_of_interest=None,assigned_IDs=[], recursive_assignment=True, warp_using_mermaid_if_map_is_available=True, pre_register=True):
-    # either compute the translation matrix ->
-    # not so hard
-    # do the code to warp mask or even better --> warp the
+    Args:
+        name_t1 (str): Filename of the first timepoint.
+        name_t0 (str): Filename of the second timepoint.
+        channel_of_interest (str): Name of the channel of interest.
+        assigned_IDs (list): List of already assigned cell IDs.
+        recursive_assignment (bool): Flag indicating whether to perform recursive assignment.
+        warp_using_mermaid_if_map_is_available (bool): Flag indicating whether to warp using Mermaid if a map is available.
+        pre_register (bool): Flag indicating whether to perform pre-registration.
 
-    # handcorrection is always there --> maybe use that
-    # do not get the file but the stuff to match
+    Returns:
+        None
+    """
 
+    # Get the filename of the first timepoint without the extension
     filename1_without_ext = os.path.splitext(name_t1)[0]
 
-    # print('loading', os.path.join(filename1_without_ext, 'handCorrection.tif'))
+    # Load the hand-corrected mask for the first timepoint
     mask_t1 = Img(os.path.join(filename1_without_ext, 'handCorrection.tif'))
-    # print('loading', os.path.join(os.path.splitext(int_24_warped_track_t0)[0], 'tracked_cells_resized.tif'))
+
+    # Load the warped and resized cell tracks for the second timepoint
     int_24_warped_track_t0 = RGB_to_int24(Img(os.path.join(os.path.splitext(name_t0)[0], 'tracked_cells_resized.tif')))
 
-    trans_dim_0= trans_dim_1 = 0
+    trans_dim_0 = trans_dim_1 = 0
+
     if warp_using_mermaid_if_map_is_available:
         try:
             from personal.mermaid.deep_warping_uing_mermaid_minimal import warp_image_directly_using_phi
+
             filename0_without_ext = os.path.splitext(name_t0)[0]
+
             if os.path.exists(os.path.join(filename0_without_ext, 'mermaid_map.tif')):
+                # Warp the cell tracks using Mermaid if the map is available
                 warp_map = Img(os.path.join(filename0_without_ext, 'mermaid_map.tif'))
-                int_24_warped_track_t0 = warp_image_directly_using_phi(int_24_warped_track_t0, warp_map,pre_registration=name_t0 if pre_register else None).astype(np.uint32)
+                int_24_warped_track_t0 = warp_image_directly_using_phi(int_24_warped_track_t0, warp_map, pre_registration=name_t0 if pre_register else None).astype(np.uint32)
             else:
                 if pre_register:
+                    # Perform pre-registration if specified
                     trans_dim_0, trans_dim_1 = _pre_reg(name_t0, name_t1, channel_of_interest)
                     int_24_warped_track_t0 = apply_translation(int_24_warped_track_t0, -trans_dim_0, -trans_dim_1)
         except:
-            # traceback.print_exc()
             print("Mermaid registration failed... continuing without")
             if pre_register:
+                # Perform pre-registration if specified
                 trans_dim_0, trans_dim_1 = _pre_reg(name_t0, name_t1, channel_of_interest)
                 int_24_warped_track_t0 = apply_translation(int_24_warped_track_t0, -trans_dim_0, -trans_dim_1)
     else:
         if pre_register:
+            # Perform pre-registration if specified
             trans_dim_0, trans_dim_1 = _pre_reg(name_t0, name_t1, channel_of_interest)
             int_24_warped_track_t0 = apply_translation(int_24_warped_track_t0, -trans_dim_0, -trans_dim_1)
 
-    # print('trans_dim_0,trans_dim_1' ,trans_dim_0,trans_dim_1 )
-    # if not warped --> try warping
-    # use mermaid map if available
-
+    # Convert the mask to label image
     if len(mask_t1.shape) == 3:
         mask_t1 = mask_t1[..., 0]
 
@@ -139,125 +105,72 @@ def match_by_max_overlap(name_t1, name_t0, channel_of_interest=None,assigned_IDs
     rps_label_t1 = regionprops(label_t1)
 
     track_t1 = np.zeros_like(mask_t1, dtype=np.uint64)
-    # maybe sort by size the rps
-
-    # otherwise can I put
-    # the thing is my swapper may fix the errors if I let the cells empty
-    # shall I try to find best fit --> could also do it by neighborhood
-    # think about it --> maybe try
-    # otherwise take the cell with the closest area
 
     matched_IDs = []
-    # TODO --> sort by size
-    # KEEP we sort the rps by area directly
-    for rps in sorted(rps_label_t1, key=lambda r: r.area, reverse=True): # this will create a bug if two cells have the same area ???
-        # print('area',rps.area)
 
-        # get coords and count unique colors in this guy
-        # assign new cells
-
-        # prevent assigning a cell twice, otherwise keep the two possibilities and find best choice
+    # Iterate over the labeled regions in the first timepoint, sorted by area in descending order
+    for rps in sorted(rps_label_t1, key=lambda r: r.area, reverse=True):
         if track_t1[rps.coords[0][0], rps.coords[0][1]] != 0:
+            # Skip the region if it has already been assigned
             continue
 
         pixels = int_24_warped_track_t0[rps.coords[:, 0], rps.coords[:, 1]]
-        # need get the most frequent from that and assign it if not already assigned
-        # maybe sorting cells by size would be a good idea ???
         unique, counts = np.unique(pixels, return_counts=True)
-        # print(unique, counts)
 
-        # assign the found ID
         color_to_assign = unique[np.argmax(counts)]
 
-        # prevent assigning the ID --> could also remove the parent cell
         if color_to_assign in matched_IDs:
+            # Skip the region if the assigned color has already been matched
             continue
 
         matched_IDs.append(color_to_assign)
 
         track_t1[rps.coords[:, 0], rps.coords[:, 1]] = color_to_assign
 
-    # could get the centroid and apply it as a seed to for better segmentation !!!
-    # I can also map cells backward and forward to see errors, ideally I should keep
-
-    # Img(int24_to_RGB(track_t_cur), dimensions='hwc').save(TA_path_plus_1+"/tracked_cells_resized_swap.tif", mode='raw')
-    # Img(int24_to_RGB(track_t1), dimensions='hwc').save('/E/Sample_images/sample_images_PA/trash_test_mem/trash_registration_network/1/test_track_using_warp.tif', mode='raw')
-
-    # here !=
-
-
-    # get matched cells
-    # matched_cells_ids = get_matched_ids(rps_label_t1, track_t1)
-
-    # print('sume here', np.sum(track_t1-int_24_warped_track_t0))
-
-    # track_t1 = match_unmatched_cells(track_t1, int_24_warped_track_t0, matched_cells_ids, label_t1, rps_label_t1,
-    #                                  assigned_IDs)
-
-    track_t1 = assign_random_ID_to_missing_cells(track_t1, label_t1, regprps=rps_label_t1, assigned_ids=assigned_IDs)
-
-    # just for TA compatibility...
     track_t1[label_t1 == 0] = 0xFFFFFF
 
-
-
-    # plt.imshow(int24_to_RGB(tracks)-int24_to_RGB(int_24_warped_track_t0)) # both are the same
-    # plt.imshow(int24_to_RGB(track_t1)) # both are the same
-    # plt.show()
-
-    # print('sume here', np.sum(track_t1-int_24_warped_track_t0))
-    # then I would need to add the cells and handle the possible swapped cells --> see how to do that in the best and fastest way
-    # for sur this algo will be much faster than the one with
-    # can i do it recursively ??? --> apply registration recursively --> if so will it manage to perfectly align the stuff --> ????
-
-    # all quite good need handle dupes --> maybe take the closest or the one with the most homogeneous translation
-    # can also be combined with the swapping correscion
-
-    # print(track_t1.shape)
-    # print(int24_to_RGB(track_t1).shape)
-
-    # ideally I should preserve the neighborhood too
-
-    # TODO --> need add the missing
-    # see how I can use the local IDs as labels ???
-    # just copy big chunks of code from my
-    # Img(int24_to_RGB(track_t1), dimensions='hwc').save('/E/Sample_images/sample_images_PA/trash_test_mem/trash_registration_network/1/test_track_using_warp.tif', mode='raw')
-
     if recursive_assignment:
-        # TODO
-
-        # print('sume here', np.sum(track_t1-int_24_warped_track_t0)) # --> 0 --=> identical images --> but WHY???
-
-        # Img(int24_to_RGB(track_t1), dimensions='hwc').save('/E/Sample_images/sample_images_PA/trash_test_mem/trash_registration_network/1/zoubui1.tif', mode='raw')
-        # Img(int24_to_RGB(int_24_warped_track_t0), dimensions='hwc').save('/E/Sample_images/sample_images_PA/trash_test_mem/trash_registration_network/1/zoubui2.tif', mode='raw')
-
-        # print(track_t1.shape, int_24_warped_track_t0.shape, track_t1.dtype, int_24_warped_track_t0.dtype) # --> 2048 * 2048 uint64 uint32 --> why uint32 --> is that realy what I want by the way???
-        #.astype(np.uint64)
-
-        # why I don't have my cells there --> why no error --> do I have a big error in my code --> that is possible...
-
-        # the two masks are identical --> there is a big bug!!!
-
-        run_swapping_correction_recursively_to_further_identify_cells(track_t1, int_24_warped_track_t0, label_t1,
-                                                                      rps_label_t1, assigned_IDs, filename1_without_ext,
-                                                                      MAX_ITER=15)
+        # Perform recursive assignment to further identify cells
+        run_swapping_correction_recursively_to_further_identify_cells(track_t1, int_24_warped_track_t0, label_t1, rps_label_t1, assigned_IDs, filename1_without_ext, MAX_ITER=15)
     else:
-        Img(int24_to_RGB(track_t1)).save(get_TA_file(filename1_without_ext, 'tracked_cells_resized.tif'), mode='raw') # save directly...
-
+        # Save the tracked cells for the first timepoint
+        Img(int24_to_RGB(track_t1)).save(get_TA_file(filename1_without_ext, 'tracked_cells_resized.tif'), mode='raw')
 
 def _pre_reg(name_t0, name_t1, channel_of_interest):
+    """
+    Perform pre-registration between two images.
 
-        I0 = Img(name_t0)
-        if channel_of_interest is not None and len(I0.shape) > 2:
-            I0 = I0[..., channel_of_interest]
-        I1 = Img(name_t1)
-        if channel_of_interest is not None and len(I1.shape) > 2:
-            I1 = I1[..., channel_of_interest]
-        trans_dim_0, trans_dim_1 = pre_register_images(orig_t0=I0, orig_t1=I1)
-        return trans_dim_0, trans_dim_1
+    Args:
+        name_t0 (str): Filename of the first image.
+        name_t1 (str): Filename of the second image.
+        channel_of_interest (str): Name of the channel of interest.
+
+    Returns:
+        tuple: Tuple containing the translation dimensions (trans_dim_0, trans_dim_1).
+    """
+
+    I0 = Img(name_t0)
+    if channel_of_interest is not None and len(I0.shape) > 2:
+        I0 = I0[..., channel_of_interest]
+    I1 = Img(name_t1)
+    if channel_of_interest is not None and len(I1.shape) > 2:
+        I1 = I1[..., channel_of_interest]
+    trans_dim_0, trans_dim_1 = pre_register_images(orig_t0=I0, orig_t1=I1)
+    return trans_dim_0, trans_dim_1
 
 
 def get_matched_ids(rps_t1_mask, tracks):
+    """
+    Get the matched cell IDs from the labeled regions.
+
+    Args:
+        rps_t1_mask (list): List of labeled regions from the first timepoint mask.
+        tracks (ndarray): Array containing the cell tracks.
+
+    Returns:
+        list: List of matched cell IDs.
+    """
+
     matched_cells_ids = []
 
     for iii, region in enumerate(rps_t1_mask):
@@ -271,41 +184,6 @@ def get_matched_ids(rps_t1_mask, tracks):
     return matched_cells_ids
 
 
-# def match_unmatched_cells(tracks, tracked_cells_t0, matched_cells_ids, labels_t1, rps_t1_mask, assigned_ids):
-#     # now we handle unmatched cells
-#
-#     labels_tracking_t0 = measure.label(tracked_cells_t0, connectivity=1, background=0xFFFFFF)
-#
-#     # plt.imshow(tracked_cells_t0[...,0], cmap='gray') #
-#     # plt.show()
-#
-#     rps_t0 = regionprops(labels_tracking_t0)
-#
-#     unmatched_cells_in_t0 = []
-#     # all ok so why bug there
-#     for iii, region in enumerate(rps_t0):
-#         # there is a bug there and I don't get it
-#         color = tracked_cells_t0[region.coords[0][0], region.coords[0][1]]
-#         # print(color)  # why always the same color -->
-#         if color not in matched_cells_ids:  # why bug --> is it due to hash error
-#             unmatched_cells_in_t0.append(iii)
-#
-#     print('unmatched_cells_in_t0',unmatched_cells_in_t0) # no unmatched cell
-#
-#     tracks = assign_random_ID_to_missing_cells(tracks, labels_t1, regprps=rps_t1_mask, assigned_ids=assigned_ids)
-#
-#     # just for TA compatibility...
-#     tracks[labels_t1 == 0] = 0xFFFFFF
-#
-#     return tracks
-
-
-# handle first image and all possible pairs --> TODO
-
-
-# TODO make this step an option in the code but probably ok
-# TODO --> do that and call it -> probably not that hard
-# all is ok
 def run_swapping_correction_recursively_to_further_identify_cells(tracks, tracked_cells_t0, labels_t1, rps_t1_mask,
                                                                   assigned_ids, filename1_without_ext, MAX_ITER=15):
     start_all = timer()
@@ -662,40 +540,67 @@ def track_first_frame(original_t0, assigned_ids, seed):
     Img(int24_to_RGB(tracked_cells_t0), dimensions='hwc').save(
         get_TA_file(filename0_without_ext, 'tracked_cells_resized.tif'), mode='raw')  # should work --> DO the job
 
-def match_by_max_overlap_lst(lst,  channel_of_interest=None, recursive_assignment=True, warp_using_mermaid_if_map_is_available=True, pre_register=True, progress_callback=None):
+def match_by_max_overlap_lst(lst, channel_of_interest=None, recursive_assignment=True,
+                             warp_using_mermaid_if_map_is_available=True, pre_register=True,
+                             progress_callback=None):
+    """
+    Performs tracking and matching on a list of images.
+
+    Args:
+        lst (list): The list of images.
+        channel_of_interest (None, optional): The channel of interest. Defaults to None.
+        recursive_assignment (bool, optional): Whether to use recursive assignment. Defaults to True.
+        warp_using_mermaid_if_map_is_available (bool, optional): Whether to warp using Mermaid if a map is available.
+            Defaults to True.
+        pre_register (bool, optional): Whether to perform pre-registration. Defaults to True.
+        progress_callback (None, optional): A callback function for progress updates. Defaults to None.
+
+    Returns:
+        None
+
+    Notes:
+        - If the list contains only one image, it performs tracking on that image and returns.
+        - Otherwise, it tracks and matches each pair of consecutive images in the list.
+
+    # Examples:
+    #     >>> images = [image1, image2, image3]
+    #     >>> match_by_max_overlap_lst(images, channel_of_interest=1, recursive_assignment=False)
+    """
+
     start_all = timer()
-    # pass it an entire list so that it can do the tracking and evrything like that.
-    seed = 1  # always start tracking with same seed to have roughly the same color
+    seed = 1  # always start tracking with the same seed to have roughly the same color
     assigned_ids = get_forbidden_colors_int24()
 
     try:
         zipped_list = zip(lst, lst[1:])
     except:
-        # assume list contains only one image --> return just the first image tracking
+        # Assume list contains only one image --> return just the first image tracking
         track_first_frame(lst[0], assigned_ids, seed)
         return
 
     for iii, (original_t0, original_t1) in enumerate(zipped_list):
         try:
-            if early_stop.stop == True:
+            if early_stop.stop:
                 return
             if progress_callback is not None:
                 progress_callback.emit((iii * 100) / len(zipped_list))
             else:
-                print(str((iii * 100) / len(zipped_list) ) + '%')
+                print(str((iii * 100) / len(zipped_list)) + '%')
         except:
             pass
 
         if iii == 0:
-            # need create the track for the first image then recursively go on
+            # Need to create the track for the first image then recursively go on
             track_first_frame(original_t0, assigned_ids, seed)
 
-        match_by_max_overlap(original_t1, original_t0, channel_of_interest=channel_of_interest, recursive_assignment=recursive_assignment, warp_using_mermaid_if_map_is_available=warp_using_mermaid_if_map_is_available, pre_register=pre_register)
+        match_by_max_overlap(original_t1, original_t0, channel_of_interest=channel_of_interest,
+                             recursive_assignment=recursive_assignment,
+                             warp_using_mermaid_if_map_is_available=warp_using_mermaid_if_map_is_available,
+                             pre_register=pre_register)
+
     print('total time', timer() - start_all)
 
-# faire un GT generator --> takes ROI of crops and does it
 
-# TODO --> do a GUI here for that stuff
 if __name__ == '__main__':
     import sys
 

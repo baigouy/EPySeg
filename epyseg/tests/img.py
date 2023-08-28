@@ -6,7 +6,7 @@ import unittest
 
 from numpy.ma.testutils import assert_array_equal
 
-from epyseg.img import Img, is_binary, fill_holes, clean_blobs_below, RGB_to_int24, int24_to_RGB
+from epyseg.img import Img, is_binary, fill_holes, clean_blobs_below, RGB_to_int24, int24_to_RGB, invert
 import numpy as np
 
 class TestImgs(unittest.TestCase):
@@ -24,20 +24,20 @@ class TestImgs(unittest.TestCase):
 
     def test_invert(self):
         tmp = np.asarray([[0,0],[255,0]])
-        assert_array_equal(Img.invert(tmp),np.asarray([[255,255],[0,255]]))
+        assert_array_equal(invert(tmp),np.asarray([[255,255],[0,255]]))
 
         tmp = np.asarray([[0, 0],[65300, 0]])
-        assert_array_equal(Img.invert(tmp), np.asarray([[65300, 65300], [0, 65300]]))
+        assert_array_equal(invert(tmp), np.asarray([[65300, 65300], [0, 65300]]))
 
         # that does not work as I want --> shall I fix it
         tmp = np.asarray([[123,123],[65300, 123]])
-        assert_array_equal(Img.invert(tmp), np.asarray([[65300, 65300], [123, 65300]]))
+        assert_array_equal(invert(tmp), np.asarray([[65300, 65300], [123, 65300]]))
 
         tmp = np.asarray([[-123, -123],[65300, -123]])
-        assert_array_equal(Img.invert(tmp), np.asarray([[65300, 65300], [-123, 65300]]))
+        assert_array_equal(invert(tmp), np.asarray([[65300, 65300], [-123, 65300]]))
 
         tmp = np.asarray([[True, True],[False, True]])
-        assert_array_equal(Img.invert(tmp), np.asarray([[False, False], [True, False]]))
+        assert_array_equal(invert(tmp), np.asarray([[False, False], [True, False]]))
 
     def test_is_binary(self):
         self.assertTrue(is_binary(np.asarray([[True, True],[False, True]])))

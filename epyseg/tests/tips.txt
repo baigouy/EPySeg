@@ -1,0 +1,1 @@
+img=scipy.misc.lena() --> can also use that to get test images

@@ -1,22 +1,3 @@
-# TA implementation of nematic --> need pythonize this
-
-
-# package Geometry;
-#
-# import Commons.Point3D;
-# import Commons.Saver;
-# import MyShapes.MyLine2D;
-# import java.awt.Graphics2D;
-# import java.awt.Point;
-# import java.awt.geom.Point2D;
-# import java.awt.image.BufferedImage;
-# import java.util.ArrayList;
-#
-# /**
-#  * Nematic class
-#  *
-#  * @author Benoit Aigouy
-#  */
 import math
 import sys
 import traceback
@@ -31,161 +12,101 @@ from skimage.measure._regionprops import RegionProperties
 
 from epyseg.draw.shapes.line2d import Line2D
 
-#
-#   /**
-#      *
-#      * @param stretch_rescaling_factor
-#      * @return the components of the strecth nematic of the flooded area (and
-#      * the coordinates of the nematic extremities in case it has to be plotted)
-#      */
-#     public Point2D.Double[] compute_stretch(double stretch_rescaling_factor) {
-#         double count = 0.;
-#
-#         double S1 = 0.;
-#         double S2 = 0.;
-#
-#         Point2D.Double center = getCenter2D();
-# //COMPUTE NEMATIC TENSOR FOR THE STRETCH
-#
-#         for (int k = 0; k < queueSize; k++) {
-#             //GET THE CURRENT POINT (CONSTANT INTENSITY FOR THE STRETCH)
-#             //COMPUTE NECESSARY TRIGONOMETRIC QUANTITES FOR EACH POINT
-#             double deltaX = (double) flood_x[k] - center.x; //ARE THESE CASTS NECESSARY?
-#             double deltaY = (double) flood_y[k] - center.y;
-#             double rSquared = deltaX * deltaX + deltaY * deltaY;
-#             double cos2Theta = 2. * deltaX * deltaX / rSquared - 1.;
-#             double sin2Theta = 2. * deltaX * deltaY / rSquared;
-#
-#             //ADD THE SUMMANDS TO THEIR RESPECTIVE SUMS...
-#             S1 += cos2Theta;
-#             S2 += sin2Theta;
-#             count++;
-#         }
-#
-#         S1 /= count;//we rescale by the area
-#         S2 /= count;
-#
-#         //COMPUTE THE STRETCH NEMATIC
-#         double S0 = Math.sqrt(S1 * S1 + S2 * S2);
-#         double cos2ThetaS = S1 / S0;
-#         double sin2ThetaS = S2 / S0;
-#         double sinThetaS = Math.sqrt(0.5 * (1. - cos2ThetaS));
-#         double cosThetaS = 0.5 * sin2ThetaS / sinThetaS;
-#
-# //IN THE END WE WANT TO DRAW A LINE THROUGH THE CENTER OF THE CELL REPRESENTING THE STRETCH NEMATIC
-#         double scale = stretch_rescaling_factor * S0;
-#
-#         double xDem = center.x - scale * cosThetaS;
-#         double xFin = center.x + scale * cosThetaS;
-#         double yDem = center.y - scale * sinThetaS;
-#         double yFin = center.y + scale * sinThetaS;
-#
-#         Point2D.Double[] out = new Point2D.Double[3];
-#         out[0] = new Point2D.Double(xDem, yDem);
-#         out[1] = new Point2D.Double(xFin, yFin);
-#         out[2] = new Point2D.Double(S1, S2);
-#         return out;
-#     }
-
-# Computes a stretch nematic based on cell area
-from epyseg.img import Img
-
-
-# def compute_stretch_nematic_regionprops_extra(regionmask, intensity_image=None):
-#     print(type(regionmask))
-#     print(regionmask.shape)# --> 11,39 --> not at all what I want
-#     print(regionmask)
-#
-#
-#     return compute_stretch_nematic(regionmask)
-
-
 def compute_stretch_nematic(pointsWithinArea_or_region, normalizeByArea=True):
+    """
+    Computes the stretch nematic from a given set of points within an area or region.
+
+    Args:
+        pointsWithinArea_or_region (numpy.ndarray or RegionProperties): The points within the area or region.
+        normalizeByArea (bool, optional): Flag indicating whether to normalize the nematic by the area.
+
+    Returns:
+        Nematic: The computed stretch nematic.
+
+    """
+
     if pointsWithinArea_or_region is None:
         return
+
     if isinstance(pointsWithinArea_or_region, RegionProperties):
         pointsWithinArea_or_region = pointsWithinArea_or_region.coords
-    # center_x = 0
-    # center_y = 0
-    # counter = 0
-    # for point in pointsWithinArea_or_region:
-    #     center_x += point[1]
-    #     center_y += point[0]
-    #     counter += 1
-    # center_x/=counter
-    # center_y/=counter
 
-    # print(center_x, center_y)
-
-
-    # print(np.average(pointsWithinArea_or_region, axis=0))
-    S1,S2,center = _compute_stretch_nematic(pointsWithinArea_or_region,normalizeByArea=normalizeByArea)
+    S1, S2, center = _compute_stretch_nematic(pointsWithinArea_or_region, normalizeByArea=normalizeByArea)
     return Nematic(S1=S1, S2=S2, center=center)
 
-# @njit
+
 def _compute_stretch_nematic(pointsWithinArea_or_region, normalizeByArea=True):
-    # center_y = 0.
-    # center_x=0.
+    """
+    Computes the stretch nematic tensor from a given set of points within an area or region.
+
+    Args:
+        pointsWithinArea_or_region (numpy.ndarray): The points within the area or region.
+        normalizeByArea (bool, optional): Flag indicating whether to normalize the nematic by the area.
+
+    Returns:
+        float: The S1 component of the nematic tensor.
+        float: The S2 component of the nematic tensor.
+        list: The center coordinates.
+
+    """
+
     center_y, center_x = np.average(pointsWithinArea_or_region, axis=0)
-
-    # center_x /= pointsWithinArea_or_region.shape[0]
-    # center_y /= pointsWithinArea_or_region.shape[0]
-
-    # print(center_x, center_y)
-
     center = [center_y, center_x]
 
     S1 = 0.
     S2 = 0.
 
-    # I guess it's really time to recode this properly using numpy --> do that when I have time
-    # MEGA TODO --> CONVERT IT TO NUMPY BUT OK FOR NOW
-    # //COMPUTE NEMATIC TENSOR FOR THE STRETCH
     for point in pointsWithinArea_or_region:
-        # //GET THE CURRENT POINT (CONSTANT INTENSITY FOR THE STRETCH)
-        # //Point pt = points_unsrt.get(k);
-        #
-        # //COMPUTE NECESSARY TRIGONOMETRIC QUANTITES FOR EACH POINT
-
-        deltaX = float(point[1]) - center_x  # //ARE THESE CASTS NECESSARY?
+        deltaX = float(point[1]) - center_x
         deltaY = float(point[0]) - center_y
         rSquared = deltaX * deltaX + deltaY * deltaY
         cos2Theta = 2. * deltaX * deltaX / rSquared - 1.
         sin2Theta = 2. * deltaX * deltaY / rSquared
 
-        # //ADD THE SUMMANDS TO THEIR RESPECTIVE SUMS...
         S1 += cos2Theta
         S2 += sin2Theta
 
-    # //--> MAYBE REMOVE THIS TO MAKE IT SIZE DEPENDENT OR ADD A BOOLEAN
     if normalizeByArea:
         S1 /= pointsWithinArea_or_region.shape[0]
         S2 /= pointsWithinArea_or_region.shape[0]
-    return S1,S2, center
 
-# builds an average nematic from a series of nematics
-# build from other nemats and/or their S1S2 components
-# never tried --> really need do it!!!
-# shall I offer a center ???
+    return S1, S2, center
+
+
 def compute_average_nematic(*args):
+    """
+    Computes the average nematic from a series of nematics or their S1S2 components.
+
+    Args:
+        *args: Variable number of arguments, either Nematic objects or S1S2 component pairs.
+
+    Returns:
+        Nematic: The computed average nematic.
+
+    """
+
     if args is None or len(args) == 0:
         return
+
     S1 = 0
     S2 = 0
+
     if isinstance(args[0], Nematic):
         for nemat in args:
             S1 += nemat.S1
             S2 += nemat.S2
+
         S1 /= len(args)
         S2 /= len(args)
+
         return Nematic(S1=S1, S2=S2)
     else:
         for S1S2 in args:
             S1 += S1S2[0]
             S2 += S1S2[1]
+
         S1 /= len(args)
         S2 /= len(args)
-
 
 
 class Nematic():
@@ -193,12 +114,33 @@ class Nematic():
     # NB angle should be in radians not in degrees could maybe offer the option to have degrees too...
     def __init__(self, S1S2=None, S1=None, S2=None, S0=None, angle=None, base=None, tip=None,
                  center=None):  # TODO maybe some day use base and tip --> revive old TA CODE FOR IT or delete it
+        """
+        Initializes a Nematic object.
+
+        Args:
+            S1S2 (list): List containing the values of S1 and S2.
+            S1 (float): Value of S1.
+            S2 (float): Value of S2.
+            S0 (float): Value of S0.
+            angle (float): Value of the angle in radians.
+            base (list): List containing the x and y coordinates of the base point.
+            tip (list): List containing the x and y coordinates of the tip point.
+            center (list): List containing the x and y coordinates of the center point.
+        """
         self.rescaling_factor = 1.
 
         # create a null nematic
         self.S1 = 0
         self.S2 = 0
         self.center = [0, 0]
+
+        if base is not None and tip is not None:
+            # print('init',base, tip)
+            from epyseg.ta.measurements.TAmeasures import distance_between_points
+            center = ((base[0] + tip[0]) / 2., (tip[1] + base[1]) / 2.)
+            angle = math.atan2(tip[0] - base[0], tip[1] - base[1])
+            S0 = distance_between_points(center, tip)
+
         # if S1 and S2 are defined then use those
         if S1S2 is not None:
             self.S1 = S1S2[0]
@@ -221,113 +163,84 @@ class Nematic():
             self.S2 = sin2Theta0 * S0
 
     def set_rescaling_factor(self, rescaling_factor):
+        """
+        Sets the rescaling factor for the Nematic object.
+
+        Args:
+            rescaling_factor (float): The rescaling factor.
+        """
         self.rescaling_factor = rescaling_factor
 
-    #     /**
-    #      * This constructor converts a vector to a nematic
-    #      *
-    #      * @param v vector we want to convert to a nematic
-    #      */
-    #     public Nematic(Vector v) {
-    #         this(v.getBase(), v.getTip());
-    #     }
-    #     /**
-    #      * Nematic constructor
-    #      *
-    #      * @param center center of the nematic
-    #      * @param any_extremity_pt coordinates of any extremity of the neamtic
-    #      */
-    #     public Nematic(Point2D.Double center, Point2D.Double any_extremity_pt) {
-    #         this(center, any_extremity_pt.distance(center), Math.atan2(any_extremity_pt.y - center.y, any_extremity_pt.x - center.x));
-    #     }
-    #
-    #     /**
-    #      * Nematic constructor
-    #      *
-    #      * @param base
-    #      * @param tip
-    #      * @param inutile
-    #      */
-    #     public Nematic(Point2D.Double base, Point2D.Double tip, boolean inutile) {
-    #         this(new Point2D.Double((base.x + tip.x) / 2., (tip.y + base.y) / 2.), tip);
-    #     }
-    #
-
-    #
-    #     public Nematic(ArrayList<Point2D.Double> S1S2) {
-    #         this(S1S2.toArray(new Point2D.Double[S1S2.size()]));
-    #     }
-    #
-    #     /**
-    #      * builds an average nematic from a series of nematics
-    #      *
-    #      * @param S1andS2Components
-    #      * @since <B>Tissue Analyzer 1.0</B>
-    #      */
-    #     public Nematic(Nematic... S1andS2Components) {
-    #         if (S1andS2Components == null || S1andS2Components.length == 0) {
-    #             return;
-    #         }
-    #         for (Nematic double1 : S1andS2Components) {
-    #             S1 += double1.S1;
-    #             S2 += double1.S2;
-    #         }
-    #         S1 /= S1andS2Components.length;
-    #         S2 /= S1andS2Components.length;
-    #     }
-    #
-    #     /**
-    #      * builds an average nematic from a series of nematics
-    #      *
-    #      * @param S1andS2Components
-    #      * @since <B>Tissue Analyzer 1.0</B>
-    #      */
-    #     public Nematic(Point2D.Double... S1andS2Components) {
-    #         if (S1andS2Components == null || S1andS2Components.length == 0) {
-    #             return;
-    #         }
-    #         for (Point2D.Double double1 : S1andS2Components) {
-    #             S1 += double1.x;
-    #             S2 += double1.y;
-    #         }
-    #         S1 /= (double) S1andS2Components.length;
-    #         S2 /= (double) S1andS2Components.length;
-    #     }
-    #
-
     def getS0(self):
-        return self.getMagnitude()
+        """
+        Returns the value of S0.
 
-    # return the magnitude of the nematic
+        Returns:
+            float: The value of S0.
+        """
+        return self.rescaling_factor * self.getMagnitude()
+
     def getMagnitude(self):
+        """
+        Returns the magnitude of the Nematic object.
+
+        Returns:
+            float: The magnitude.
+        """
         return math.sqrt((self.S1) * (self.S1) + (self.S2) * (self.S2))
 
-    # return the center of the nematic
     def getCenter(self):
+        """
+        Returns the center of the Nematic object.
+
+        Returns:
+            list: The x and y coordinates of the center.
+        """
         return self.center
 
-    #
     def setCenter(self, center):
+        """
+        Sets the center of the Nematic object.
+
+        Args:
+            center (list): List containing the x and y coordinates of the center.
+        """
         self.center = center
 
-    #
-    #     /**
-    #      *
-    #      * @return a point3D containing S1, S2 and the magnitude of the nematic
-    #      */
     def getS1S2S0(self):
+        """
+        Returns the values of S1, S2, and S0 as a list.
+
+        Returns:
+            list: The values of S1, S2, and S0.
+        """
         return [self.S1, self.S2, self.getS0()]
 
-    # return the normal for the current nematic
     def getNormal(self):
+        """
+        Returns the normal for the current Nematic object.
+
+        Returns:
+            Nematic: The normal Nematic object.
+        """
         return Nematic(S1=-self.S1, S2=-self.S2, center=self.center)
 
-    # return the components of the nematic
     def getS1S2(self):
+        """
+        Returns the values of S1 and S2 as a list.
+
+        Returns:
+            list: The values of S1 and S2.
+        """
         return [self.S1, self.S2]
 
-    # TODO replace the complex acos original stuff below with that more elegant code
     def get_angle2(self):
+        """
+        Get the angle of the nematic in radians using a more elegant calculation.
+
+        Returns:
+            float: The angle of the nematic in radians.
+        """
         angle = 0.5 * math.atan2(self.S2, self.S1)
         while angle < 0:
             angle += math.pi
@@ -335,72 +248,37 @@ class Nematic():
             angle -= math.pi
         return angle
 
-    # return the orientation of the nematic in radians
     def getAngleInRadians(self):
+        """
+        Get the orientation of the nematic in radians.
+
+        Returns:
+            float: The orientation of the nematic in radians.
+        """
         S0 = self.getMagnitude()
         cos2Theta0 = self.S1 / S0
         sinTheta0 = math.sqrt(0.5 * (1. - cos2Theta0))
         sin2Theta0 = self.S2 / S0
         cosTheta0 = 0.5 * sin2Theta0 / sinTheta0
         angle = math.acos(cosTheta0)
-        while (angle < 0):
+        while angle < 0:
             angle += math.pi
-        while (angle >= math.pi):
+        while angle >= math.pi:
             angle -= math.pi
         return angle
 
-    #
-    #     /**
-    #      *
-    #      * @param rescaling_factor
-    #      * @return the coordinates of the base of the nematic after rescaling
-    #      */
-    #     public Point2D.Double getBase(double rescaling_factor) {
-    #         double S0 = Math.sqrt(S1 * S1 + S2 * S2);
-    #         double cos2Theta0 = S1 / S0;
-    #         double sin2Theta0 = S2 / S0;
-    #         double sinTheta0 = Math.sqrt(0.5 * (1. - cos2Theta0));
-    #         double cosTheta0 = 0.5 * sin2Theta0 / sinTheta0;
-    #         double scale = rescaling_factor * S0;
-    #         double xDem = center.x - scale * cosTheta0;
-    #         double yDem = center.y - scale * sinTheta0;
-    #         return new Point2D.Double(xDem, yDem);
-    #     }
-    #
-    #     /**
-    #      *
-    #      * @param rescaling_factor
-    #      * @return the coordinates of the tip of the nematic after rescaling
-    #      */
-    #     public Point2D.Double getTip(double rescaling_factor) {
-    #         double S0 = Math.sqrt(S1 * S1 + S2 * S2);
-    #         double cos2Theta0 = S1 / S0;
-    #         double sin2Theta0 = S2 / S0;
-    #         double sinTheta0 = Math.sqrt(0.5 * (1. - cos2Theta0));
-    #         double cosTheta0 = 0.5 * sin2Theta0 / sinTheta0;
-    #         double scale = rescaling_factor * S0;
-    #         double xFin = center.x + scale * cosTheta0;
-    #         double yFin = center.y + scale * sinTheta0;
-    #         return new Point2D.Double(xFin, yFin);
-    #     }
-    #
-    #     /**
-    #      *
-    #      * @return the coordinates of the base and tip of the nematic
-    #      */
-    #     public Point2D.Double[] getBeginAndEnd() {
-    #         return getBeginAndEnd(1.);
-    #     }
-    #
-    #     /**
-    #      * @param rescaling_factor
-    #      * @return the coordinates of the base and tip of the nematic after
-    #      * rescaling
-    #      */
     def getBeginAndEnd(self, rescaling_factor=1.):
+        """
+        Get the beginning and end points of the nematic.
+
+        Args:
+            rescaling_factor (float, optional): Rescaling factor. Defaults to 1.
+
+        Returns:
+            list: A list containing the beginning and end points of the nematic as [point_begin, point_end].
+        """
         S0 = math.sqrt(self.S1 * self.S1 + self.S2 * self.S2)
         if S0 == 0:
-            # return [[self.center[0], self.center[1]],[self.center[0], self.center[1]]]
             return None
         cos2Theta0 = self.S1 / S0
         sin2Theta0 = self.S2 / S0
@@ -416,49 +294,35 @@ class Nematic():
         pts.append([yEnd, xEnd])
         return pts
 
-    #
-    #     /**
-    #      * Converts a nematic to a MyLine2D
-    #      *
-    #      * @param rescaling_factor
-    #      * @return a vectorial line object corresponding to the nematic
-    #      */
-    #     public MyLine2D.Double toMyLine2D(double rescaling_factor) {
-    #         Point2D.Double[] base_n_tip = getBeginAndEnd(rescaling_factor);
-    #         return new MyLine2D.Double(base_n_tip[0], base_n_tip[1]);
-    #     }
-    #
-    #     public void draw(Graphics2D g2d) {
-    #         toMyLine2D(1).drawAndFill(g2d);
-    #     }
-    #
-    #     public boolean isNaN() {
-    #         return (Double.isNaN(S1) || Double.isNaN(S2));
-    #     }
-    #
-
-    # drawing in python over numpy array https://stackoverflow.com/questions/28647383/numpy-compatible-image-drawing-library --> maybe try the other libs such as wand because may be interesting
-
     def toLine2D(self, rescaling_factor=1.):
+        """
+        Convert the nematic to a Line2D object.
+
+        Args:
+            rescaling_factor (float, optional): Rescaling factor. Defaults to 1.
+
+        Returns:
+            matplotlib.lines.Line2D: The Line2D object representing the nematic.
+        """
         base_n_tip = None
         try:
-             base_n_tip =self.getBeginAndEnd(rescaling_factor)
+            base_n_tip = self.getBeginAndEnd(rescaling_factor)
         except:
-            # traceback.print_exc()
-            # print('error nematic could not be converted to Line2D')
             return None
-
-        # print('self.S1, self.S2',self.S1, self.S2)
         if base_n_tip is None:
             return None
-        # line(int(math.ceil(base_n_tip[0][0])), int(math.ceil(base_n_tip[0][1])),
-        #      int(math.ceil(base_n_tip[0][1])), int(math.ceil(base_n_tip[1][1])))
-        # print(base_n_tip[0][0], base_n_tip[0][1],base_n_tip[1][1], base_n_tip[1][1])
-        return Line2D(base_n_tip[0][1], base_n_tip[0][0], base_n_tip[1][1], base_n_tip[1][0]) # KEEP NB BE careful --> first x then y and not the opposite --> maybe change this because dangerous in python where everything is inverted but then need change everythng
+        return Line2D(base_n_tip[0][1], base_n_tip[0][0], base_n_tip[1][1], base_n_tip[1][0])
 
-
-    # nb please set the rescaling factor or set it here
     def draw(self, img, color=0xFFFF00, stroke=1, rescaling_factor=None):
+        """
+        Draw the nematic on an image.
+
+        Args:
+            img (numpy.ndarray or ImageDraw): The image on which to draw the nematic.
+            color (int or str, optional): The color of the nematic. Defaults to 0xFFFF00.
+            stroke (int or float or str, optional): The stroke width of the nematic. Defaults to 1.
+            rescaling_factor (float, optional): Rescaling factor. Defaults to None.
+        """
         if color is None:
             color = 0xFFFF00
         if rescaling_factor is None:
@@ -466,18 +330,10 @@ class Nematic():
         else:
             base_n_tip = self.getBeginAndEnd(rescaling_factor)
         if base_n_tip is None:
-            # null nematic --> we don't plot it
             return
         if isinstance(img, np.ndarray):
-            # draw the nematic on the image
-
-            # new
-            # MyLine2D.Double(base_n_tip[0], base_n_tip[1]);
             rr, cc = line(int(math.ceil(base_n_tip[0][0])), int(math.ceil(base_n_tip[0][1])),
                           int(math.ceil(base_n_tip[1][0])), int(math.ceil(base_n_tip[1][1])))
-
-
-            # if out of bonds --> errors --> really sucks --> see how I can fix that !!!
             img[rr, cc] = color
         elif isinstance(img, ImageDraw):
             if isinstance(stroke, str):
@@ -490,50 +346,68 @@ class Nematic():
                 stroke = int(round(stroke))
             if isinstance(color, str):
                 if color.startswith('#'):
-                    # parse it or maybe best is to convert the entire column rather than do things here
                     color = color.replace('#', '')
                     color = int(color, 16)
-
             color = ((color >> 16) & 255, (color >> 8) & 255, (color & 255))
-            # print(color)
-
-            # print(base_n_tip)
-            # is there a bug ???? --> yes the coords must be given as x and y --> opposite of numpy!!!!
             img.line((base_n_tip[0][1], base_n_tip[0][0], base_n_tip[1][1], base_n_tip[1][0]), fill=color, width=stroke)
-            # img.line((350, 200, 450, 100), fill=(255, 255, 0), width=10)
 
-        #         return new MyLine2D.Double(base_n_tip[0], base_n_tip[1]);
-
-    # return the components of the unit Nematic
     def getUnitNematicComponents(self):
+        """
+        Get the components of the unit Nematic.
+
+        Returns:
+            list: A list containing the components of the unit Nematic as [S1_unit, S2_unit].
+        """
         S0 = self.getMagnitude()
         return [self.S1 / S0, self.S2 / S0]
 
-    #
-    #     /**
-    #      *
-    #      * @return the unit nematic
-    #      */
-    # return the unit nematic
     def getUnitNemat(self):
+        """
+        Get the unit Nematic.
+
+        Returns:
+            Nematic: The unit Nematic.
+        """
         unit0 = self.getUnitNematicComponents()
         return Nematic(S1=unit0[0], S2=unit0[1], center=self.center)
 
     def __str__(self):
+        """
+        Get a string representation of the Nematic object.
+
+        Returns:
+            str: The string representation of the Nematic object.
+        """
         return str(self.S1) + " " + str(self.S2) + " " + str(self.center) + " " + str(self.getS0()) + " " + str(
             self.getAngleInRadians()) + " " + str(self.getBeginAndEnd()[0]) + " " + str(self.getBeginAndEnd()[1])
-        # return (S1 + " " + S2 + " " + center + " " + this.getS0() + " " + this.getAngleInRadians() + " " +
-        #         this.getBeginAndEnd(1)[0] + " " + this.getBeginAndEnd(1)[1]);
-
-
-
-
 
 if __name__ == "__main__":
 
     # props = measure.regionprops(
     #     labels, image, extra_properties=[image_height]
     # )
+
+    if True:
+        base = (301.77769935043347,        21.280930792689446)
+        tip = (230.48494928416977,        715.8784747926309)
+
+        from epyseg.ta.measurements.TAmeasures import distance_between_points
+
+        nematic = Nematic(base=base, tip=tip)
+
+        print(nematic)
+
+        print(nematic.getBeginAndEnd())
+
+        # so if I wanna scale it -> I can easily do that
+        print('rescaled', nematic.getBeginAndEnd(rescaling_factor=0.75))
+
+        dist_reduced = distance_between_points(*nematic.getBeginAndEnd(rescaling_factor=0.75))
+        orig_dist = distance_between_points(base, tip)
+        print(dist_reduced,orig_dist, dist_reduced/orig_dist) # --> all is perfect --> I can really use that
+
+        import sys
+        sys.exit(0)
 
     if True:
         handcorrection = Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series012/handCorrection.tif')

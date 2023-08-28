@@ -9,6 +9,9 @@
 # the following code is based on the idea described here https://gis.stackexchange.com/questions/76498/how-is-st-pointonsurface-calculated
 from math import ceil
 
+import numpy as np
+from skimage.measure._regionprops import RegionProperties
+
 from epyseg.img import Img
 import matplotlib.pyplot as plt
 from skimage.measure import regionprops
@@ -22,6 +25,18 @@ from timeit import default_timer as timer
 # TODO also always use that for tracking as this should be much better than things I was using before and should prevent issues
 __DEBUG__ = False
 
+def point_on_surface2(region, labels, prefer_centroid_if_inside_the_cell=True):
+    # new version of  point_on_surface just coded to be more flexible, code is not the same and behaviour may differ --> compare thoroughly some day
+    if isinstance(region, RegionProperties):
+        region =region.coords
+    cell_id = labels[region[0][0], region[0][1]]
+    centroid = np.rint(np.average(region, axis=0)).astype(int)
+    if prefer_centroid_if_inside_the_cell and labels[centroid[0], centroid[1]] == cell_id:
+        return centroid
+    else:
+        # TODO FIX THAT SOME DAY lazy way of doing just return the first pixel of the shape maybe some centroid like would be better but ok for wings and for what I wanna do --> MAYBE TAKE CODE IN ORIGINAL FUNCTION AND HACK IT TO WORK WITH NDARRAYS
+        return region[0]
+
 
 
 # TODO clean code
@@ -30,13 +45,6 @@ __DEBUG__ = False
 # the other possibility is the ultimate erosion but this will be extremely slow and resource consuming; I guess
 # inspired by https://gis.stackexchange.com/questions/76498/how-is-st-pointonsurface-calculated but then I deviated from it
 def point_on_surface(region, labels, prefer_centroid_if_inside_the_cell=True):
-    #  A tuple of the bounding box's start coordinates for each dimension,
-    #         followed by the end coordinates for each dimension
-
-
-
-    # print(region.bbox)
-
     # TODO --> maybe ceil the centroid to get a better centroid point (pb can be outside of the image although it is very unlikely (in fact it is not possible --> can ceil)
 
     cell_id = labels[region.coords[0][0], region.coords[0][1]]

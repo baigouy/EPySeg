@@ -3,7 +3,7 @@ from epyseg.settings.global_settings import set_UI # set the UI to be used py qt
 set_UI()
 import json
 from qtpy.QtCore import QPoint
-from qtpy.QtGui import QIcon
+# from qtpy.QtGui import QIcon
 from qtpy.QtWidgets import QApplication, QGridLayout, QComboBox, QLabel, \
     QDoubleSpinBox, QDialog, QDialogButtonBox, QPushButton, QToolTip
 

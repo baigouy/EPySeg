@@ -34,7 +34,20 @@ from epyseg.tools.logger import TA_logger  # logging
 
 logger = TA_logger()
 
+
 def swap(img, id1, id2):
+    """
+    Swaps the pixel values of two IDs in the image.
+
+    Args:
+        img (numpy.ndarray): The input image.
+        id1: The first ID to swap.
+        id2: The second ID to swap.
+
+    Returns:
+        numpy.ndarray: The modified image with swapped IDs.
+
+    """
     idcs1 = img == id1
     idcs2 = img == id2
     img[idcs1], img[idcs2] = id2, id1
@@ -42,29 +55,71 @@ def swap(img, id1, id2):
 
 
 def assign_id(img, old_id, new_id):
+    """
+    Assigns a new ID to all pixels with the specified old ID in the image.
+
+    Args:
+        img (numpy.ndarray): The input image.
+        old_id: The ID to be replaced.
+        new_id: The new ID to assign.
+
+    Returns:
+        numpy.ndarray: The modified image with updated IDs.
+
+    """
     img[img == old_id] = new_id
     return img
 
+
 def swap_tracks(lst, frame_of_first_connection, id_t0, id_t1, __preview_only=False):
+    """
+    Swaps the IDs of two tracks in a list of tracks.
+
+    Args:
+        lst (list): The list of tracks.
+        frame_of_first_connection: The frame at which the first connection occurs.
+        id_t0: The ID of the first track.
+        id_t1: The ID of the second track.
+        __preview_only (bool, optional): Whether to only preview the swap. Defaults to False.
+
+    """
     correct_track(lst, frame_of_first_connection, id_t0, id_t1, correction_mode='swap', __preview_only=__preview_only)
 
 
-def connect_tracks(lst, frame_of_first_connection, id_t0, id_t1,__preview_only=False):
+def connect_tracks(lst, frame_of_first_connection, id_t0, id_t1, __preview_only=False):
+    """
+    Connects two tracks in a list of tracks.
+
+    Args:
+        lst (list): The list of tracks.
+        frame_of_first_connection: The frame at which the first connection occurs.
+        id_t0: The ID of the first track.
+        id_t1: The ID of the second track.
+        __preview_only (bool, optional): Whether to only preview the connection. Defaults to False.
+
+    """
     correct_track(lst, frame_of_first_connection, id_t0, id_t1, correction_mode='connect', __preview_only=__preview_only)
 
-
 def correct_track(lst, frame_of_first_connection, id_t0, id_t1, correction_mode='connect', __preview_only=False, early_stop=True):
+    """
+    Corrects a track in a list of tracks based on the specified correction mode.
+
+    Args:
+        lst (list): The list of tracks.
+        frame_of_first_connection: The frame at which the first connection occurs.
+        id_t0: The ID of the first track.
+        id_t1: The ID of the second track.
+        correction_mode (str, optional): The correction mode. Defaults to 'connect'.
+        __preview_only (bool, optional): Whether to only preview the correction. Defaults to False.
+        early_stop (bool, optional): Whether to stop the correction process early. Defaults to True.
+
+    """
     if frame_of_first_connection >= len(lst):
         logger.error('error wrong connection frame nb')
         return
 
-        # first thing to do is to check that we are not going to duplicate cells --> need check that both are not there together in the same frame otherwise need swap cells before --> try that
     for l in range(frame_of_first_connection, len(lst)):
-        # file_path_0 = images_to_analyze[l]
-        # filename0_without_ext = os.path.splitext(file_path_0)[0]
-
-
-        tracked_cell_path = smart_name_parser(lst[l], ordered_output='tracked_cells_resized.tif') # os.path.join(filename0_without_ext, )
+        tracked_cell_path = smart_name_parser(lst[l], ordered_output='tracked_cells_resized.tif')
         tracked_cells_t0 = RGB_to_int24(Img(tracked_cell_path))
 
         cellpos_1 = id_t0 in tracked_cells_t0
@@ -75,21 +130,19 @@ def correct_track(lst, frame_of_first_connection, id_t0, id_t1, correction_mode=
             continue
 
         if cellpos_1 and cellpos_2 and correction_mode == 'connect':
-            logger.info('IDs are both present in the same image, to avoid track ID duplication the desired change will be ignored, please ensure the selected cells are not wimply swapped in the image')
-            # alternatively I could do a swap but not sure this is wise
+            logger.info('IDs are both present in the same image, to avoid track ID duplication the desired change will be ignored, please ensure the selected cells are not simply swapped in the image')
             break
 
         if not cellpos_1 and cellpos_2 or not cellpos_2 and cellpos_1 and correction_mode == 'swap':
-            logger.info('missing cell at frame '+str(l)+' swapping ignored')
+            logger.info('missing cell at frame ' + str(l) + ' swapping ignored')
             if early_stop:
                 logger.info('quitting track edition')
                 break
             else:
                 continue
 
-        if cellpos_1 and cellpos_2 and correction_mode == 'swap': # or (cellpos_1 and cellpos_2 and correction_mode == 'connect')
+        if cellpos_1 and cellpos_2 and correction_mode == 'swap':
             logger.info('swapped cell ids: ' + str(id_t0) + ' and ' + str(id_t1))
-            # or consider this an error and report it and ignore
             tracked_cells_t0 = swap(tracked_cells_t0, id_t0, id_t1)
             if __preview_only:
                 plt.imshow(int24_to_RGB(tracked_cells_t0))
@@ -99,11 +152,9 @@ def correct_track(lst, frame_of_first_connection, id_t0, id_t1, correction_mode=
         else:
             if cellpos_1:
                 logger.info('changed id ' + str(id_t0) + ' to ' + str(id_t1))
-                # tracked_cells_t0[tracked_cells_t0 == id_t0] = id_t1
                 tracked_cells_t0 = assign_id(tracked_cells_t0, id_t0, id_t1)
             elif cellpos_2:
                 logger.info('changed id ' + str(id_t1) + ' to ' + str(id_t0))
-                # tracked_cells_t0[tracked_cells_t0 == id_t1] = id_t0
                 tracked_cells_t0 = assign_id(tracked_cells_t0, id_t1, id_t0)
             if __preview_only:
                 plt.imshow(int24_to_RGB(tracked_cells_t0))

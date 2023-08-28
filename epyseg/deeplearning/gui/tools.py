@@ -1,4 +1,6 @@
 import os
+
+from epyseg.gui.pyqtmarkdown_replacement import ClickableTextEdit
 from epyseg.settings.global_settings import set_UI # set the UI to be used py qtpy
 set_UI()
 os.environ['SM_FRAMEWORK'] = 'tf.keras'  # set env var for changing the segmentation_model framework
@@ -17,7 +19,6 @@ from epyseg.gui.open import OpenFileOrFolderWidget
 from qtpy.QtWidgets import QApplication
 from qtpy import QtWidgets, QtCore, QtGui
 from epyseg.tools.qthandler import XStream, QtHandler
-from epyseg.gui.pyqtmarkdown import PyQT_markdown
 # from epyseg.img import Img
 from qtpy.QtWidgets import QPushButton, QWidget
 from epyseg.tools.logger import TA_logger # logging
@@ -213,7 +214,7 @@ class DeepTools(QWidget):
         log_groupBox = QGroupBox('Log',objectName='log_groupBox')
         log_groupBox.setEnabled(True)
 
-        help = PyQT_markdown()
+        self.help = ClickableTextEdit()  # PyQT_markdown()
         try:
             # this_dir, this_filename = os.path.split(__file__)
             # help.set_markdown_from_file(os.path.join(this_dir, 'deeplearning/docs', 'getting_started2.md'),

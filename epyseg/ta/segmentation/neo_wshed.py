@@ -15,15 +15,27 @@ from scipy.ndimage import generic_filter
 
 logger = TA_logger()
 
-# TODO really try clean this code rapidly
-
-
 __DEBUG__ = False
 
-
-# seeds can be 'mask', a list of 2D coords, e.g. [[10, 20], [53, 30]]
-# @njit
 def wshed(img, channel=None, weak_blur=None, strong_blur=None, seeds='mask', min_seed_area=None, is_white_bg=False, fix_scipy_wshed=False, force_dual_pass=False):
+    """
+    Perform watershed segmentation on an image.
+
+    Args:
+        img (numpy.ndarray): The input image.
+        channel (int): The channel index to be used from the image (optional).
+        weak_blur (float): The sigma value for weak blurring (optional).
+        strong_blur (float): The sigma value for strong blurring (optional).
+        seeds (str, list, or numpy.ndarray): The seeds for watershed segmentation. Can be 'mask', a list of 2D coordinates, or a labeled image (optional).
+        min_seed_area (int): The minimum seed area for dual-pass watershed (optional).
+        is_white_bg (bool): Whether the image has a white background (optional).
+        fix_scipy_wshed (bool): Whether to fix missing watershed lines in scipy (optional).
+        force_dual_pass (bool): Force dual-pass watershed even if min_seed_area is not specified (optional).
+
+    Returns:
+        numpy.ndarray: The segmented image.
+
+    """
     if __DEBUG__:
         start = timer()
 
@@ -35,11 +47,9 @@ def wshed(img, channel=None, weak_blur=None, strong_blur=None, seeds='mask', min
         strong_blur = None
 
     if strong_blur is not None or weak_blur is not None:
-        # string seeds are not compatible with strong and weak blur --> make it modal
         if isinstance(seeds, str):
             seeds = None
 
-    # smart will avoid a lot of pbs
     if channel:
         if len(img.shape) > 2:
             img = img[..., channel]
@@ -56,29 +66,16 @@ def wshed(img, channel=None, weak_blur=None, strong_blur=None, seeds='mask', min
         strong = filters.gaussian(img, sigma=strong_blur, preserve_range=True, mode='wrap')
 
     if __DEBUG__:
-        print('blur ' + str(timer() - start) + ' s')  # that is super fast
+        print('blur ' + str(timer() - start) + ' s')
 
-    if isinstance(seeds,str) and seeds == 'mask':  # sinon si les seeds sont des coords les recup sinon si les seeds sont des masks alors aussi les recuperer et le processer --> reimplementer le ctrl+M de TA en fait et la correction locale --> facile à faire je pense --> prendre la bounding box du dessin et les cellules touchant le bord de ça
+    if isinstance(seeds, str) and seeds == 'mask':
         markers = measure.label(weak, connectivity=1, background=255)
-    # check what the seeds can be and how to handle them
     elif isinstance(seeds, list):
-        #    markers : int, or ndarray of int, same shape as `image`, optional
-        #         The desired number of markers, or an array marking the basins with the
-        #         values to be assigned in the label matrix. Zero means not a marker. If
-        #         ``None`` (no markers given), the local minima of the image are used as
-        #         markers.
-
-        # need convert this to a marker
         marker = np.zeros_like(weak, dtype=np.int32)
         seeds = np.asarray(seeds)
-
-        # print(seeds.shape)
-        # print(seeds[:,0])
-        # the list should be a 2D array of points for example
         marker[seeds[:, 0], seeds[:, 1]] = 1
         markers = measure.label(marker, connectivity=1, background=0)
     elif isinstance(seeds, np.ndarray):
-        # if same size as the image --> directly pass it, hopefully it should already be a labeled image
         if seeds.shape == weak.shape:
             markers = seeds
         else:
@@ -107,11 +104,7 @@ def wshed(img, channel=None, weak_blur=None, strong_blur=None, seeds='mask', min
     del markers
 
     if fix_scipy_wshed:
-        # there are some missing watershed lines in scipy I don't know why --> I can recover them manulally but it's a bit dirty and slow but it does rescue some percentage of cells that scipy misses --> maybe make this an option --> because it will make the wshed slower
-        # missing_wathershed_pixels = generic_filter(labels_ws, detect_wshed_line, (3, 3))  # this is super slow !!!
-        # labels_ws[missing_wathershed_pixels != 0] = 0
         labels_ws = full_numba_wshed_fixer(labels_ws)
-
 
     tmp = np.zeros_like(labels_ws)
     tmp[labels_ws == 0] = 255
@@ -119,8 +112,7 @@ def wshed(img, channel=None, weak_blur=None, strong_blur=None, seeds='mask', min
     del tmp
 
     if __DEBUG__:
-        print('wshed 1 ' + str(
-            timer() - start) + ' s')  # that is really the slow part no clue if can be improved or not !!!
+        print('wshed 1 ' + str(timer() - start) + ' s')
 
     if (min_seed_area is not None and min_seed_area > 0) or force_dual_pass:
         wshed_mask = np.copy(labels_ws)
@@ -129,7 +121,6 @@ def wshed(img, channel=None, weak_blur=None, strong_blur=None, seeds='mask', min
         most_frequent_segmentation_mask, count = np.unique(label, return_counts=True)
         cells_to_remove = most_frequent_segmentation_mask[count <= min_seed_area]
 
-        # print(cells_to_remove)
         if cells_to_remove.size == 0 and not force_dual_pass:
             final_mask = wshed_mask
             del label
@@ -138,9 +129,6 @@ def wshed(img, channel=None, weak_blur=None, strong_blur=None, seeds='mask', min
                 wshed_mask[label == cell] = 255
             del label
 
-            # logger.debug('filling 1 ' + str(timer() - start) + ' s')
-
-            # we rerun the wshed on the mask to get rid of all errors and smoothen bounds
             wshed_mask = watershed(wshed_mask, markers=None, watershed_line=True)
             final_mask = np.zeros_like(wshed_mask)
             final_mask[wshed_mask == 0] = 255
@@ -148,7 +136,6 @@ def wshed(img, channel=None, weak_blur=None, strong_blur=None, seeds='mask', min
     else:
         final_mask = labels_ws
 
-    # dirty hack to prevent full white image when watershed fully failed there are most likely better ways to do that though!!!
     if final_mask.max() == final_mask.min():
         final_mask = np.zeros_like(final_mask, dtype=np.uint8)
     else:
@@ -161,12 +148,12 @@ def wshed(img, channel=None, weak_blur=None, strong_blur=None, seeds='mask', min
 
 @njit
 def full_numba_wshed_fixer(img):
-    height=img.shape[0]
-    width= img.shape[1]
+    height = img.shape[0]
+    width = img.shape[1]
     for jjj in range(height):
         last_pixel = -1
         for iii in range(width):
-            pixel = img[jjj,iii]
+            pixel = img[jjj, iii]
             if pixel == 0:
                 last_pixel = -1
                 continue
@@ -175,15 +162,14 @@ def full_numba_wshed_fixer(img):
             else:
                 if pixel == 0:
                     last_pixel = -1
-                elif last_pixel != pixel and pixel !=0:
-                    img[jjj,iii]=0
-                    # print("wshed line found")
+                elif last_pixel != pixel and pixel != 0:
+                    img[jjj, iii] = 0
                     last_pixel = pixel
 
     for iii in range(width):
         last_pixel = -1
         for jjj in range(height):
-            pixel = img[jjj,iii]
+            pixel = img[jjj, iii]
             if pixel == 0:
                 last_pixel = -1
                 continue
@@ -192,34 +178,19 @@ def full_numba_wshed_fixer(img):
             else:
                 if pixel == 0:
                     last_pixel = -1
-                elif last_pixel != pixel and pixel !=0:
-                    img[jjj,iii]=0
-                    # print("wshed line found")
+                elif last_pixel != pixel and pixel != 0:
+                    img[jjj, iii] = 0
                     last_pixel = pixel
 
     return img
 
 @njit
 def detect_wshed_line(P):
-    # print('in')
-    if P[4] == 0:  # not pure white
+    if P[4] == 0:
         return 0
-    # would np.unique be faster ???
     corrected_ids = set(P)
-    # print(P)
-
-    # print(set(P))
-
-    # corrected_ids = list(corrected_ids.difference(set([0])))
-    size = len(corrected_ids)  # 4 way vertices only but why not
-    # print('corrected_ids',corrected_ids)
-
-    # if 116 in corrected_ids  and 117 in corrected_ids and size>=2:
-    #     print('#'*20)
-
+    size = len(corrected_ids)
     if size == 3:
-        # if 116 in corrected_ids  and 117 in corrected_ids and size>=2:
-        #     print('correcting', np.count_nonzero(P))
         if np.count_nonzero(P) == 7:
             if P[1] == 0 and P[7] == 0:
                 return 255

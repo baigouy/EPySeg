@@ -10,12 +10,28 @@ from skimage.segmentation import quickshift, watershed, find_boundaries
 from skimage.morphology import remove_small_objects
 from skimage.morphology import skeletonize
 from skimage.measure import label, regionprops
-from epyseg.img import Img
-
+from epyseg.img import Img, invert
 
 def get_optimized_mask2(img, sauvola_mask=None, use_quick_shift=False, __VISUAL_DEBUG=False,
                         __DEBUG=False, score_before_adding=False, return_seeds=False):
+    """
+    Generates an optimized mask for an input image.
 
+    Args:
+        img (numpy.ndarray): The input image.
+        sauvola_mask (numpy.ndarray, optional): The Sauvola mask. Defaults to None.
+        use_quick_shift (bool, optional): Flag indicating whether to use Quickshift. Defaults to False.
+        __VISUAL_DEBUG (bool, optional): Flag indicating whether to enable visual debugging. Defaults to False.
+        __DEBUG (bool, optional): Flag indicating whether to enable debugging. Defaults to False.
+        score_before_adding (bool, optional): Flag indicating whether to calculate scores before adding bonds.
+            Defaults to False.
+        return_seeds (bool, optional): Flag indicating whether to return the seeds. Defaults to False.
+
+    Returns:
+        numpy.ndarray or tuple: The optimized mask if return_seeds is False, otherwise a tuple containing
+            the markers, labels, and optimized mask.
+
+    """
     final_image = None
     if use_quick_shift:
         rotations = [0, 2, 3]
@@ -94,7 +110,7 @@ def get_optimized_mask2(img, sauvola_mask=None, use_quick_shift=False, __VISUAL_
 
     image = img.copy()
     image = image.astype(np.uint8) * 255
-    image = Img.invert(image)
+    image = invert(image)
 
     distance = distance_transform_edt(image)
 
@@ -102,11 +118,7 @@ def get_optimized_mask2(img, sauvola_mask=None, use_quick_shift=False, __VISUAL_
         plt.imshow(distance)
         plt.show()
 
-    # local_maxi = peak_local_max(distance, indices=False, # old code changed due to deprecation
-    #                             footprint=np.ones((8, 8)),
-    #                             labels=image)
     tmp = peak_local_max(distance,
-                         # indices=False, #change due to deprecation:  The indices argument in skimage.feature.peak_local_max has been deprecated. Indices will always be returned. (#4752)
                          footprint=np.ones((8, 8)),
                          labels=image)
     local_maxi = np.zeros_like(distance, dtype=bool)
@@ -123,7 +135,7 @@ def get_optimized_mask2(img, sauvola_mask=None, use_quick_shift=False, __VISUAL_
     if __DEBUG:
         Img(markers, dimensions='hw').save('/home/aigouy/Bureau/trash/trash4/markers_0.tif')
 
-    labels = watershed(distance, markers, watershed_line=True)  # --> maybe implement that too
+    labels = watershed(distance, markers, watershed_line=True)
     labels[labels != 0] = 1
     labels[labels == 0] = 255
     labels[labels == 1] = 0
@@ -158,7 +170,7 @@ def get_optimized_mask2(img, sauvola_mask=None, use_quick_shift=False, __VISUAL_
         labels_pred = label(unconnected, connectivity=2, background=0)
 
         raw_sauvola = rescue_bonds(labels_pred, labels_quick, raw_sauvola, labels_quick_vertices,
-                                       props_labels_quick, score_before_adding=score_before_adding)
+                                   props_labels_quick, score_before_adding=score_before_adding)
 
         if __DEBUG:
             Img(raw_sauvola.astype(np.uint8), dimensions='hw').save(
@@ -179,18 +191,28 @@ def get_optimized_mask2(img, sauvola_mask=None, use_quick_shift=False, __VISUAL_
     labels_pred = label(unconnected, connectivity=2, background=0)
 
     raw_sauvola = rescue_bonds(labels_pred, labels_edm, raw_sauvola, labels_edm_vertices, props_labels_edm,
-                                   score_before_adding=score_before_adding)
+                               score_before_adding=score_before_adding)
 
     raw_sauvola = connect_unconnected(labels_pred, labels_edm, raw_sauvola, props_labels_edm,
-                                          labels_edm_vertices)
+                                      labels_edm_vertices)
 
     if return_seeds:
         return markers, labels, raw_sauvola
 
     return raw_sauvola
 
-
 def split_into_vertices_and_bonds(skel):
+    """
+    Splits the input skeleton into vertices and bonds.
+
+    Args:
+        skel (numpy.ndarray): The input skeleton.
+
+    Returns:
+        tuple: A tuple containing two arrays:
+            - mask (numpy.ndarray): The array representing the vertices.
+            - bonds_without_vertices (numpy.ndarray): The array representing the bonds without vertices.
+    """
     kernel = np.ones((3, 3))
     mask = convolve2d(skel, kernel, mode='same', fillvalue=1)
 
@@ -204,7 +226,22 @@ def split_into_vertices_and_bonds(skel):
 
     return mask, bonds_without_vertices
 
+
 def connect_unconnected(labels_pred, labels_quick, raw_pahansalkar, props_labels_quick, labels_quick_vertices):
+    """
+    Connects unconnected regions based on the given labels.
+
+    Args:
+        labels_pred (numpy.ndarray): Predicted labels.
+        labels_quick (numpy.ndarray): Quick labels.
+        raw_pahansalkar (numpy.ndarray): Raw pahansalkar.
+        props_labels_quick (list): Properties of the quick labels.
+        labels_quick_vertices (numpy.ndarray): Quick labels representing vertices.
+
+    Returns:
+        numpy.ndarray: The connected regions.
+
+    """
     final_bonds_to_restore_because_they_connect_unconnected = []
     for region in regionprops(labels_pred):
         ids = []
@@ -247,20 +284,34 @@ def connect_unconnected(labels_pred, labels_quick, raw_pahansalkar, props_labels
                 raw_pahansalkar[coordinates[0], coordinates[1]] = 1
     return raw_pahansalkar
 
+
 def rescue_bonds(labels_pred, labels_quick, raw_pahansalkar, labels_quick_vertices, props_labels_quick,
                  score_before_adding=False):
+    """
+    Rescues bonds based on the given labels.
+
+    Args:
+        labels_pred (numpy.ndarray): Predicted labels.
+        labels_quick (numpy.ndarray): Quick labels.
+        raw_pahansalkar (numpy.ndarray): Raw pahansalkar.
+        labels_quick_vertices (numpy.ndarray): Quick labels representing vertices.
+        props_labels_quick (list): Properties of the quick labels.
+        score_before_adding (bool, optional): Whether to score before adding. Defaults to False.
+
+    Returns:
+        numpy.ndarray: The rescued bonds.
+
+    """
     minimum_scores = 0.5
     minimal_area_for_scoring = 4
     restore_vertices = True
 
     bonds_to_rescue = {}
-    id_of_vertices_to_restore = [] # there was a bug here --> variable was local
+    id_of_vertices_to_restore = []  # there was a bug here --> variable was local
 
     for region in regionprops(labels_pred):
         ids = []
         last_pos = None
-
-
 
         for coordinates in region.coords:
             for i in range(-2, 3, 1):
@@ -323,7 +374,6 @@ def rescue_bonds(labels_pred, labels_quick, raw_pahansalkar, labels_quick_vertic
 
     return raw_pahansalkar
 
-
 def detect_unconnected_bonds(skel):
     kernel = np.ones((3, 3))
     mask = convolve2d(skel, kernel, mode='same', fillvalue=1)
@@ -334,14 +384,28 @@ def detect_unconnected_bonds(skel):
 
     mask = np.logical_and(skel, mask).astype(np.uint8)
     return mask
-
 def getQuickseg(img, nb_of_90_rotation=0, kernel_size=2):
+    """
+    Performs QuickSeg segmentation on the input image.
+
+    Args:
+        img (numpy.ndarray): The input image.
+        nb_of_90_rotation (int, optional): Number of 90-degree rotations to apply. Defaults to 0.
+        kernel_size (int, optional): Kernel size for QuickShift algorithm. Defaults to 2.
+
+    Returns:
+        numpy.ndarray: Segmented image.
+
+    """
     if nb_of_90_rotation == 0:
         return find_boundaries(quickshift(gray2rgb(img), kernel_size=kernel_size, max_dist=6, ratio=3))
     else:
-        return np.rot90(find_boundaries(
-            quickshift(gray2rgb(np.rot90(img, nb_of_90_rotation)), kernel_size=kernel_size, max_dist=6, ratio=3)),
-            4 - nb_of_90_rotation)
+        return np.rot90(
+            find_boundaries(
+                quickshift(gray2rgb(np.rot90(img, nb_of_90_rotation)), kernel_size=kernel_size, max_dist=6, ratio=3)
+            ),
+            4 - nb_of_90_rotation
+        )
 
 
 if __name__ == '__main__':
@@ -363,7 +427,7 @@ if __name__ == '__main__':
     # img = Img('D:/Dropbox/stuff_for_the_new_figure/old/predict_avg_hq_correction_ensemble_wshed/cellpose_img22.tif')[...,5].astype(float)
     # img = Img('D:/Dropbox/stuff_for_the_new_figure/old/predict_avg_hq_correction_ensemble_wshed/cellpose_img22.tif')[...,1].astype(float)
     # img = Img('D:/Dropbox/stuff_for_the_new_figure/old/predict_avg_hq_correction_ensemble_wshed/cellpose_img22.tif')[...,3].astype(float)
-    # img = Img.invert(img)
+    # img = invert(img)
     # img = Img('D:/Dropbox/stuff_for_the_new_figure/old/predict_avg_hq_correction_ensemble_wshed/focused_Series010.tif')[...,0].astype(float)
     # img = Img('D:/Dropbox/stuff_for_the_new_figure/old/predict_avg_hq_correction_ensemble_wshed/focused_Series194.tif')[...,0].astype(float)
     # img = Img('D:/Dropbox/stuff_for_the_new_figure/old/predict_avg_hq_correction_ensemble_wshed/Series019.tif')[...,0].astype(float)

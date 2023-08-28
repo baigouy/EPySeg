@@ -1,86 +1,3 @@
-# TODO --> could store local neighbors like vertices and bonds for cells by using  border_cells_plus_one = get_border_cells_plus_one(get_cells_and_their_neighbors_from_image(lab_cells, vertices=np.stack(np.where(lab_cells == 0), axis=1),bg_color=0), border_cells, remove_border_cells=True) # this is as fast and detects nicely the cells having no vertices --> maybe I should by the way rather use that for cell neighborhood --> TODO # --> maybe a smart idea in fact 
-# TODO --> 3D should now work but test it still
-
-# fixé la polarite je pense globalement c'est presque les memes valeurs mais pas à 100% --> is that due to boundaries of the image or need check the sorting of the pixels in both cases to see how they differ and if that may explain errors
-
-# nb there might be a big bug in number of vertices computation too --> needs a fix --> seems be different between TA and pyTA --> fix
-
-# now connect and finalize tracking and the helper for correction --> TODO then edit the manuscript and do test of the install within conda or better miniconda and do so in an envirnoment to get it to work also need finalize plots as graphs or as images --> see how I can do that and improve things rapidly, should not be too hard actually then finalize and imporve the z depth ratio and the pixel width to make it automatically added to the ehight so that no action is required also detect automaticaly when a table needs be updated because the seg mask changed !!!
-
-# TODO store bond length in an array so that I can get the packing of the cell --> in fact should not be that hard to docs
-# just get bond length at the same time as I get the cell and that would do the job --> then count nb of occurences below
-
-# see how I can associate it !!!!
-# associate all bonds to cells --> TODO and to finalize
-
-# nb there seems to be an error with pixel_count of bonds_2D as it is not an integer --> see why --> but can easily be fixed I guess --> maybe linked to the perimeter approx of scipy
-# almost all ok now !!!
-
-# can I have all bonds of a cell
-# --> see how to best do that
-
-# could also remove vx1_x and vx2_x and replace it by the ID of the vertices and things can be recovered with a simple join
-# TODO add primary key because it can be very useful
-# TODO --> shall I store bonds --> ????
-
-
-# I can easily get all bonds around by looking at the level of the cell by looking at the perimeter, one complexity is still to get the pairs of vertices
-# ideally that would be cool to also get super tiny bonds of two pixels long --> see how I can compute that ???
-# shall I store bonds and also
-# I now miss --> I think I have all I need --> see if and how I can improve it
-# and is_border_cell_plus_one and 'vx_1_z': [],
-#                 'vx_2_z': [],
-#
-# --> not too hard to do I guess!!!
-
-
-# compute average intensity of cytoplasm
-
-# almost ok but just add all the missing ones !!!
-
-# TODO --> now add the database saving part --> then almost all done
-# nice sql tuto
-# https://datatofish.com/create-database-python-using-sqlite3/
-
-# now store all in the db then I'm almost done in a way
-# see all the TA parameters to see which one I can recover
-# instead of storing vx pos i could store local vx id --> gain of space and it's easy to get back to the coords anyway too
-# finalize also the plotter
-
-# how can I get bond length --> shall I store the data somewhere ???
-
-# finally create the db --> TODO
-
-# i really have evrything then do the TA code
-
-# do plots for polarity or alike ???
-# TODO add to all regionprops the intensity so that intensity can be computed, maybe do it manually for the
-
-# TODO base myself on createCellDb of TA in UltimateDbsCreator --> TODO
-# TODO need a code to detect border cells and border cells plus one because very useful!!!
-# TODO make a stretch nematic also à la TA just to keep if for consistency --> TODO
-
-# strecth à la TA -->  Point2D.Double S1S2 = flood.compute_stretch(1.)[2];
-#                         Point2D.Double center = flood.getCenter2D();
-
-# TODO try call IJ from python call(["./ImageJ-linux64", "myscript.py"]) or use the python imageJ thingy --> just the path need be defined somewhere
-# can try both and if that does not work then let the user save the file and open it manually!!!
-
-
-# Perimeter = No. of horizontal & vertical links + (No. of diagonal links * ) --> http://www.cs.qub.ac.uk/~d.crookes/webpubs/papers/perimeter.doc --> smart in fact and fast because connectivity is not required
-# in fact no need to sort just need links and compute the sum of every link --> in fact that is terribly fast I think --> still need think how to get just the links
-# en fait ils calculent pixel par pixel en fonction de leur connectivité
-
-
-# order is required though for the polarity measures
-# TODO create a status table that gets updated when an image is changed or saved --> just a boolean up to date so that one can easily update things --> much simpler than the algos and what I do in TA --> very smart in fact
-# test the stuff better!
-# how to add missing vertices at the margin
-
-
-# get an image and for each cell derive its contour and measure its perimeter
-
-# https://scikit-image.org/docs/dev/api/skimage.measure.html#skimage.measure.perimeter
 import math
 import os.path
 from multiprocessing import Pool
@@ -116,117 +33,205 @@ logger = TA_logger()
 
 __DEBUG__ = False
 
+import numpy as np
+from math import sqrt, atan, degrees
+from skimage.measure import label, regionprops
 
-# nb for heightmap I need also the scaling factor for Z/(x or y) dim --> MEGA URGENT TODO --> BUT I'M almost there
-# also make this a class that can do things
-# save all to a db
-# compute nematic polarity
-# then all done
-# make options to know if things need be computed or not ???
+def distance_between_points_deprecated(p1, p2):
+    """
+    Deprecated function to compute the distance between two points in 2D.
 
-# do a mt class in the stuff
-# maybe start soft with setting processors and alike --> TODO and good idea
-# finalize tracking --> all can be done today
-# need associte vertices to bonds --> quite easy also check all the things I have in TA and check if everything is there ?
-# allow edit cell divs and death maybe later or at some point...
-# compute intentity with or without vertices --> TODO
+    Args:
+        p1 (tuple): First point coordinates (x, y).
+        p2 (tuple): Second point coordinates (x, y).
 
-# __ parameters are for debug only --> do not USE!!!
-# TODO start here also by finalizing the mask --> pb is if there is a change in the next step that will be a pb because masks will not match --> see how I can fix that
-# min_cell_size
+    Returns:
+        float: Distance between the points.
 
-# that may work but I assume it will be slow --> how can I ensure there is no pb --> always add None and change the None to a value if possible??? --> maybe it's a good idea --> can I do that
-# see how I can do that !!!!
-
-
-# try it and add random error to it
-# ça marche et ça ne coûte rien en fait --> fill les None values avec des None
-# voir comment faire pr que les lignes soient tjrs remplies pareil --> sinon si error happens log it and don't add the line at all
-# check for single pixels cells if things work especially for triangulation
-
-def distance_between_points(p1, p2):
+    """
     return sqrt((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2)
 
-def get_sum_and_avg_intensity(original_image, reg, idx=None, y_shift_to_transfrom_local_coords_to_global_coords=0,
-                              x_shift_to_transfrom_local_coords_to_global_coords=0):
-    # print(type(reg))
 
+def distance_between_points_nD(p1, p2, rescaling_factor=None):
+    """
+    Computes the distance between two points in n-dimensional space.
+
+    Args:
+        p1 (numpy.ndarray): First point coordinates.
+        p2 (numpy.ndarray): Second point coordinates.
+        rescaling_factor (float, optional): Rescaling factor for real distance computation. Defaults to None.
+
+    Returns:
+        float: Distance between the points.
+
+    Examples:
+        >>> p1 = np.array([1, 2, 3])
+        >>> p2 = np.array([4, 5, 6])
+        >>> distance_between_points_nD(p1, p2)
+        5.196152422706632
+
+    """
+    return distance_between_points(p1, p2, rescaling_factor=rescaling_factor)
+
+
+def distance_between_points(p1, p2, rescaling_factor=None):
+    """
+    Computes n-dimensional distance between points (2D, 3D, nD) and can return real distance instead of pixel distance
+    when the optional rescaling_factor is set.
+
+    Args:
+        p1 (numpy.ndarray): First point coordinates.
+        p2 (numpy.ndarray): Second point coordinates.
+        rescaling_factor (numpy.ndarray, optional): Voxel scaling factors corresponding to the dimensions. Defaults to None.
+
+    Returns:
+        float: Distance between the points.
+
+    Examples:
+        >>> p1 = np.array([1, 2, 3])
+        >>> p2 = np.array([4, 5, 6])
+        >>> distance_between_points(p1, p2)
+        5.196152422706632
+        >>> p1 = np.array([1, 2, 3])
+        >>> p2 = np.array([4, 5, 6])
+        >>> rescaling_factor = [0.0691888, 0.0691888, 0.2500000] # e.g. conversion of pixels to µm
+        >>> distance_between_points(p1, p2, rescaling_factor) # dist in µm
+        0.8053990444605208
+        >>> p1 = np.array([[1, 2, 3],[4, 5, 6]])
+        >>> p2 = np.array([[1, 2, 3],[4, 5, 6]])
+        >>> rescaling_factor = [0.0691888, 0.0691888, 0.2500000] # e.g. conversion of pixels to µm
+        >>> distance_between_points(p1, p2, rescaling_factor) # dist in µm
+        array([0., 0.])
+        >>> p1 = np.array([[4, 5, 6],[1, 2, 3]])
+        >>> p2 = np.array([[1, 2, 3],[4, 5, 6]])
+        >>> rescaling_factor = [0.0691888, 0.0691888, 0.2500000] # e.g. conversion of pixels to µm
+        >>> distance_between_points(p1, p2, rescaling_factor) # dist in µm
+        array([0.80539904, 0.80539904])
+    """
+
+    if not isinstance(p1, np.ndarray):
+        p1 = np.asarray(p1)
+    if not isinstance(p2, np.ndarray):
+        p2 = np.asarray(p2)
+
+    if rescaling_factor is not None:
+        p1 = p1 * rescaling_factor
+        p2 = p2 * rescaling_factor
+
+    # that should always work but is that True --> do tests
+    axis = 0
+    if len(p1.shape)==2:
+        axis=1
+    return np.sqrt(np.sum(np.square(p1 - p2), axis=axis))
+
+
+
+def get_sum_and_avg_intensity(original_image, reg, idx=None, y_shift_to_transform_local_coords_to_global_coords=0,
+                              x_shift_to_transform_local_coords_to_global_coords=0):
+    """
+    Computes the sum and average intensity of a region in an image.
+
+    Args:
+        original_image (numpy.ndarray): Original image.
+        reg (numpy.ndarray or regionprops): Region of interest.
+        idx (int, optional): Index of the region if reg is a list of regionprops. Defaults to None.
+        y_shift_to_transform_local_coords_to_global_coords (int, optional): Y shift to transform local coordinates to global coordinates. Defaults to 0.
+        x_shift_to_transform_local_coords_to_global_coords (int, optional): X shift to transform local coordinates to global coordinates. Defaults to 0.
+
+    Returns:
+        tuple: Sum and average intensity of the region.
+
+    # Examples:
+    #     >>> image = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
+    #     >>> region = np.array([[0, 0], [1, 1]])
+    #     >>> get_sum_and_avg_intensity(image, region)
+    #     (6, 3.0)
+
+    """
     if len(original_image.shape) >= 3:
         axis = 0
     else:
         axis = None
 
-    # if isinstance(reg, regionprops):
     if idx is not None:
         final_reg = reg[idx]
     else:
         final_reg = reg
 
-    if isinstance(final_reg, RegionProperties):
+    if isinstance(final_reg, regionprops.RegionProperties):
         ys = final_reg.coords[:, 0]
         xs = final_reg.coords[:, 1]
     else:
-        if isinstance(reg, list):
-            final_reg = np.asarray(final_reg)
-        #     ys = final_reg[:, 0]
-        #     xs = final_reg[:, 1]
-        # else:
-        #     print('TADAT ', type(reg), print(reg), print(final_reg))
         ys = final_reg[:, 0]
         xs = final_reg[:, 1]
 
     sum_bd_intensity = np.sum(original_image[
-                                  ys + y_shift_to_transfrom_local_coords_to_global_coords,
-                                  xs + x_shift_to_transfrom_local_coords_to_global_coords],
+                                  ys + y_shift_to_transform_local_coords_to_global_coords,
+                                  xs + x_shift_to_transform_local_coords_to_global_coords],
                               axis=axis)
     avg_bd_intensity = sum_bd_intensity / float(len(xs))
-    # else:
-    #     if isinstance(reg,list):
-    #         final_reg = np.asarray(reg)
-    #     sum_bd_intensity = np.sum(original_image[
-    #                                   final_reg[:, 0] + y_shift_to_transfrom_local_coords_to_global_coords,
-    #                                   final_reg[:, 1] + x_shift_to_transfrom_local_coords_to_global_coords],
-    #                               axis=axis)
-    #     avg_bd_intensity = sum_bd_intensity / float(len(reg))
 
     return sum_bd_intensity, avg_bd_intensity
 
 
 def get_orientation(first_vertex, second_vertex):
-    bd_orientation = math.degrees(atan_RAD(first_vertex[0] - second_vertex[0], first_vertex[1] - second_vertex[1]))
+    """
+    Computes the orientation (in degrees) between two vertices.
+
+    Args:
+        first_vertex (tuple): First vertex coordinates (x, y).
+        second_vertex (tuple): Second vertex coordinates (x, y).
+
+    Returns:
+        float: Orientation between the vertices.
+
+    Examples:
+        >>> v1 = (1, 2)
+        >>> v2 = (4, 5)
+        >>> get_orientation(v1, v2)
+        45.0
+
+    """
+    bd_orientation = degrees(atan_RAD(first_vertex[0] - second_vertex[0], first_vertex[1] - second_vertex[1]))
     while bd_orientation >= 180.:
         bd_orientation -= 180.
     return bd_orientation
 
-
-# TODO CHECK IF I REALLY NEED THAT / compare to atan2 for example but ok for now
-# TODO --> probably smarter to use modulo as stated here https://stackoverflow.com/questions/37358016/numpy-converting-range-of-angles-from-pi-pi-to-0-2pi
 def atan_RAD(y, x):
-    # print(math.pi/2.)
-    # same x -->
+    """
+    Computes the arctangent of y/x in radians, taking into account the quadrant.
+
+    Args:
+        y (float): y-coordinate.
+        x (float): x-coordinate.
+
+    Returns:
+        float: Arctangent value in radians.
+
+    Notes:
+        This function uses a custom implementation to handle the quadrant correctly.
+
+    """
     if abs(x) == 0.:
         return math.pi / 2.
     res = math.atan(abs(y) / abs(x))
-    # if abs(x) == 0:
-    #     print('abs(y) / abs(x)', abs(y) / abs(x), abs(x), math.atan(abs(y) / abs(x)))
     res = math.pi - res if x <= 0. and y > 0. else res
     res = math.pi + res if x <= 0. and y <= 0. else res
     res = 2. * math.pi - res if x > 0. and y <= 0. else res
     return res
-    # public static double calculate_angle_in_radians(double x, double y) {
-    #     double res = Math.atan(Math.abs(y) / Math.abs(x));
-    #     res = (x <= 0. && y > 0.) ? Math.PI - res : res;
-    #     res = (x <= 0. && y <= 0.) ? Math.PI + res : res;
-    #     res = (x > 0. && y <= 0.) ? 2. * Math.PI - res : res;
-    #     return res;
-    # }
 
 
 def fill_missing_with_Nones(database):
-    # ensure that all lists have the same nb of entries --> need add None before or after the current data --> in fact this is complex --> think how I can do that ???
-    # need check how many entries are there and if the column existed before or not
-    # in fact no pb because it is done image per image --> the only pb will be when I will try to merge data from different images which does not really make sense for databases that are very different --> see how to do that
-    # check all have same length and if not --> append empty values to it to get the same size --> the sad thing is that it must be done after each entry --> maybe be slow
+    """
+    Fills missing entries in a database dictionary with None values.
+
+    Args:
+        database (dict): Database dictionary.
+
+    Returns:
+        dict: Updated database with missing entries filled with None.
+
+    """
     max_length = 0
     for k, v in database.items():
         max_length = max(max_length, len(v))
@@ -236,8 +241,6 @@ def fill_missing_with_Nones(database):
             v.extend(missing)
     return database
 
-
-# do a remove things to small to be cells --> in fact need run the whsed on it
 def TAMeasurements(file_or_list, __forced_orig=None, __forced_cells=None, __forced_heightmap=None,
                    measure_polarity=False, measure_3D=False, min_cell_size=10, progress_callback=None,
                    bond_cut_off=2, multi_threading=True):  # if less or equal to 2 --> is not a bond but is a vertex

@@ -4,9 +4,16 @@ from epyseg.tools.logger import TA_logger # logging
 
 logger = TA_logger()
 
-
-# do a real generator for this to avoid code dupes btw --> and add more flexibility --> less global variables
 class MetaGenerator:
+    """
+    A generator class that combines multiple generators and provides a unified generator interface.
+
+    Args:
+        augmenters (list): List of generators to combine.
+        shuffle (bool): Whether to shuffle the data.
+        batch_size (int): Batch size.
+        gen_type (str): Type of generator ('train', 'test', 'valid').
+    """
 
     def __init__(self, augmenters, shuffle, batch_size, gen_type):
         self.remains_of_previous_batch = None
@@ -16,6 +23,16 @@ class MetaGenerator:
         self.gen_type = gen_type
 
     def generator(self, skip_augment, first_run):
+        """
+        Generates batches of data.
+
+        Args:
+            skip_augment (bool): Whether to skip data augmentation.
+            first_run (bool): Whether it's the first run of the generator.
+
+        Yields:
+            tuple: A batch of data.
+        """
         self.remains_of_previous_batch = None
         generators = []
         generators_length = []
@@ -36,35 +53,21 @@ class MetaGenerator:
                 logger.error('unsupported generator ' + self.gen_type)
 
         if self.shuffle:
-            # call random based on some data
             logger.debug('The datagenerator is using shuffle mode')
             random_generator_indices = []
             for iii, gener_ in enumerate(generators):
                 random_generator_indices += [iii] * generators_length[iii]
 
-            # print(len(random_generator_indices))
-            # print(random_generator_indices)
             random_generator_indices = random.sample(random_generator_indices, len(random_generator_indices))
-            # print("-->", len(random_generator_indices))
-            # print(random_generator_indices)
             for idcs in random_generator_indices:
                 choice = generators[idcs]
-                for c in choice:  # TODO remove that line so that I always switch between generators
+                for c in choice:
                     out = self.is_batch_ready(c, False)
                     while out is not None:
                         yield out
                         out = self.is_batch_ready(None, False)
-                    break  # does that work ??
+                    break
 
-            # old random code --> not great because trains too much on one sample before moving to the next --> now changing
-            # indices = random.sample(range(len(generators)), len(generators))
-            # for idcs in indices:
-            #     choice = generators[idcs]
-            #     for c in choice: # TODO remove that line so that I always switch between generators
-            #         out = self.is_batch_ready(c, False)
-            #         while out is not None:
-            #             yield out
-            #             out = self.is_batch_ready(None, False)
         else:
             for gen in generators:
                 for c in gen:
@@ -78,14 +81,21 @@ class MetaGenerator:
             out = self.is_batch_ready(None, True)
 
     def multiconcat(self, old_batch, new_batch):
+        """
+        Concatenates new batch data to the old batch.
+
+        Args:
+            old_batch (tuple): Old batch of data.
+            new_batch (tuple): New batch of data.
+
+        Returns:
+            tuple: Concatenated batch of data.
+        """
         for idcs, input_output in enumerate(new_batch):
             for j, data in enumerate(input_output):
                 try:
                     old_batch[idcs][j] = np.concatenate((old_batch[idcs][j], data), axis=0)
                 except:
-                    # if images don't have the same nb of Z add empty frames to the smallest one so that both fit --> bug fix for 3D generators with images having different depth
-                    # TODO should I use padding in the Z axis with reflect here too --> in most cases that should work especially for
-
                     if len(old_batch[idcs][j].shape) == len(data.shape) == 5:
                         if old_batch[idcs][j].shape[1] != data.shape[1]:
                             # need add frames to the smallest..., try add black frames...
@@ -101,15 +111,11 @@ class MetaGenerator:
                             smallest_shape[1] = z_dim_difference
 
                             missing_frames = np.zeros((smallest_shape), dtype=smallest_z.dtype)
-                            # use min per channel --> it is a much better idea
-                            # should test that changes are still ok but should be
-
-                            # print("shp", missing_frames.shape)
 
                             for c in range(missing_frames.shape[-1]):
                                 missing_frames[...,c].fill(smallest_z[...,c].min())
 
-                            smallest_z = np.append(smallest_z, missing_frames, axis=1) # nb should do that per channel in fact... -->
+                            smallest_z = np.append(smallest_z, missing_frames, axis=1)
 
                             old_batch[idcs][j] = np.concatenate((smallest_z, biggest_z), axis=0)
 
@@ -119,20 +125,33 @@ class MetaGenerator:
         return old_batch
 
     def multisplit(self, old_batch):
-        out = [[], []]
-        # print(len(old_batch))
-        # print(type(old_batch)) # tuple
-        # print(len(old_batch), len(old_batch[0][0]))
+        """
+        Splits the old batch into two batches.
 
+        Args:
+            old_batch (tuple): Old batch of data.
+
+        Returns:
+            tuple: Splitted batches of data.
+        """
+        out = [[], []]
         for idcs, input_output in enumerate(old_batch):
             for j, data in enumerate(input_output):
                 cur = data[:self.batch_size]
-                # print(old_batch[idcs][j].shape, data[self.batch_size:].shape) # devrait etre le meme en fait ???
                 old_batch[idcs][j] = data[self.batch_size:]
                 out[idcs].append(cur)
         return old_batch, out
 
     def multi_add_images_to_batch(self, old_batch):
+        """
+        Adds missing images to the batch.
+
+        Args:
+            old_batch (tuple): Old batch of data.
+
+        Returns:
+            tuple: Batch with missing images added.
+        """
         missing_image_nb = self.batch_size - old_batch[0][0].shape[0]
         for idcs, input_output in enumerate(old_batch):
             for j, data in enumerate(input_output):
@@ -141,19 +160,22 @@ class MetaGenerator:
         return old_batch
 
     def is_batch_ready(self, current_batch, last_image):
+        """
+        Checks if a batch is ready.
 
-        # print('cb', current_batch, last_image)
-        # pb c'est que en 3D je ne dois pas faire pareil du tout car j'ai pas le droit de fusionner des stacks --> en fait si mais faut avoir le meme nombre de trucs pr les deux --> je dois ajouter ou enlever des images dans l'un ou l'autre
+        Args:
+            current_batch (tuple): Current batch of data.
+            last_image (bool): Whether it's the last image in the batch.
 
+        Returns:
+            tuple or None: The batch of data if ready, None otherwise.
+        """
         if current_batch is not None and self.remains_of_previous_batch is not None:
-            # this stuff should have the size and structure of cur batch
             self.remains_of_previous_batch = self.multiconcat(self.remains_of_previous_batch, current_batch)
         elif self.remains_of_previous_batch is None and current_batch is not None:
             self.remains_of_previous_batch = current_batch
 
-        # NB duplicated code but ok could put it as a separate function though !!!!
         if self.remains_of_previous_batch is not None:
-            # print('bs', self.batch_size, self.remains_of_previous_batch[0][0].shape[0])
             if self.remains_of_previous_batch[0][0].shape[0] == self.batch_size:
                 out = self.remains_of_previous_batch
                 self.remains_of_previous_batch = None
@@ -169,14 +191,24 @@ class MetaGenerator:
         return None
 
     def close(self):
-        # hack to avoid errors when tf stops the generator
+        """
+        Closes the generator.
+        """
         pass
 
-    # this is to handle GeneratorExit that is called at the end
     def __exit__(self,  exc_type, exc_value, traceback):
+        """
+        Handles the GeneratorExit.
+
+        Args:
+            exc_type: Type of the exception.
+            exc_value: Exception value.
+            traceback: Traceback information.
+        """
         if exc_type:
             logger.error("Aborted %s", self,
                           exc_info=(exc_type, exc_value, traceback))
+
 
 if __name__ == '__main__':
     test_input_img_1 = np.zeros((10, 1, 1, 1))

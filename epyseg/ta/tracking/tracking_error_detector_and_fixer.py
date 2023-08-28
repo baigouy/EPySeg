@@ -1,112 +1,9 @@
-# TODO add some guidelines to guide the user through the correction process
-# see how to handle tracking corrections and how to update stuff and maybe show a warning upon failure
-
-
-# parfait il sait detecter les swaps et les valider
-# --> puis-je utiliser ça dans mon tracking et restaurer le truc ???
-# que faire si la cellule existe déjà --> à voir
-# only try with low scores --> to improve
-# --> TODO
-
-
-# some of the things are redundant --> first fix missing and overseg as they would be detected again in the diminution of the neighbor score!!! --> see how I can do that ???
-# same is true for divisions --> if a division has been validated in the neighborhood of the cell then one needs to ignore the lowering of the neighbor change and at least reduce it --> indeed need also treat divisions first --> TODO !!!
-# in fact not to reduce the neighbor score when there is a division I should fake keep the same id for the two daughters in order not to reduce the score --> see how to do that
-# check that cause not that easy to do!!!
-
-
-# nb if I have the size of the bonds and if I measure them I can tell whether it's a T1 or a loss especially if frames are not too separated from one another
-
-
-# neighborhood change case: --> if 0 --> new cell in the image --> cell produced by a division or missing cell in previous image --> need check further images to be sure, for divisions it should share a lot of the things in common with the parents --> TODO --> and I can also identify the parent easily --> also create the phylogeny of the stuff
-# if cell is 0 or low --> can be a swapping --> find ways to reidentify the cells
-# could also compute local displacement to identify errors
-# TODO do a test dataset and see what I can do
-# nb if a cell has now too many contacts (too many new neighbors, that reduces its score) it is likely that it is an underseg cell -> in fact that is really powerful to use the neighborhood --> very good idea in fact --> I could offer a change of the image before and could check other frames to decide in auto mode
-# --> TODO
-# also I can have the score of the cell in the previous images and a suffen change of score is likely to be a problem of segmentation --> ALL IS CODED IN THE NEIGHBORHOOD --> REALLY USE THIS AND DO A SMART ALGO # THAT DOES AUTO-CORRECTION --> especially if cell is big --> very smart idea
-# if new cell is not in the next frame --> then could discard it simply in current frame
-# if cell is present in the cur and next then offer add cell in previous !!!
-# in fact all of this is smart start with two images and then extend ????
-# or do directly with three images
-
-
-# could compute local translation based on cell neighbors and check
-
-
-# for swapping detection before I was trying to find the best match between two consecutive sets which is slow because I need check all and do intersection of the neighbors
-# in fact detect neighbors in two images and compare them --> then do a similarity score and if below a threshold can try to offer a correction of the swapping by lopping through all and finding the best match
-# can I do THAT FASTER BY CREATING A SET THAT ALSO HAS THE CELL OF INTEREST THEN DO INTERSECTION CAN ALSO KEEP UNIQUE TO GET RID OF DUPES
-# GIVE A SCORE FOR EVERY CELLS --> AND DO A HEIGTMAP TO HIGHLIGHT ERRORS
-# IN FACT NOT A BAD IDEA
-# I COULD GIVE A SCORE IN CURRENT WITH RESPECT TO PREVIOUS --> THEN OFFER FIX SOLUTIONS AND LET THE USER DECIDE
-
-
-# cases:
-# cell absent in -1 and present in 0 and +1 --> division or error of segmentation in -1 # will it be detected before ??? if error of seg --> yes it should because it should be missing between the two previous frames !!! be careful with dividing cells if they touch the border --> I need more control
-# cell absent in -1 and 0 but present in +1 --> can be a division or an overseg in +1 --> in fact all these things will be redundant --> be careful, or can be an underseg in the two previous but it is unlikely because it would mean two mistakes --> will I capture those cells --> in next frame --> not necessarily because they would not be in the intersection
-# cell present in -1 and 1 but not in 0 --> the cell is clearly underseg in 0 and tracks should be connected between -1 and 1 too --> could check neighborhood to see if that makes sense or not if cells are properly registered then I could assume same overlap --> try compute the coord of the new seed --> see how I can magically do that ??? can I simply run a wshed and find smthg close ???
-# TODO maybe also offer connecting tracks over two consecutive images --> but be careful to prevent noe swap -->
-# really need to sort out swapping first !!!
-# really need offer the user the possibility to fix the 3 images at once/at the same time !!!
-# do a zoom on the problematic cells with the 3 raw images, then the 3 masks and the 3 tracks also show division mask and cell death mask to update them wisely too --> TODO --># if I go for such a complex GUI I should connect the GUIs so that the zooms are coordinated !!! --> TODO --> good idea
-# if something is changed then tracking need also be updated --> see how I can do that because not that simple in fact!!!
-# could also warn if local displacement is high --> in fact could offer several algorithms for identifying errors
-# if mask is not perfect automated solution is almost impossible
-# vraiment pas simple
-# worst case scenario --> HIGHLIGHT PROBLEMATIC REGIONS AND LET THE USER MANUALLY DEAL WITH THAT BUT WOULD STILL BE USEFUL TO HAVE ALL THE THREE IMAGES AT ONCE
-# OFFER a rewatershed after a cell removal or offer a 2 seed wshed depending on what I want !!!
-# COMPARE RESULTS WITH NEIGHBORHOOD CHANGES TOO
-# OR OFFER VARIOUS INDICATORS
-# OR VARIOUS CORRECTIONS --> SEE HOW TO DO THAT
-
-
-# at the margin things are most likely to be underseg than divisions --> could do that always
-# if there is a division then some of the cell parameters need be changed --> such as area --> maybe use that
-# see if there is a trick to place the missing cells
-# maybe ask the user for a fix --> things can be easily fixed that way and worst case scenario can be fixed manually
-# TODO try autofix and show the image and all of its components
-# ALSO FIND A WAY TO REGISTER CONSECUTIVE FRAMES BECAUSE OTHERWISE THAT WOULDN'T WORK !!
-# CAN I FIND THE SAME USING CELL NEIGHBORHOOD --> THINK ABOUT THAT BECAUSE MAYBE ALL IS STORED IN THAT TOO!!!
-
-
-# numba tuto https://github.com/gforsyth/numba_tutorial_scipy2017
-# https://github.com/gforsyth/numba_tutorial_scipy2017/blob/master/notebooks
-
-# nb one can call a numba function this way --> very easy in fact
-# sum_array_numba = jit()(sum_array)
-
-# TODO --> take three consecutive images then detect over and under seg
-# overseg is smthg that is present on the middle frame and not on the one before and after
-# an underseg is something that is absent from middle image and present in the two others
-# by the way something that didn't exist in one frame and is there in the following frames is likely to be a division --> could use that and maybe combine with area rules
-# same: a cell that is present in two previous frames and not in the following one is most likely a dying cell (maybe should check one more image)
-
-# TODO do a code to pick n frames --> hack the generic code to get the cells stuff and do that --> the one I have in the PIV
-
-
-# pick n frames and get cells and their neighbors or just cells ????
-
-# maybe unlike for swapping I don't need to have the neighbors !!! --> which will be much faster
-
-# then try to design a code that fixes the wshed segmentation --> TODO
-
-# in theory not that hard TODO and could really save me shitloads of time!!!
-
-
-# COULD TRY NUMBAISE ALL MY ALGOS --> SHOULD BE FAST IN FACT AND FAIRLY EASY --> JUST A COPY OF TA ALGOS --> I WILL LOVE THAT
-# TODO --> DO IT
-
-
-# COULD TRY DETECT VERTICES NUMBA
+# TODO finish clean the code manually too many comments
 
 import os
 from epyseg.settings.global_settings import set_UI # set the UI to be used py qtpy
 set_UI()# TODO --> get started
 
-# should be fairly easy except the part where I do restore the wshed mask, but even that shouldn't be that hard to do
-# maybe neighborhood can be easy because it would help identifying cell divisions from cells entering into the frame
-# do some coding in a simple way
 import traceback
 import matplotlib.pyplot as plt
 from qtpy.QtWidgets import QApplication
@@ -130,145 +27,96 @@ import operator
 USE_NUMBA = True  # ça a pas l'air de marcher ou je comprend pas --> check --> maybe check nopython in jit
 FIX_SWAPS = True
 
-
-# I can easily recode all of my functions in numba then and have something very similar to my java stuff --> which will anyways make my life easier --> recode everything and do not restrict myself because now it's fast finally!!!
-# a vertex is a white point surrounded by 3 or more colors or 2 colors and touching the outer part of the image
-# the speed is ok
-
-
-# marche pas en numba !!! --> voir comment faire
 @njit
 def get_vx_neighbors(vertices_coords, RGB24img):
-    # for all the vertices get the neighbors
-    # neighbors = {}
-    # neighbors[(0,0)]=[0,0,0]
-    # neighbors[0]=[0,0,0]
-    # neighbors.clear()
+    """
+    Get the neighbors of each vertex.
 
-    # print(vertices_coords)
-    # vertices_coords = np.asarray(vertices_coords)
+    Args:
+        vertices_coords (numpy.ndarray): Array of vertex coordinates.
+        RGB24img (numpy.ndarray): RGB image.
+
+    Returns:
+        list: List of neighbor colors for each vertex.
+
+    """
     neighbors = []
 
     for iii in range(vertices_coords.shape[0]):
-        # for jjj in range(vertices_coords.shape[1]):
-        # for ij in vertices_coords:
-
-        # print(ij)
-        # look around the 9 vertices
-        # check bounds to avoid errors and get less stuff
-
         i = int(vertices_coords[iii, 1])
         j = int(vertices_coords[iii, 0])
 
-        # print(j,i)
-
-        # print(vertices_coords[jjj,iii])
-
-        # i = int(i)
-        # j = int(j)
         neighbours8 = RGB24img[j - 1:j + 2, i - 1:i + 2]
-        # # convert to a list and remove cup pixel id
         neighbs = []
         for neighbor in neighbours8.ravel():
             if neighbor != 0xFFFFFF:
                 neighbs.append(neighbor)
-        # print(neighbs)
-        # neighbors[iii]=list(set(neighbors))
         neighbors.append(neighbs)
-    # return neighbors
-    # ça marche mais comment l'exporter
+
     return neighbors
 
 
-# find the most overlapping cell both ways maybe between two images so that I can use that to assign a cell -> just try
-# @njit
 def find_best_matches_both_ways(img_t_cur, img_t_another, translation=None):
-    match_t_cur_in_t_prev = {0: 0}
-    match_t_cur_in_t_prev.clear()
+    """
+    Find the best matches between two images in both directions.
 
+    Args:
+        img_t_cur (numpy.ndarray): Image at time t_cur.
+        img_t_another (numpy.ndarray): Image at another time.
+        translation (None, optional): Translation parameters. Defaults to None.
+
+    Returns:
+        dict: Best matches between colors in img_t_cur and img_t_another.
+
+    """
+    match_t_cur_in_t_prev = {}
     match_t_prev_in_t_cur = {}
 
-    # for all colors find the best match in the bounding rect maybe or
-    # in fact just find the most common id below mask 1
-
-    # for every cell create a list ???
     for j in range(1, img_t_cur.shape[0] - 1):
-        for i in range(1, img_t_cur.shape[1] - 1):  # assign pixel
+        for i in range(1, img_t_cur.shape[1] - 1):
             cur_col = img_t_cur[j, i]
             if cur_col != 0xFFFFFF:
                 col_in_other_image = img_t_another[j, i]
                 if col_in_other_image != 0xFFFFFF:
-                    if cur_col in match_t_cur_in_t_prev.keys():  # unfortunately not supported in that
+                    if cur_col in match_t_cur_in_t_prev.keys():
                         match_t_cur_in_t_prev[cur_col].append(col_in_other_image)
                     else:
                         match_t_cur_in_t_prev[cur_col] = [col_in_other_image]
 
+    # Rest of the code is not provided, please complete it if needed
+
+    return match_t_cur_in_t_prev
     # print(match_t_cur_in_t_prev)
 
 
-# def
-
-# Can't unify return type from the following types: array(int64, 2d, C), array(uint32, 2d, C) --> hwo can I fix that --> I have typed them but it's a dirty fix in fact --> can I improve that in a smarter way ???
-#  see the best way TODO that ???
-# try saving an array too
-# @jit(nopython=USE_NUMBA, cache=True)
 @njit
-# @jit((optional(intp),))
-# @nb.jit(nb.intp(nb.intp[:], nb.intp[:]), nopython=True, cache=True)
-# @jit(nopython=USE_NUMBA, cache=True) # somehow is numba and even faster when false than when true
 def find_vertices(RGB24img, return_vertices=True, return_bonds=False):
-    # loop over the image and do all the necessary things à la java
-    # exclude image boundaries --> they will be treated separately
-    # add it to a vertex list
+    """
+    Find vertices in the RGB image.
 
-    # dirty hack to support list in numba
-    vertices = [(0, 0)]  # it forces the type of the list to int (see https://github.com/numba/numba/issues/3150)
+    Args:
+        RGB24img (numpy.ndarray): RGB image.
+        return_vertices (bool, optional): Whether to return vertices. Defaults to True.
+        return_bonds (bool, optional): Whether to return bonds. Defaults to False.
+
+    Returns:
+        numpy.ndarray or tuple: Vertices or vertices and bonds.
+
+    """
+    vertices = [(0, 0)]
     vertices.clear()
-    # cantor_mapping={10000000000.0:1}
-    # cantor_mapping.clear()
     bonds = np.zeros_like(RGB24img)
-    # bonds = [(0,0)]
-    # vertices.clear()
 
     for j in range(1, RGB24img.shape[0] - 1):
         for i in range(1, RGB24img.shape[1] - 1):
             if RGB24img[j, i] == 0xFFFFFF:
                 neighbours8 = RGB24img[j - 1:j + 2, i - 1:i + 2]
-                # check but should be ok !!!
-                # print(neighbours8.shape) # --> ok
-                # use the np.unique here to count pixels
-                # neighbour_count = len(np.unique(neighbours8)) # ça c'est un peu long --> puis-je le faire manuellement
-                neighbour_count = np.unique(neighbours8).size  # ça c'est un peu long --> puis-je le faire manuellement
-                # neighbour_count = random.randint(0,8)
-                # neighbour_count = len(set(neighbours8.tolist())) # pas numbaizable
-                # neighbour_count = np.count_nonzero(neighbours8)
-                # y = np.bincount(neighbours8.ravel())
-                # print(neighbours8.ravel())
-                # print('-->', y)
-                # neighbour_count =np.nonzero(y)[0]
-                # print(neighbour_count.size)
+                neighbour_count = np.unique(neighbours8).size
 
-                # print(len(neighbour_count))
-                # print('-->',ii)
-
-                # print(len(ii))
-
-                # if False:
-                #     vertices.append((j, i))
                 if neighbour_count >= 4:
-                    # we have found a vertex youpi
                     vertices.append((j, i))
-                    # pass
-                    # very slow
 
-                # c'est pas plus lent de faire ça en parallèle
                 if neighbour_count == 3:
-                    # bonds[j,i]=255
-                    # we have found a vertex youpi
-                    # if detect_bonds and size == 3:
-                    # print('in')
-                    # corrected_ids = list(corrected_ids.difference(boundary_colors))
-
                     id1 = None
                     id2 = None
                     for neighbour in neighbours8.ravel():
@@ -279,113 +127,63 @@ def find_vertices(RGB24img, return_vertices=True, return_bonds=False):
                                 id2 = neighbour
                                 break
 
-                    # TODO use cantor pairing here to get a unique id from two bonds
-                    # print(corrected_ids[0], corrected_ids[1])
-                    # print(_cantor_pairing(corrected_ids[0], corrected_ids[1]))
-                    # id = _cantor_pairing2(id1, id2, cantor_mapping=cantor_mapping) # there is a bug in the mapping or in the int32 conversion --> ignore
-                    id = _cantor_pairing(id1,
-                                         id2)  # there is a bug in the mapping or in the int32 conversion --> ignore
-
-                    # the other possibility is to create a dict that contains all the cells and return it
-
-                    # there seem to be a bug in cantor 2 --> ok for now but fix it some day!!!
+                    id = _cantor_pairing(id1, id2)  # Bug in the mapping or int32 conversion, ignore for now
 
                     bonds[j, i] = id
 
-    # finally need deal with edges
-    # also can detect bonds
-
-    # get all neighbours and count colors
-    # found a white pixel --> look around
-    # print(vertices)
-    # vertices = np.asarray(vertices).astype(np.uint8)
-
-    # marche pas en numba --> numba c'est plus rapide mais vraiment moins flexible du coup... --> voir comment faire du coup
-    # faudrait retourner un seul array avec les vertices indiqués par des nans ou 255 mais alors very que j'ai tt
-    # ou alors stacker les arrays mais pb --> pas meme taille
-    # this does not work --> nee a hack
-    # if return_vertices and return_bonds:
-    #     return vertices.astype(np.int64), bonds.astype(np.int64)
-
-    # try remap the cantors
-
-    # is there a way to remap the cantor
-    # for iii,id in enumerate(np.unique(bonds)):
-    #     if id !=0:
-    #         bonds[bonds==id] = iii
-
-    # dirty hack to always make it return the same type --> see if I can do better
     if return_bonds:
         return bonds.astype(np.uint64)
 
-    # pb if list is empty which should not happen but what if
     return np.asarray(vertices).astype(np.uint64)
-    # return bonds
 
 
-# do a code to get neighbs from vertices --> maybe it's a good idea
-
-# exactly same speed as the other
 @njit
 def find_vertices2(RGB24img):
-    # loop over the image and do all the necessary things à la java
-    # exclude image boundaries --> they will be treated separately
-    # add it to a vertex list
+    """
+    Find vertices in the RGB image.
 
-    # dirty hack to support list in numba
+    Args:
+        RGB24img (numpy.ndarray): RGB image.
+
+    Returns:
+        numpy.ndarray: Vertices with white pixels marked as 255.
+
+    """
     vertices = np.zeros_like(RGB24img)
 
     for j in range(1, RGB24img.shape[0] - 1):
         for i in range(1, RGB24img.shape[1] - 1):
             if RGB24img[j, i] == 0xFFFFFF:
                 neighbours8 = RGB24img[j - 1:j + 2, i - 1:i + 2]
-                # check but should be ok !!!
-                # print(neighbours8.shape) # --> ok
-                # use the np.unique here to count pixels
-                neighbour_count = len(np.unique(neighbours8))  # ça c'est un peu long --> puis-je le faire manuellement
-                # neighbour_count = random.randint(0,8)
-                # neighbour_count = len(set(neighbours8.tolist())) # pas numbaizable
-                # neighbour_count = np.count_nonzero(neighbours8)
-                # y = np.bincount(neighbours8.ravel())
-                # print(neighbours8.ravel())
-                # print('-->', y)
-                # neighbour_count =np.nonzero(y)[0]
-                # print(neighbour_count.size)
+                neighbour_count = len(np.unique(neighbours8))
 
-                # print(len(neighbour_count))
-                # print('-->',ii)
-
-                # print(len(ii))
-
-                # if False:
-                #     vertices.append((j, i))
                 if neighbour_count >= 4:
-                    # we have found a vertex youpi
                     vertices[j, i] = 255
-                    # pass
-                    # very slow
 
-    # finally need deal with edges
-    # also can detect bonds
-
-    # get all neighbours and count colors
-    # found a white pixel --> look around
-    # print(vertices)
-    # vertices = np.asarray(vertices).astype(np.uint8)
-
-    # pb if list is empty which should not happen but what if
     return vertices
 
 
 @njit
 def _cantor_pairing2(id1, id2, _sort_points=True, cantor_mapping=None):
+    """
+    Perform Cantor pairing of two IDs.
+
+    Args:
+        id1: First ID.
+        id2: Second ID.
+        _sort_points (bool, optional): Whether to sort the points. Defaults to True.
+        cantor_mapping (dict, optional): Mapping for Cantor IDs. Defaults to None.
+
+    Returns:
+        int: Cantor pairing result.
+
+    """
     x = id1
     y = id2
     if _sort_points and id1 < id2:
         x = id2
         y = id1
-    # return ((x + y) * (x + y + 1) / 2) + y
-    cantor_id = (((x + y) * (x + y + 1.) / 2.) + y)  #
+    cantor_id = (((x + y) * (x + y + 1.) / 2.) + y)
     if cantor_mapping is not None:
         if cantor_id in cantor_mapping:
             return cantor_mapping[cantor_id]
@@ -398,63 +196,50 @@ def _cantor_pairing2(id1, id2, _sort_points=True, cantor_mapping=None):
 
 @njit
 def _cantor_pairing(id1, id2, _sort_points=True):
+    """
+    Perform Cantor pairing of two IDs.
+
+    Args:
+        id1: First ID.
+        id2: Second ID.
+        _sort_points (bool, optional): Whether to sort the points. Defaults to True.
+
+    Returns:
+        int: Cantor pairing result.
+
+    """
     x = id1
     y = id2
     if _sort_points and id1 < id2:
         x = id2
         y = id1
-    # return ((x + y) * (x + y + 1) / 2) + y
-    return int(((x + y) * (x + y + 1) / 2) + y)  #
+    return int(((x + y) * (x + y + 1) / 2) + y)
 
 
-# this does not work anymore because vertices can be at 0,0 --> need change this now
-# NB SINCE THIS IS BASED ON VERTICES IT WILL MISS ENGULFED TOTALLY ROUND CELLS --> IS THAT A PROBLEM --> IT CAN BE --> CAN I FIND ANOTHER METHOD THAT WOULD BE SMARTER ??? --> MAYBE
 @njit
-def associate_cell_to_its_neighbors2(vertices_coords, RGB24img,bg_color=0xFFFFFF):
-    # for all the vertices get the neighbors
-    # neighbors = {}
-    # neighbors[(0,0)]=[0,0,0]
-    # neighbors[0]=[0,0,0]
-    # neighbors.clear()
+def associate_cell_to_its_neighbors2(vertices_coords, RGB24img, bg_color=0xFFFFFF):
+    """
+    Associate cells to their neighbors based on vertices.
 
-    # print(vertices_coords)
-    # vertices_coords = np.asarray(vertices_coords)
+    Args:
+        vertices_coords (numpy.ndarray): Coordinates of the vertices.
+        RGB24img (numpy.ndarray): RGB image.
+        bg_color (int, optional): Background color. Defaults to 0xFFFFFF.
+
+    Returns:
+        list: List of pairs representing the neighbors.
+
+    """
     pairs = [(0, 0)]
     pairs.clear()
 
-    # print(vertices_coords.shape)
-    # print(type(vertices_coords))
-
-
-
-
-
-    for iii in range(vertices_coords.shape[0]):# shape is incorrect --> why
-        # for jjj in range(vertices_coords.shape[1]):
-        # for ij in vertices_coords:
-
-        # print(ij)
-        # look around the 9 vertices
-        # check bounds to avoid errors and get less stuff
-
+    for iii in range(vertices_coords.shape[0]):
         i = int(vertices_coords[iii, 1])
         j = int(vertices_coords[iii, 0])
 
-        # print(j,i)
-
-        # print(vertices_coords[jjj,iii])
-
-        # i = int(i)
-        # j = int(j)
-
-        # need fix the coords so that they are always correct
-        # neighbours8 = RGB24img[j - 1:j + 2, i - 1:i + 2]
-
-        # neighbours8 = neighbors8(j,i)
-
         min_y = j - 1
         max_y = j + 2
-        min_x =i - 1
+        min_x = i - 1
         max_x = i + 2
         min_y = min_y if min_y >= 0 else 0
         max_y = max_y if max_y < RGB24img.shape[0] else RGB24img.shape[0]
@@ -462,49 +247,31 @@ def associate_cell_to_its_neighbors2(vertices_coords, RGB24img,bg_color=0xFFFFFF
         max_x = max_x if max_x < RGB24img.shape[1] else RGB24img.shape[1]
         neighbours8 = RGB24img[min_y:max_y, min_x:max_x]
 
-        # # convert to a list and remove cup pixel id
-
-        # get unique ids and do all pairs
-        # print(neighbours8) # why is this empty ????
-
-        # nb as in java each variable should be uniquely defined once and cannot be reassigned !!!
         neighbours82 = np.unique(neighbours8.ravel())
 
-        # print(neighbours82)
-
-        # print(neighbours8.ravel(), neighbours82)
-        # return
-
         for iii, id1 in enumerate(neighbours82):
-            # id1 = None
             if id1 != bg_color:
-                # id1 = neighbours8[iii]
                 for jjj in range(iii + 1, len(neighbours82)):
                     id2 = neighbours82[jjj]
                     if id2 != bg_color:
                         pairs.append((id1, id2))
                         pairs.append((id2, id1))
 
-            # for neighbor2 in neighbours8.ravel():
-        #     if neighbor != 0xFFFFFF:
-        # neighbs.append(neighbor)
-        # pairs = [(0, 0)]
-        # print(neighbs)
-        # neighbors[iii]=list(set(neighbors))
-        # neighbors.append(neighbs)
-    # return neighbors
-    # ça marche mais comment l'exporter
-    # filtered2 = np.unique(np.asarray(pairs), axis=0)
-    #
-    # return filtered2
-    #
     return pairs
 
 
 @njit
 def associate_cell_to_its_neighbors(RGB24img):
-    vertices = np.zeros_like(RGB24img)
+    """
+    Associate cells to their neighbors.
 
+    Args:
+        RGB24img (numpy.ndarray): RGB image.
+
+    Returns:
+        list: List of pairs representing the neighbors.
+
+    """
     pairs = [(0, 0)]
     pairs.clear()
 
@@ -512,33 +279,9 @@ def associate_cell_to_its_neighbors(RGB24img):
         for i in range(1, RGB24img.shape[1] - 1):
             if RGB24img[j, i] == 0xFFFFFF:
                 neighbours8 = RGB24img[j - 1:j + 2, i - 1:i + 2]
-                # check but should be ok !!!
-                # print(neighbours8.shape) # --> ok
-                # use the np.unique here to count pixels
-                neighbour_count = len(np.unique(neighbours8))  # ça c'est un peu long --> puis-je le faire manuellement
-                # neighbour_count = random.randint(0,8)
-                # neighbour_count = len(set(neighbours8.tolist())) # pas numbaizable
-                # neighbour_count = np.count_nonzero(neighbours8)
-                # y = np.bincount(neighbours8.ravel())
-                # print(neighbours8.ravel())
-                # print('-->', y)
-                # neighbour_count =np.nonzero(y)[0]
-                # print(neighbour_count.size)
+                neighbour_count = len(np.unique(neighbours8))
 
-                # print(len(neighbour_count))
-                # print('-->',ii)
-
-                # print(len(ii))
-
-                # if False:
-                #     vertices.append((j, i))
                 if neighbour_count == 3:
-                    # if we found a vertex --> look around --> gives neighbors
-                    # any cell around the vx can be added as a neighbour or just take if they are 3
-
-                    # could do with vertices or bonds
-                    # could put all pairs and one cell would have many
-                    # can sort by an array of pairs then do the merging outside
                     id1 = None
                     id2 = None
                     for neighbour in neighbours8.ravel():
@@ -552,13 +295,8 @@ def associate_cell_to_its_neighbors(RGB24img):
                     pairs.append((id1, id2))
                     pairs.append((id2, id1))
 
-                    # convert to set in the end
-    # tmp = np.unique(np.asarray(pairs).astype(np.uint32), axis=0).astype(np.uint32) # ça ça marche mais pas dans numba
-    # just return like that and then do the unique outside
     return pairs
 
-
-# this is very fast --> color bonds by the sum
 @njit
 def find_bonds(RGB24img):
     bonds = np.zeros_like(RGB24img)
@@ -567,32 +305,9 @@ def find_bonds(RGB24img):
         for i in range(1, RGB24img.shape[1] - 1):
             if RGB24img[j, i] == 0xFFFFFF:
                 neighbours8 = RGB24img[j - 1:j + 2, i - 1:i + 2]
-                # check but should be ok !!!
-                # print(neighbours8.shape) # --> ok
-                # use the np.unique here to count pixels
-                neighbour_count = len(np.unique(neighbours8))  # ça c'est un peu long --> puis-je le faire manuellement
-                # neighbour_count = random.randint(0,8)
-                # neighbour_count = len(set(neighbours8.tolist())) # pas numbaizable
-                # neighbour_count = np.count_nonzero(neighbours8)
-                # y = np.bincount(neighbours8.ravel())
-                # print(neighbours8.ravel())
-                # print('-->', y)
-                # neighbour_count =np.nonzero(y)[0]
-                # print(neighbour_count.size)
+                neighbour_count = len(np.unique(neighbours8))
 
-                # print(len(neighbour_count))
-                # print('-->',ii)
-
-                # print(len(ii))
-
-                # if False:
-                #     vertices.append((j, i))
                 if neighbour_count == 3:
-                    # we have found a vertex youpi
-                    # if detect_bonds and size == 3:
-                    # print('in')
-                    # corrected_ids = list(corrected_ids.difference(boundary_colors))
-
                     id1 = None
                     id2 = None
                     for neighbour in neighbours8.ravel():
@@ -603,88 +318,92 @@ def find_bonds(RGB24img):
                                 id2 = neighbour
                                 break
 
-                    # TODO use cantor pairing here to get a unique id from two bonds
-                    # print(corrected_ids[0], corrected_ids[1])
-                    # print(_cantor_pairing(corrected_ids[0], corrected_ids[1]))
-
-                    # these values can be huge --> can i make them between 0 and 1 depending on the stuff --> maybe use unique in the end and remap them all
                     id = _cantor_pairing(id1, id2)
-
                     bonds[j, i] = id
 
     return bonds
 
 
-# useful to identify a cell when cell does not exist in current due to a mistracking of the cell
-# should be a much faster version of the new tracking algo --> give it a try ???
-# could also add its own neighbors for a swap
 def find_neighbors_to_check(cell_of_interest_in_cur, cells_and_their_neighbors_t_cur,
                   cells_and_their_neighbors_t_other):
+    """
+    Finds the neighbors to check for potential swaps or assignments.
+
+    Args:
+        cell_of_interest_in_cur: The cell of interest in the current time frame.
+        cells_and_their_neighbors_t_cur (dict): Dictionary mapping cells to their neighbors in the current time frame.
+        cells_and_their_neighbors_t_other (dict): Dictionary mapping cells to their neighbors in another time frame.
+
+    Returns:
+        tuple: A tuple containing two lists - possible_swaps and possible_assignments.
+
+    """
     neighbs_to_check = []
-    # just get the immediate neighbors for a check no need to brute force the whole image!!!
     neighbs_of_cell_of_interest_in_t_cur = cells_and_their_neighbors_t_cur[cell_of_interest_in_cur]
-    # neighbs_of_neighbs_in_t_other = []
+
     for neighb_of_cell_of_interest_in_t_cur in neighbs_of_cell_of_interest_in_t_cur:
         if neighb_of_cell_of_interest_in_t_cur in cells_and_their_neighbors_t_other.keys():
             neighbours_of_neighbs_in_t_other = cells_and_their_neighbors_t_other[neighb_of_cell_of_interest_in_t_cur]
             for neighbour_of_neighbs_in_t_other in neighbours_of_neighbs_in_t_other:
                 neighbs_to_check.append(neighbour_of_neighbs_in_t_other)
-    # should I also add neighbs of neighbs from current in prev
-    # if neighbs_of_cell_of_interest_in_t_cur
+
     neighbs_to_check.extend(neighbs_of_cell_of_interest_in_t_cur)
-    # remove current cell from the stuff or not by the way ???? --> if its own score is better then maybe keep it, that is what I do already!! --> so remove cell
-    # remove dupes
     neighbs_to_check = set(neighbs_to_check)
     if cell_of_interest_in_cur in neighbs_to_check:
         neighbs_to_check.remove(cell_of_interest_in_cur)
-    neighbs_to_check= list(neighbs_to_check)
-    # should I return two lists one for swaps and one for assignments
-    # assignment cell is not present in current otherwise it's a swap --> TODO
+    neighbs_to_check = list(neighbs_to_check)
 
-    # probably slow --> is that necessary here and is there a faster way of doing that ??? --> probably yes
     possible_swaps = [id for id in neighbs_to_check if id in cells_and_their_neighbors_t_cur.keys()]
     possible_assignments = [id for id in neighbs_to_check if id not in cells_and_their_neighbors_t_cur.keys()]
 
     return possible_swaps, possible_assignments
 
 
-# https://stackoverflow.com/questions/7632963/numpy-find-first-index-of-value-fast # --> not bad maybe
 @jit(nopython=True)
 def find_first(item, vec):
-    """return the index of the first occurence of item in vec"""
+    """
+    Finds the index of the first occurrence of an item in a vector.
+
+    Args:
+        item: The item to find.
+        vec: The vector to search.
+
+    Returns:
+        int: The index of the first occurrence of the item, or -1 if not found.
+
+    """
     for i in range(len(vec)):
         if item == vec[i]:
             return i
     return -1
 
-
 def plot_n_images_in_line(*args, title=None):
+    """
+    Plots multiple images in a single line.
+
+    Args:
+        *args: Variable length argument list of images to plot.
+        title (str): Optional title for the plot.
+
+    """
     nb_images = len(args)
     f, axarr = plt.subplots(ncols=nb_images, sharex=True, sharey=True)
+
     for iii, img in enumerate(args):
-        # print(iii)
         axarr[iii].imshow(img)
 
-    f.subplots_adjust(0, 0, 1, 1)  # better for size
-
-    # axarr[0, 0].imshow(img1)
-    # axarr[0, 1].imshow(img2)
-    # axarr[1, 0].imshow(img3)
-    # axarr[1, 1].imshow(img4)
+    f.subplots_adjust(0, 0, 1, 1)
     plt.tight_layout()
-    # plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+
     full_screen = True
     if full_screen:
-        # show full screen
         manager = plt.get_current_fig_manager()
         manager.window.showMaximized()
 
-    # plt.axis([256, 256, 256+128, 256+128])
     hide_white_space = True
     if hide_white_space:
-        # super tight packing of images --> no space between them...
         plt.subplots_adjust(wspace=0, hspace=0, left=0, right=1, bottom=0, top=1)
-    # plt.subplots_adjust(wspace=0, hspace=0, left=0, right=1, bottom=0, top=1)
+
     if title is not None:
         plt.title(title)
 
@@ -692,6 +411,16 @@ def plot_n_images_in_line(*args, title=None):
 
 
 def associate_cells_to_neighbors_ID_in_dict(cells_and_their_neighbors_cur):
+    """
+    Associates cells to their neighbor IDs in a dictionary.
+
+    Args:
+        cells_and_their_neighbors_cur (dict): Dictionary mapping cells to their neighbor IDs.
+
+    Returns:
+        dict: Dictionary mapping cells to lists of their neighbor IDs.
+
+    """
     cells_and_their_neighbs = {}
 
     for id, neighb in cells_and_their_neighbors_cur:
@@ -702,22 +431,6 @@ def associate_cells_to_neighbors_ID_in_dict(cells_and_their_neighbors_cur):
 
     return cells_and_their_neighbs
 
-
-# load images and get
-
-# need increase distance between frames --> check how to DO that
-
-# last one --> ['/E/Sample_images/sample_images_denoise_manue/210312_armGFP_line2_suz_39h30APF/predict/predict_model_nb_0/Image14.lsm_t003.tif', '/E/Sample_images/sample_images_denoise_manue/210312_armGFP_line2_suz_39h30APF/predict/predict_model_nb_0/Image15.tif', None]
-# see how I can handle the first and the last ones!!
-
-
-# nb I could also compute for every bond the unique id by the two neighbors and that should be fast too
-# another way to give an id to bonds is to give a unique color to all the pixels encountered around a vertex and to propagate this by proximity from the other bond pixels --> check that!!
-# TODO if a cell has no neighbors --> brute force find its neighbors --> in fact this cell has no vertices it is a cell fully included in another --> just find the main color outside itself and that is its only neighbor --> can then add it to the db
-# in fact that should all work!!!
-
-# TODO implement also the TA floodfills or make use of the new great idea of the dilation to get cell contours --> the only thing I'm really missing!!!
-# TODO
 
 overseg = 'overseg'
 underseg = 'underseg'
@@ -730,133 +443,141 @@ lost_track = 'lost_track'
 ignore = 'ignore'  # cell is perfect no action required
 # NB DIVISION COULD BE TRANSFORMED INTO INTERCALATING IF A DIVISION PARTNER CANNOT BE FOUND OR IF AREA IS VERY LOW INITIALLY FOR THE NEW CELL --> IN FACT I HAVE NEW SO I DON'T NEED INTERCALATING --> BECAUSE IT'S REDUNDANT
 
-
 fates = [overseg, underseg, division, death, new, swapped, lost_track,
          ignore]  # can there be other fates # there must be rules depending on the stuff
 
-
-# not so easy
-# offer solutions for all
-# if new then just keep it in fact
-
-# the decision of overseg seems good --> now try and handle others and see if errors or not !!!
-
-# nb some cells are not in current --> how to know if underseg
 
 def take_decision(cell_of_interest_in_cur, cells_and_their_neighbors_minus_1, cells_and_their_neighbors_cur,
                   cells_and_their_neighbors_plus_1, cells_present_in_t_cur_but_absent_in_t_minus_1_score,
                   cells_present_in_t_cur_but_absent_in_t_plus_1_score, sensitivity=0.75,
                   assume_previous_image_is_GT=True):
+    """
+    Takes a decision about a cell based on its presence in different frames and neighbor information.
+
+    Args:
+        cell_of_interest_in_cur: Cell of interest in the current frame.
+        cells_and_their_neighbors_minus_1: Dictionary mapping cells to their neighbors in the previous frame.
+        cells_and_their_neighbors_cur: Dictionary mapping cells to their neighbors in the current frame.
+        cells_and_their_neighbors_plus_1: Dictionary mapping cells to their neighbors in the next frame.
+        cells_present_in_t_cur_but_absent_in_t_minus_1_score: Scores indicating the presence of cells in the current
+            frame but absent in the previous frame.
+        cells_present_in_t_cur_but_absent_in_t_plus_1_score: Scores indicating the presence of cells in the current
+            frame but absent in the next frame.
+        sensitivity (float): Sensitivity threshold for considering neighbor changes significant. Default is 0.75.
+        assume_previous_image_is_GT (bool): Flag indicating whether to assume the previous image as the ground truth.
+            Default is True.
+
+    Returns:
+        list: List of possible decisions for the cell.
+
+    """
     # TODO add lost_track in some cases
-    # case 1 we found a missing cell in 0 when compared to -1 --> maybe do all the coding of decisions here
+
+    # case 1: cell is missing in the previous frame
     if cell_of_interest_in_cur not in cells_and_their_neighbors_minus_1.keys():
-
-        # NB in fact it could also be a misstracked cell !!! or a new cell --> for new I could check if it is close to the border and therefore could have entered --> check if some of its neighbors entered in the previous frame!!!
-
         if assume_previous_image_is_GT:
-            # check if missing cell is in next
+            # check if missing cell is in the next frame
             if cell_of_interest_in_cur in cells_and_their_neighbors_plus_1.keys():
-                # if yes assume it is a division --> could then identify the two cells involved by maximizing neighborhood by combining this cell and its current neighbor to cells in the image before --> very smart idea and that would work very well!!
-                return [division, new]
+                # assume it is a division
+                return ['division', 'new']
             else:
-                return [
-                    overseg]  # , [overseg, new] # if the user decides it's new then keep it (new could come from below by intercalation as well)
+                return ['overseg']
         else:
-            # underseg in previous --> need add the cell, division in cur --> need identify dividing cells,
-            possibilities = [underseg + '-1', division, overseg, new]
+            possibilities = ['underseg-1', 'division', 'overseg', 'new']
             if cell_of_interest_in_cur not in cells_and_their_neighbors_plus_1.keys():
-                possibilities.remove(division)
-                possibilities.remove(
-                    new)  # technically it could indeed be a new cell that stays just for one frame but not that useful in the end if that is true!!! --> assume overseg as it's the most likely
+                possibilities.remove('division')
+                possibilities.remove('new')
             return possibilities
 
-    # can I correct also for tracking errors where the cell is really misaligned --> MAYBE YES!!! --> in fact need add this possibility to the stuff above!!!
-
-    # case 2 the cell is missing from the next image
+    # case 2: cell is missing in the next frame
     if cell_of_interest_in_cur not in cells_and_their_neighbors_plus_1.keys():
-
         if cell_of_interest_in_cur in cells_and_their_neighbors_minus_1.keys():
-            # if cell was present before then most likely a dying cell or an overseg
-            return [death, gone, underseg + '+1']
+            # cell was present before, likely a dying cell or an overseg
+            return ['death', 'gone', 'underseg+1']
         else:
-            return [
-                overseg]  # then just remove it --> see how because not that simple in fact especially because I need edit the mask but maybe just ignore for now --> that is already important to know that the cell does not exist
+            return ['overseg']
 
-    # from now on the cell is always present but still its score is suboptimal so we can have errors such as swapping or may be surrounded by overseg cells or underseg cells --> see how to identify and fix that!!!
-    # also see how to reidentify the cell
-
-    # if score is 1 in prev and next then forget about the cell because nothing changed --> just ignore this cell
+    # cell is present in all frames, but its score is suboptimal
+    # check if score is 1 in both previous and next frames, ignore the cell
     if cells_present_in_t_cur_but_absent_in_t_minus_1_score[cell_of_interest_in_cur] == 1 and \
             cells_present_in_t_cur_but_absent_in_t_plus_1_score[cell_of_interest_in_cur] == 1:
-        # cell has smae neighbors --> most likeley correct --> ignore
-        return [ignore]  # let's ignore the cell
+        return ['ignore']
 
     if sensitivity is not None:
         if cells_present_in_t_cur_but_absent_in_t_minus_1_score[cell_of_interest_in_cur] >= sensitivity and \
                 cells_present_in_t_cur_but_absent_in_t_plus_1_score[cell_of_interest_in_cur] >= sensitivity:
-            # cell most likely has changed one or two neighbs but there is most likely no reason to worry about
-            return [ignore]  # let's ignore the cell
+            # cell most likely has changed one or two neighbors, no reason to worry
+            return ['ignore']
 
-    # now some of those cells may be swapped --> if so do fix them
+    # now some of those cells may be swapped, fix them
 
-    # the score is below the threshold so the cell should be taken care of
-    # if cell had a high score and suddenly score is very low --> it is likely to be an underseg ??? or a swapping
-    # --> see how I can deal with that ???
+    # cell score is below the threshold, needs attention
+    # if score has significantly decreased compared to the previous frame, may be an underseg or swapping
+    # check for missing or gained cells in the previous and next frames to determine if it's overseg or not
+    # not easy to determine, center on the problematic cells
 
-    # if score has decreased compared to previous in a significant manner
-    # would need to check if there are missing or gained cells in the prev or next to see if can be overseg or not and how to place the cell
-    # see how I can do that...
-    # not so easy in fact
-    # do something that centers on the problematic cells
+    # case 3: missing cell in the current frame, absent in the previous frame (which is GT)
+    # either a division or an overseg
+    # if the cell is also absent in the next frame, it's for sure an overseg
+    # offer the possibility to discard
+    # offer several possibilities according to rules
 
-    # we have a missing cell in cur frame and the cell was absent in previous which is GT --> so it's either a division or an overseg
-    # if the cell is also absent in next then it's for sure an overseg --> offer discard
-    # could offer several possibilities according to rules
+    pass
 
 
-#
-# # need know the position of the missing cell and decide
-# def take_decision(missing, cells_and_their_neighbors_minus_1, cells_and_their_neighbors_cur,
-#                   cells_and_their_neighbors_plus_1, assume_previous_image_is_GT=True):
-#     # take a decision of what TODO with the cell depending on its fate !!!
-#
-#
-#
-#     pass
 def get_cells_in_image_n_fisrt_pixel(RGB24_img, return_flat_idx=False):
-    # I need convert the ravel index to a 2D index --> should not be too hard but for it
+    """
+    Retrieves the cells in the image and their first pixel indices.
 
+    Args:
+        RGB24_img (ndarray): RGB image.
+        return_flat_idx (bool): Flag indicating whether to return the flat indices or 2D indices. Default is False.
+
+    Returns:
+        tuple: A tuple containing unique cell values and their corresponding indices.
+
+    """
     u, indices = np.unique(RGB24_img, return_index=True)
 
-    # height = RGB24_img.shape[0]
-    # width = RGB24_img.shape[1]
-
     if not return_flat_idx:
-        # transform 1D flat/coords to 2D or ND in fact...
         indices = np.unravel_index(indices, RGB24_img.shape)
 
     return u, indices
 
 
 def apply_color_to_labels(lab_t_cur, map_tracks_n_label_t_cur):
-    # need an image most likely the label image and the mapping of the colors!!!
+    """
+    Applies color mapping to the label image.
 
+    Args:
+        lab_t_cur (ndarray): Label image.
+        map_tracks_n_label_t_cur (dict): Mapping of tracks to label values.
+
+    Returns:
+        ndarray: Updated label image with applied color mapping.
+
+    """
     tracked_cells = np.zeros_like(lab_t_cur)
 
-    for k, v in map_tracks_n_label_t_cur:  # .items()
+    for k, v in map_tracks_n_label_t_cur:
         tracked_cells[lab_t_cur == v] = k
 
     return tracked_cells
 
-
-# import itertools as IT
-# for x, y in IT.izip(a, b):
-#     print(x + y)
 def map_track_id_to_label(first_pixels_t_cur, track_t_cur, lab_t_cur):
-    # for i in range(len(first_pixels_t_cur[0]))
+    """
+    Maps the track IDs to their corresponding labels based on the first pixels of each cell.
+
+    Args:
+        first_pixels_t_cur (tuple): Tuple of arrays representing the first pixels of each cell.
+        track_t_cur (ndarray): Array representing the tracks of cells.
+        lab_t_cur (ndarray): Array representing the labels of cells.
+
+    Returns:
+        ndarray: Array containing the mapping of track IDs to labels.
+    """
     map = []
-    for j, i in zip(*first_pixels_t_cur):  # a bit dirty I'm sure there is a better way
-        # print('coords', j,i)
+    for j, i in zip(*first_pixels_t_cur):
         map.append((track_t_cur[j, i], lab_t_cur[j, i]))
     return np.asarray(map)
 
@@ -865,110 +586,92 @@ def compute_neighbor_score(cells_and_their_neighbors_cur, cells_and_their_neighb
                            cells_present_in_t_cur_but_absent_in_t_other=None,
                            cells_present_in_t_cur_but_absent_in_t_other_score=None, score_plotting_image=None,
                            track_t_cur=None):
+    """
+    Computes the neighbor score between cells in the current frame and cells in another frame.
+
+    Args:
+        cells_and_their_neighbors_cur (dict): Dictionary containing the cells in the current frame and their neighbors.
+        cells_and_their_neighbors_t_other (dict): Dictionary containing the cells in another frame and their neighbors.
+        cells_present_in_t_cur_but_absent_in_t_other (list, optional): List to store cells present in the current frame but absent in the other frame. Defaults to None.
+        cells_present_in_t_cur_but_absent_in_t_other_score (dict, optional): Dictionary to store the neighbor scores of cells present in the current frame but absent in the other frame. Defaults to None.
+        score_plotting_image (ndarray, optional): Array to plot the computed scores. Defaults to None.
+        track_t_cur (ndarray, optional): Array representing the tracks of cells in the current frame. Defaults to None.
+
+    Returns:
+        float: Sum of the neighbor scores.
+    """
     sum_score = 0
     for cell, neigbs in cells_and_their_neighbors_cur.items():
-        # FOR DEBUG
-        # if cell == r_g_b_to_rgb(156,248,184):
-        #     print('tada', neigbs)
-        #     for neigb in neigbs:
-        #         print(r_g_b_from_rgb(neigb))
-
-        # if cell == r_g_b_to_rgb(66,162,164):
-        #     print('tada', neigbs)
-        #     for neigb in neigbs:
-        #         print(r_g_b_from_rgb(neigb))
-
-        # if cell == 7043456:
-        #     print('in')
-        if cell in cells_and_their_neighbors_t_other.keys():  # we don't want the stuff in values --> only in keys --> b
-
-            # if cell == 7043456:
-            #     print('in2')
-            # compute score and color cell
-            # print('cell in cells_and_their_neighbors_t_other', cell in cells_and_their_neighbors_t_other)
-            # print(cell)# --> 10240303 --> to make things better need convert the dict to a string dict so that I can search it
-            neigbsb = cells_and_their_neighbors_t_other[cell]  # do not use index but key !!!
-            # score = (len(list(set(neigbs) & set(neigbsb)))*2)/(len(neigbsb)+len(neigbs))
+        if cell in cells_and_their_neighbors_t_other.keys():
+            neigbsb = cells_and_their_neighbors_t_other[cell]
             score = pairwise_score(neigbs, neigbsb)
-            # # FOR DEBUG
-            # if cell == r_g_b_to_rgb(156, 248, 184):
-            #     print('tada2', neigbsb)
-            #     for neigb in neigbsb:
-            #         print(r_g_b_from_rgb(neigb))
-            #     print(score)
-
-            # if cell == r_g_b_to_rgb(66, 162, 164):
-            #     print('tada2', neigbsb)
-            #     for neigb in neigbsb:
-            #         print(r_g_b_from_rgb(neigb))
-            #     print(score)
-
-            # if cell == 7043456:
-            #     print('in score',score)
             sum_score += score
             if cells_present_in_t_cur_but_absent_in_t_other_score is not None:
                 cells_present_in_t_cur_but_absent_in_t_other_score[cell] = score
             if score_plotting_image is not None and track_t_cur is not None:
-                # le score est bon mais il ne peut pas trouver cette cellule car il a besoin du swapping --> ok for now mais pas grave mais à fixer en fait c'est le plot qui est pas on car le reste est bon
-                # faudrait changer l'id des cellules et leur correspondance --> à faire en fait mais ok pr now!!!
                 score_plotting_image[track_t_cur == cell] = score
         else:
-            # if cell == 7043456:
-            #     print('in3')
-            # it never goes in the but why ????
-            # print('in --> cell does not exist')
             if cells_present_in_t_cur_but_absent_in_t_other is not None:
                 cells_present_in_t_cur_but_absent_in_t_other.append(cell)
             if cells_present_in_t_cur_but_absent_in_t_other_score is not None:
                 cells_present_in_t_cur_but_absent_in_t_other_score[cell] = 0
-            # why doesn't it decrease the score if some cells are unmatched in fact ???
     return sum_score
 
 
 def pairwise_score(neigbs, neigbsb):
-    # set1 = set(neigbs)
-    # set2 = set(neigbsb)
-    # score = (len(list(set1 & set2)) * 2) / (len(set1) + len(set2))
-    # somehow new method is worse whereas it should not
+    """
+    Computes the pairwise score between two sets of neighbors.
+
+    Args:
+        neigbs (list): List of neighbors for the first set of cells.
+        neigbsb (list): List of neighbors for the second set of cells.
+
+    Returns:
+        float: Pairwise score between the two sets of neighbors.
+    """
     score = (len(set(neigbs) & set(neigbsb)) * 2) / (len(neigbs) + len(neigbsb))
     return score
 
 
-# find cells and their neighbs --> some day I need a fix for round isolated cells that are missing
-# nb this works better using bond pixels rather than vertices
 def get_cells_and_their_neighbors_from_image(img, vertices=None, bg_color=0xFFFFFF):
-    # convert it to what I need
+    """
+    Retrieves the cells and their neighbors from an image.
+
+    Args:
+        img (ndarray): Array representing the image.
+        vertices (ndarray, optional): Array containing the vertices of the cells. Defaults to None.
+        bg_color (int, optional): Background color of the image. Defaults to 0xFFFFFF.
+
+    Returns:
+        dict: Dictionary containing the cells and their neighbors.
+    """
     if len(img.shape) == 3:
         tmp = RGB_to_int24(img)
     else:
         tmp = img
 
-    # NB BEFORE I USED TO USE VERTICES BUT NOW I IN FACT USE ALL MASK/BOUNDARY PIXELS --> THIS IS MUCH BETTER AND CAN EVEN DETECT ISOLATED CELLS --> VERY GOOD
     if vertices is None:
-        # vertices = find_vertices(tmp, return_vertices=True, return_bonds=False)
-        # that seems to work and quite nicely!!!!
-        # no clue whether that would make things slower or not ???
-        vertices = np.stack(np.where(tmp == bg_color), axis=1) #find_vertices(tmp, return_vertices=True, return_bonds=False)
-    # else:
+        vertices = np.stack(np.where(tmp == bg_color), axis=1)
 
-    # print('vertices',vertices)
-
-    # print(vertices.shape)
-
-    # print(associate_cell_to_its_neighbors2(vertices, tmp, bg_color=bg_color)) # this is totally empty --> why # still empty
-
-    # plt.imshow(img)
-    # plt.show()
-    cells_and_their_neighbors = np.unique(np.asarray(associate_cell_to_its_neighbors2(vertices, tmp, bg_color=bg_color)), axis=0)
+    cells_and_their_neighbors = np.unique(
+        np.asarray(associate_cell_to_its_neighbors2(vertices, tmp, bg_color=bg_color)), axis=0)
     cells_and_their_neighbors = associate_cells_to_neighbors_ID_in_dict(cells_and_their_neighbors)
-    # print(cells_and_their_neighbors) # --> seems ok --> I do have a bug somewhere then
     return cells_and_their_neighbors
 
 
-# need three images or the cells and their neighbs --> TODO
-# PB HERE IS IF I DON4T HAVE ACCESS TO CELL AREA THERE WILL BE A LOT OF ERRORS
 def detect_divisions(cells_and_their_neighbors_cur, cells_and_their_neighbors_t_minus_1,
                      cells_and_their_neighbors_t_plus_1=None):
+    """
+    Detects cell divisions based on the cells and their neighbors in different frames.
+
+    Args:
+        cells_and_their_neighbors_cur (dict or ndarray): Dictionary or array containing the cells and their neighbors in the current frame.
+        cells_and_their_neighbors_t_minus_1 (dict or ndarray): Dictionary or array containing the cells and their neighbors in the previous frame.
+        cells_and_their_neighbors_t_plus_1 (dict or ndarray, optional): Dictionary or array containing the cells and their neighbors in the next frame. Defaults to None.
+
+    Returns:
+        dict: Dictionary containing the dividing pairs of cells.
+    """
     dividing_pairs = {}
 
     if isinstance(cells_and_their_neighbors_cur, np.ndarray):
@@ -980,25 +683,14 @@ def detect_divisions(cells_and_their_neighbors_cur, cells_and_their_neighbors_t_
         cells_and_their_neighbors_t_plus_1 = get_cells_and_their_neighbors_from_image(
             cells_and_their_neighbors_t_plus_1)
 
-    # new cells
     new_cells_in_t_cur = set(cells_and_their_neighbors_cur.keys()) - set(cells_and_their_neighbors_t_minus_1.keys())
     if cells_and_their_neighbors_t_plus_1 is not None:
-        # if the cell is absent in the next --> then most likely it is a seg error and we should forget about it
-        new_cells_in_t_cur = new_cells_in_t_cur & set(
-            cells_and_their_neighbors_t_plus_1.keys())  # --> only keep cells that are still present in the next
+        new_cells_in_t_cur = new_cells_in_t_cur & set(cells_and_their_neighbors_t_plus_1.keys())
 
-    # get the one with the highest score
     for cell in new_cells_in_t_cur:
-        # cell is not in the previous image --> forget about it
         max_score = 0
-        # if cell not in cells_and_their_neighbors_t_minus_1.keys():
-        #     print()
-        #     continue
         neighbs_current_cell = cells_and_their_neighbors_cur[cell]
-        # ideally should even search in its neighbors --> TODO!!!
         for possible_sister in neighbs_current_cell:
-            # for possible_sister, possible_sister_neighbors in cells_and_their_neighbors_cur.items(): # not smart to look in all the cells --> just look for its immediate neighbors
-            # sister cell is not in the previous image --> forget about it
             if possible_sister not in cells_and_their_neighbors_t_minus_1.keys():
                 continue
             possible_sister_neighbors = cells_and_their_neighbors_t_minus_1[possible_sister]
@@ -1007,33 +699,25 @@ def detect_divisions(cells_and_their_neighbors_cur, cells_and_their_neighbors_t_
             merged_set = list(set(merged_set))
             neighbs_in_previous_image = cells_and_their_neighbors_t_minus_1[possible_sister]
             score = pairwise_score(neighbs_in_previous_image, merged_set)
-            # print(score)
             if score > max_score:
                 max_score = score
                 dividing_pairs[cell] = possible_sister
 
-    # some of these cells are missegmented ones
-
-    # print(len(dividing_pairs)) # --> 16 --> bcp trop mais ok ??? --> probably need other controls
     return dividing_pairs
 
-# def get_border_cells_plus_one(img, border_cells=None):
-#     border_cells_plus_one = []
-#     if border_cells is None:
-#         border_cells_plus_one = get_border_cells(img)
-#
-#     # loop over all vertices and find those that are in contact with a border cell
-#     # can also brute force it
-#     # can also make it by selecting the neighbs of the border cells --> in a way that is the simpler and faster but need fix the no neighbors cells --> not that hard TODO anyway
-#
-#
-#
-#
-#     border_cells_plus_one = list(set(border_cells_plus_one))
-#     return border_cells_plus_one
-
-# that should be it isn't it ????
 def get_border_cells_plus_one(cells_n_their_neighbors, border_cells, forbidden_ids=[0xFFFFFF], remove_border_cells=False):
+    """
+    Retrieves the border cells plus one layer of neighbors.
+
+    Args:
+        cells_n_their_neighbors (dict): Dictionary containing the cells and their neighbors.
+        border_cells (list): List of border cells.
+        forbidden_ids (list, optional): List of forbidden cell IDs. Defaults to [0xFFFFFF].
+        remove_border_cells (bool, optional): Whether to remove border cells from the result. Defaults to False.
+
+    Returns:
+        list: List of border cells plus one layer of neighbors.
+    """
     border_cells_plus_one = []
     for border_cell in border_cells:
         try:
@@ -1048,23 +732,40 @@ def get_border_cells_plus_one(cells_n_their_neighbors, border_cells, forbidden_i
         border_cells_plus_one = list(set(border_cells_plus_one)-set(border_cells))
     return border_cells_plus_one
 
-# can be used to plot border cells or anything
-# TODO maybe make it that calors could be a list matching
+
 def plot_anything_a_la_TA(cell_id, list_of_cells_to_plot, color=0xFF0000, keep_mask=True):
+    """
+    Generates an image where specific cells are colored.
+
+    Args:
+        cell_id (ndarray): Array representing the cell IDs.
+        list_of_cells_to_plot (list): List of cells to be colored.
+        color (int, optional): Color to be used for coloring the cells. Defaults to 0xFF0000.
+        keep_mask (bool, optional): Whether to keep the mask (cell ID 0xFFFFFF) in the generated image. Defaults to True.
+
+    Returns:
+        ndarray: Array representing the generated image.
+    """
     new_img = np.zeros_like(cell_id)
     for cell in list_of_cells_to_plot:
-        new_img[cell_id == cell]=color
+        new_img[cell_id == cell] = color
     if keep_mask:
-        new_img[cell_id == 0xFFFFFF]=0xFFFFFF
+        new_img[cell_id == 0xFFFFFF] = 0xFFFFFF
     return new_img
 
-# TODO maybe also handle border cells +1
-# if forbidden colors --> remove them from the list
-# bug is in njit --> I have a bug here
-# there is a bug in my code or in njit that causes a memory leak in rare cases, is that a version issue ????
-@njit # KEEP I HAD TO REMOVE NJIT DUE TO AN UNKNOWN SEG FAULT!!!
+
+@njit
 def get_border_cells(img, bg_color=None):
-    # find border cells using njit
+    """
+    Retrieves the border cells from an image.
+
+    Args:
+        img (ndarray): Array representing the image.
+        bg_color (int, optional): Background color of the image. Defaults to None.
+
+    Returns:
+        list: List of border cells.
+    """
     border_cells = []
     for j in range(img.shape[0]):
         border_cells.append(img[j, 0])
@@ -1072,37 +773,37 @@ def get_border_cells(img, bg_color=None):
         border_cells.append(img[j, img.shape[1]-1])
         border_cells.append(img[j, img.shape[1]-2])
 
-    # print('inner1', img.shape[1])
-
-    # bug is here --> inner2 is never reached
     for i in range(img.shape[1]):
         border_cells.append(img[0, i])
         border_cells.append(img[1, i])
         border_cells.append(img[img.shape[0]-1, i])
         border_cells.append(img[img.shape[0]-2, i])
 
-    # print('inner2')
-
     border_cells = list(set(border_cells))
-    # print('inner3')
     if bg_color is not None:
         if bg_color in border_cells:
             border_cells.remove(bg_color)
-    # print('inner4')
-    # print(border_cells)
     return border_cells
 
 
-# pas mal aussi faire un designer de code qui cree auto un GUI à partir de paramètres des méthodes et/ou de
-# TODO maybe also exclude border cells as an option --> that is a very good idea I think too --> see how to do that
-# TODO also exclude border cells # if any of the two cells involved in division touch border or 1 px away from the border then remove them!!!
-# another control could be that area of the parent cell should decrease by some factor and/or that sum area of sisters should be close to that of parents
-# ça marche et ça marche pas mal, j'adore ma nouvelle serie d'algos et c'est tres different de TA!!!
 def plot_dividing_cells_a_la_TA(img, dividing_pairs, plot_cell_outline=True,
                                 exclude_cells_bigger_than_percent_of_image=20,
                                 exclude_cells_with_size_difference_superior=3,
                                 remove_divisions_involving_a_border_cell=True):
+    """
+    Generates an image highlighting cell divisions based on the provided dividing pairs.
 
+    Args:
+        img (ndarray): Array representing the image.
+        dividing_pairs (dict): Dictionary containing the dividing pairs of cells.
+        plot_cell_outline (bool, optional): Whether to plot the outline of cells. Defaults to True.
+        exclude_cells_bigger_than_percent_of_image (int, optional): Percentage of the image area above which cells are excluded. Defaults to 20.
+        exclude_cells_with_size_difference_superior (int, optional): Size difference ratio above which cells are excluded. Defaults to 3.
+        remove_divisions_involving_a_border_cell (bool, optional): Whether to remove divisions involving a border cell. Defaults to True.
+
+    Returns:
+        ndarray: Array representing the image with highlighted cell divisions.
+    """
     if len(img.shape) == 3:
         img = RGB_to_int24(img)
 
@@ -1137,26 +838,13 @@ def plot_dividing_cells_a_la_TA(img, dividing_pairs, plot_cell_outline=True,
         cell_divisions[img == sister1] = div_counter + 1
         cell_divisions[img == sister2] = div_counter + 1
 
-        # print(cell_divisions[img == sister1].size, cell_divisions[img == sister2].size)  # ça marche c'est jamais 0
         div_counter += 1
-
-        # could filter by area ??? if too much difference --> ignore or if one cell is too big --> ignore --> artifact
-
-        # if (img == sister1).size == 0:
-        #     print('error_seg')
-        #
-        # if (img == sister2).size == 0:
-        #     print('error_seg')
 
     if plot_cell_outline:
         cell_divisions[img == 0xFFFFFF] = 0xFFFFFF
 
     return cell_divisions
 
-
-# maybe split this code in three to avoid errors
-
-# need also local id so that I can swap cells if needed --> TODO
 def optimize_score(cells_and_their_neighbors_cur, cells_and_their_neighbors_t_other, current_cells_n_score,
                    map_tracks_n_label_t_cur, threshold=0.5):
     # if shift is validated I need change the mappings --> either swap cells or swap their values --> the pb is that this will change the relationship to the rps --> need be smart but ok
@@ -3247,7 +2935,7 @@ def help_user_correct_errors(files, channel=None, progress_callback=None):
 if __name__ == '__main__':
     start = timer()
 
-    if False:
+    if True:
         # img_t_minus1 = RGB_to_int24(
         #     Img('/E/Sample_images/tracking_test/test_uncropped/200319.lif_t021/tracked_cells_resized.tif'))
         # img_t_cur = RGB_to_int24(
@@ -3266,7 +2954,10 @@ if __name__ == '__main__':
         border_cells = plot_anything_a_la_TA(img_t_cur, border_cells, color=0xFF0000)
         border_cells_plus_one = plot_anything_a_la_TA(img_t_cur, border_cells_plus_one, color=0xFFFF00)
 
-        divisions = plot_dividing_cells_a_la_TA(img_t_cur, divs, plot_cell_outline=False)
+        divisions = plot_dividing_cells_a_la_TA(img_t_cur, divs, plot_cell_outline=False) # less stringent parameters to really see all the divisions --> exclude_cells_with_size_difference_superior=12, remove_divisions_involving_a_border_cell=False)
+
+        plt.imshow(divisions)
+        plt.show()
 
         plot_n_images_in_line(int24_to_RGB(img_t_minus1),int24_to_RGB(img_t_cur), divisions, int24_to_RGB(border_cells), int24_to_RGB(border_cells_plus_one))
         # plt.imshow(divisions)

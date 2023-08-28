@@ -7,6 +7,18 @@ from epyseg.postprocess.superpixel_methods import get_optimized_mask2
 
 
 def sauvola(img, window_size=25, min_threshold=0.02):
+    """
+    Applies the Sauvola thresholding method to an image.
+
+    Args:
+        img (numpy.ndarray): The input image.
+        window_size (int): The size of the window for local thresholding. Defaults to 25.
+        min_threshold (float): The minimum threshold value. Defaults to 0.02.
+
+    Returns:
+        numpy.ndarray: The thresholded image.
+
+    """
     k = 0.25
     r = 0.5
 
@@ -18,6 +30,23 @@ def sauvola(img, window_size=25, min_threshold=0.02):
 
 def segment_cells(image, __DEBUG=False, __VISUAL_DEBUG=False, stop_at_threshold_step=False,
                   min_unconnected_object_size=None, min_threshold=None, window_size=25, real_avg_mode=False):
+    """
+    Segments cells in an image using the Sauvola thresholding method.
+
+    Args:
+        image (numpy.ndarray): The input image.
+        __DEBUG (bool): Debug flag. Defaults to False.
+        __VISUAL_DEBUG (bool): Visual debug flag. Defaults to False.
+        stop_at_threshold_step (bool): Flag to stop at thresholding step and return the thresholded image. Defaults to False.
+        min_unconnected_object_size (int): The minimum size of unconnected objects to be removed. Defaults to None.
+        min_threshold (float): The minimum threshold value. Defaults to None.
+        window_size (int): The size of the window for local thresholding. Defaults to 25.
+        real_avg_mode (bool): Flag indicating whether to use real average mode. Defaults to False.
+
+    Returns:
+        numpy.ndarray: The segmented image.
+
+    """
     original = image.copy()
 
     t = sauvola(image, min_threshold=min_threshold, window_size=window_size)
@@ -35,8 +64,6 @@ def segment_cells(image, __DEBUG=False, __VISUAL_DEBUG=False, stop_at_threshold_
         plt.show()
 
     if min_unconnected_object_size is not None and min_unconnected_object_size >= 1:
-        # image = remove_small_objects(image.astype(bool), min_size=min_unconnected_object_size, connectivity=2, in_place=True).astype(np.uint8)
-        # in the future I need to shift to that line (maybe I can add out in newer version but then it will not be compatible with previous --> keep it like that for now
         image = remove_small_objects(image.astype(bool), min_size=min_unconnected_object_size, connectivity=2).astype(np.uint8)
         if __VISUAL_DEBUG and min_unconnected_object_size == 12:
             plt.imshow(image)
@@ -47,8 +74,7 @@ def segment_cells(image, __DEBUG=False, __VISUAL_DEBUG=False, stop_at_threshold_
         image = image * 255
         return image
 
-    return get_optimized_mask2(original, sauvola_mask=None,
-                               score_before_adding=True)# --> True
+    return get_optimized_mask2(original, sauvola_mask=None, score_before_adding=True)
 
 
 if __name__ == '__main__':

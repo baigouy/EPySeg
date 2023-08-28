@@ -1,51 +1,75 @@
 import os
-from epyseg.settings.global_settings import set_UI # set the UI to be used py qtpy
+from epyseg.settings.global_settings import set_UI  # set the UI to be used py qtpy
 set_UI()
 import sys
 from qtpy.QtWidgets import QApplication, QFileDialog
 from os.path import expanduser
-import os
 
-
-# class Open_Save_dialogs():
 
 def openFileNameDialog(parent_window=None, extensions="Supported Files (*.jpg *.tif *.png);;All Files (*)",
                        path=expanduser('~')):
-    # options = QFileDialog.Options()
-    # options |= QFileDialog.DontUseNativeDialog
-    # QFileDialog.setOption(QFileDialog.DontUseNativeDialog, True)
+    """
+    Opens a file dialog to select a single file.
+
+    Args:
+        parent_window (object): Parent window object. Default is None.
+        extensions (str): File extension filters for the dialog. Default is "Supported Files (*.jpg *.tif *.png);;All Files (*)".
+        path (str): Initial path for the dialog. Default is user's home directory.
+
+    Returns:
+        str: Selected file name.
+
+    # Examples:
+    #     >>> filename = openFileNameDialog()
+    """
     if not os.path.exists(path):
         path = expanduser('~')
-    fileName, _ = QFileDialog.getOpenFileName(parent_window, "Select a File", path, extensions, options=QFileDialog.DontUseNativeDialog)
+    fileName, _ = QFileDialog.getOpenFileName(parent_window, "Select a File", path, extensions,
+                                              options=QFileDialog.DontUseNativeDialog)
     return fileName
+
 
 def openFileNamesDialog(parent_window=None, extensions="Supported Files (*.jpg *.tif *.png);;All Files (*)",
                         path=expanduser('~')):
-    # options = QFileDialog.Options()
-    # options |= QFileDialog.DontUseNativeDialog
+    """
+    Opens a file dialog to select multiple files.
+
+    Args:
+        parent_window (object): Parent window object. Default is None.
+        extensions (str): File extension filters for the dialog. Default is "Supported Files (*.jpg *.tif *.png);;All Files (*)".
+        path (str): Initial path for the dialog. Default is user's home directory.
+
+    Returns:
+        list: List of selected file names.
+
+    # Examples:
+    #     >>> files = openFileNamesDialog()
+    """
     if not os.path.exists(path):
         path = expanduser('~')
-    files, _ = QFileDialog.getOpenFileNames(parent_window, "Select Files", path, extensions, options=QFileDialog.DontUseNativeDialog)
+    files, _ = QFileDialog.getOpenFileNames(parent_window, "Select Files", path, extensions,
+                                            options=QFileDialog.DontUseNativeDialog)
     return files
 
-# not so easy to do in fact
-# def openSingleFileOrDirectoryDialog(self, parent_window=None, extensions="Supported Files (*.jpg *.tif *.png);;All Files (*)",
-#                        path=expanduser('~')):
-#     setFileMode(QFileDialog::Directory | QFileDialog::ExistingFiles)
-#     options = QFileDialog.Options()
-#     options |= QFileDialog.DontUseNativeDialog
-#     if not os.path.exists(path):
-#         path = expanduser('~')
-#     fileName, _ = QFileDialog.getOpenFileName(parent_window, "QFileDialog.getOpenFileName()", path,
-#                                               extensions, options=options)
 
+def saveFileDialog(parent_window=None, path=expanduser('~'), extensions="All Files (*);;Text Files (*.txt)",
+                    default_ext=None):
+    """
+    Opens a file dialog to save a file.
 
-# create file if does not exist and delete if name varies --> maybe do this as an option...
-def saveFileDialog(parent_window=None, path=expanduser('~'),  extensions="All Files (*);;Text Files (*.txt)", default_ext=None):
-    # options = QFileDialog.Options()
-    # options |= QFileDialog.DontUseNativeDialog
+    Args:
+        parent_window (object): Parent window object. Default is None.
+        path (str): Initial path for the dialog. Default is user's home directory.
+        extensions (str): File extension filters for the dialog. Default is "All Files (*);;Text Files (*.txt)".
+        default_ext (str): Default file extension. Default is None.
+
+    Returns:
+        str: Selected file name to save.
+
+    # Examples:
+    #     >>> filename = saveFileDialog(default_ext='.tif')
+    """
     try:
-        # nice hack to allow to specify a default name even if the file does not exist as long as the parent folder exists
         if not os.path.exists(path) and not os.path.exists(os.path.dirname(path)):
             path = expanduser('~')
     except:
@@ -61,12 +85,25 @@ def saveFileDialog(parent_window=None, path=expanduser('~'),  extensions="All Fi
     else:
         return
 
+
 def openDirectoryDialog(parent_window=None, path=expanduser('~')):
-    # options = QFileDialog.Options()
-    # options |= QFileDialog.DontUseNativeDialog
+    """
+    Opens a dialog to select a directory.
+
+    Args:
+        parent_window (object): Parent window object. Default is None.
+        path (str): Initial path for the dialog. Default is user's home directory.
+
+    Returns:
+        str: Selected directory path.
+
+    # Examples:
+    #     >>> folder = openDirectoryDialog()
+    """
     if not os.path.exists(path):
         path = expanduser('~')
-    folderName = QFileDialog.getExistingDirectory(parent_window, "Select a Directory", path, options= QFileDialog.DontUseNativeDialog)
+    folderName = QFileDialog.getExistingDirectory(parent_window, "Select a Directory", path,
+                                                  options=QFileDialog.DontUseNativeDialog)
     if folderName is not None:
         if not folderName.strip():
             return None
@@ -74,9 +111,9 @@ def openDirectoryDialog(parent_window=None, path=expanduser('~')):
             folderName += '/'
     return folderName
 
+
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-    # ex = Open_Save_dialogs()
     filename = saveFileDialog(default_ext='.tif')
     print(filename)
     sys.exit(0)

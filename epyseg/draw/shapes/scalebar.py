@@ -54,10 +54,15 @@ class ScaleBar(Rect2D):
         # self.drawAndFill(painter=painter)
 
     def updateBoudingRect(self):
+        """
+        updates the image bounding rect depending on content
+        :return:
+        """
+
         # contient deux objects et est donc la somme des deux
         # --> facile en theorie faire que du packing et de l'alignement à gauche droite ou ailleurs
         # pack in y direction the text and the bar
-        '''updates the image bounding rect depending on content'''
+
         x = None
         y = None
         x2 = None

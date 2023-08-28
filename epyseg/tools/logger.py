@@ -1,8 +1,37 @@
 import logging
 
 class TA_logger(object):
+    """
+    A logger class for TA (Tracking and Analysis) module.
 
-    # DEBUG < INFO < WARNING < ERROR < CRITICAL
+    Attributes:
+        default_format (str): Default log format.
+        master_logger_name (str): Master logger name.
+        DEBUG (int): Debug logging level.
+        INFO (int): Info logging level.
+        WARNING (int): Warning logging level.
+        ERROR (int): Error logging level.
+        CRITICAL (int): Critical logging level.
+        DEFAULT (int): Default logging level.
+
+    Examples:
+        >>> logger = TA_logger()
+        >>> logger.debug("test")
+        >>> logger.info("test")
+        >>> logger.warning("test")
+        >>> logger.error("test")
+        >>> logger.critical("test")
+        >>> formatter = logging.Formatter(TA_logger.default_format)
+        >>> handler = logging.StreamHandler()
+        >>> handler.setFormatter(formatter)
+        >>> TA_logger.setHandler(handler)
+        >>> logger.debug("test")
+        >>> logger.info("test")
+        >>> logger.warning("test")
+        >>> logger.error("test")
+        >>> logger.critical("test")
+    """
+
     default_format = '%(levelname)s - %(asctime)s - %(filename)s - %(funcName)s - line %(lineno)d - %(message)s\n'
     master_logger_name = 'master'
     DEBUG = logging.DEBUG
@@ -10,7 +39,7 @@ class TA_logger(object):
     WARNING = logging.WARNING
     ERROR = logging.ERROR
     CRITICAL = logging.CRITICAL
-    DEFAULT = INFO # DEBUG # INFO
+    DEFAULT = INFO
 
     loggers = {}
 
@@ -22,15 +51,11 @@ class TA_logger(object):
         logger = logging.getLogger(name)
 
         if handler is None:
-            # create a formatter
             formatter = logging.Formatter(format)
-            # create handler
             handler = logging.StreamHandler()
             handler.setFormatter(formatter)
 
         logger.addHandler(handler)
-
-        # set level to logging_level
         cls.DEFAULT = logging_level
         logger.setLevel(logging_level)
         cls.loggers[name] = logger
@@ -39,7 +64,13 @@ class TA_logger(object):
 
     @staticmethod
     def setHandler(handler, name=master_logger_name):
-        # easy way to redirect all logs to the same logger
+        """
+        Set the handler for the logger.
+
+        Args:
+            handler (logging.Handler): Handler object.
+            name (str): Logger name (default: master_logger_name).
+        """
         logger = logging.getLogger(name)
         try:
             for hndlr in logger.handlers:
@@ -67,4 +98,3 @@ if __name__ == '__main__':
     logger.warning("test")
     logger.error("test")
     logger.critical("test")
-

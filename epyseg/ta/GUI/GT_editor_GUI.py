@@ -396,6 +396,10 @@ class GT_editor(QtWidgets.QMainWindow):
             # will crash if no file exists --> cannot create a GT...
             if os.path.exists(os.path.join(smart_name_parser(selected_file,'parent'),'predict',smart_name_parser(selected_file,'short'))):
                 # seach for typical GT stuff produced by epyseg...
+
+                # print('this is the loaded mask',os.path.join(smart_name_parser(selected_file,'parent'),'predict',smart_name_parser(selected_file,'short'))) # l'image chargée est bonne mais pb comment faire pr avoir ts les masks en 3D vraiment appliqués correctement ???
+
+
                 self.paint.set_mask(os.path.join(smart_name_parser(selected_file,'parent'),'predict',smart_name_parser(selected_file,'short')))
             elif os.path.exists(os.path.join(smart_name_parser(selected_file,'parent'),'GT',smart_name_parser(selected_file,'short'))):
                 # search in GT folder...
@@ -514,6 +518,20 @@ class GT_editor(QtWidgets.QMainWindow):
 if __name__ == '__main__':
     import sys
 
+
+
+    # spliuiting a 3D image into 2D images would roughly work --> I just need see the most efficient way of doing that --> keep that for later but really almost all is ok now
+
+
+
+    # somehow this tool assumes mask must necessarily be 2D and that is not necessarily the case --> it could be useful to have a tool to edit full 3D masks --> maybe do a specific tool just for that --> even different from the stuff
+    # think about that
+    # tester si j'arrive à segmenter des images assez complexes et full 3D --> à tester en fait mais peut peut etre marcher
+
+
+    # this tool really does not work for 3D images --> it saves and loads masks wrongly --> I need a really hard hack to get it to work -->
+    # maybe ok for now as i can split the image and edit the sequence as a 2D stuff
+    # and then reconstitute it in the very end --> TODO
 
 
     app = QApplication(sys.argv)

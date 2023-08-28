@@ -40,11 +40,12 @@ class PolyLine2D(Polygon2D):
         self.opacity = opacity
 
     def set_line_style(self, style):
-        '''allows lines to be dashed or dotted or have custom pattern
+        """
+        allows lines to be dashed or dotted or have custom pattern
 
         :param style: a list of numbers or any of the following Qt.SolidLine, Qt.DashLine, Qt.DashDotLine, Qt.DotLine, Qt.DashDotDotLine but not Qt.CustomDashLine, Qt.CustomDashLine is assumed by default if a list is passed in. None is also a valid value that resets the line --> assume plain line
         :return:
-        '''
+        """
         self.line_style = style
         # if style is a list then assume custom pattern otherwise apply solidline
 

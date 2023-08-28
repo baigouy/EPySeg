@@ -8,13 +8,13 @@ logger = TA_logger()
 # if a heightmap is provided the z coords of every point will be replaced by height map height
 # nb if several triangles are provided, it is assumed they are all traingulation of the same object, hence their area is summed and the sum is returned
 def compute_3D_surfacearea(triangles, heightmap=None, stop_on_2D=False, disable_2D_warning=False):
-    '''
+    """
 
     :param triangles: cell/object triangulation as input (as list or ndarray)
     :param heightmap: a heightmap for the cell
     :param stop_on_2D: break if 2D data is provided
     :return: the surface area of the triangulated object
-    '''
+    """
     if not isinstance(triangles, np.ndarray):
         triangles = np.asarray(triangles)
 

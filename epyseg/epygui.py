@@ -1,8 +1,12 @@
+# le webengine marche pas une fois sur deux donc vaudrait mieux faire autrement
+
 # from qtpy.QtWebEngineWidgets import QWebEngineView
 # ImportError: /usr/lib/x86_64-linux-gnu/libQt5Network.so.5: undefined symbol: _ZN15QIPAddressUtils8toStringER7QStringPh, version Qt_5 --> fix is here https://stackoverflow.com/questions/37876987/cannot-import-qtwebkitwidgets-in-qtpy
 # need set the version of QT to avoid issues too
 # or remove the help
 import os
+
+from epyseg.gui.pyqtmarkdown_replacement import ClickableTextEdit
 from epyseg.settings.global_settings import set_UI # set the UI to be used py qtpy
 set_UI()
 os.environ['SM_FRAMEWORK'] = 'tf.keras'  # set env var for changing the segmentation_model framework
@@ -32,8 +36,8 @@ from qtpy import QtWidgets, QtCore
 from epyseg.worker.threaded import Worker
 from epyseg.gui.img import image_input_settings
 from epyseg.tools.qthandler import XStream, QtHandler
-from epyseg.gui.pyqtmarkdown import PyQT_markdown
-from epyseg.img import Img
+# from epyseg.gui.pyqtmarkdown import PyQT_markdown
+from epyseg.img import Img, normalization_methods
 from qtpy.QtWidgets import QPushButton, QWidget
 from epyseg.deeplearning.deepl import EZDeepLearning
 from epyseg.tools.logger import TA_logger # logging
@@ -53,11 +57,9 @@ if PYQT_VERSION_STR<'6':
 # TODO enable that soon TODO connect CARE now and enable that --> need better training for CARE though...
 ENABLE_MINI_GUI = False # no never allow this and remove all related code
 
-
-
 __MAJOR__ = 0
 __MINOR__ = 1
-__MICRO__ = 29
+__MICRO__ = 32
 __RELEASE__ = ''  # a #b  # https://www.python.org/dev/peps/pep-0440/#public-version-identifiers --> alpha beta, ...
 __VERSION__ = ''.join([str(__MAJOR__), '.', str(__MINOR__), '.',
                        str(__MICRO__)])  # if __MICRO__ != 0 else '', __RELEASE__]) # bug here fix some day
@@ -72,7 +74,6 @@ class EPySeg(QWidget):
     '''
 
     def __init__(self, parent=None):
-
         '''init for gui
 
         Parameters
@@ -81,10 +82,13 @@ class EPySeg(QWidget):
             parent window if any (for future dvpt such as tyssue analyzer)
 
         '''
+        # raise Exception # for testing and debugging unittests
         self.currently_selected_metrics = []
         super().__init__(parent)
 
         self.commonUI()
+
+
 
         # self.showdialog() # ça marche --> permet de choisir une interface minimaliste
         # image_input_settings.getDataAndParameters() # ça marche --> faire le minimal GUI like that --> much simpler
@@ -210,7 +214,19 @@ class EPySeg(QWidget):
         self.log_tab = QWidget()
         self.help_html_tab = QWidget()
 
-        self.help = PyQT_markdown()
+        help_URLs = {'predict using pre-trained network': 'getting_started2.md',
+                     'build and train a custom network': 'getting_started.md',
+                     'further train the EPySeg model on your data': 'getting_started3.md',
+                     'load a pre-trained model': 'pretrained_model.md',
+                     'Build a model from scratch': 'model.md',
+                     'Load a model': 'load_model.md',
+                     'Train': 'train.md',
+                     'Predict': 'predict.md',
+                     'Training dataset parameters': 'preprocessing.md',
+                     'Data augmentation': 'data_augmentation.md'}
+
+        # FIX TO REMOVE BUGGY QWEBENGINE, SOMETIME HARD TO INSTALL AND USE...
+        self.help = ClickableTextEdit(help_URLs = help_URLs) # PyQT_markdown()
         #
         # Add tabs
         self.help_tabs.addTab(self.log_tab, 'Log')
@@ -1074,30 +1090,34 @@ class EPySeg(QWidget):
         log_groupBox = QGroupBox('Log', objectName='log_groupBox')
         log_groupBox.setEnabled(True)
 
-        try:
-            this_dir, this_filename = os.path.split(__file__)
-            # print(this_dir)
-            self.help.set_markdown_from_file(os.path.join(this_dir, 'deeplearning/docs', 'getting_started2.md'),
-                                             title='getting started: predict using pre-trained network')
-            self.help.set_markdown_from_file(os.path.join(this_dir, 'deeplearning/docs', 'getting_started.md'),
-                                             title='getting started: build and train a custom network')
-            self.help.set_markdown_from_file(os.path.join(this_dir, 'deeplearning/docs', 'getting_started3.md'),
-                                             title='getting started: further train the EPySeg model on your data')
-            self.help.set_markdown_from_file(os.path.join(this_dir, 'deeplearning/docs', 'pretrained_model.md'),
-                                             title='Load a pre-trained model')
-            self.help.set_markdown_from_file(os.path.join(this_dir, 'deeplearning/docs', 'model.md'),
-                                             title='Build a model from scratch')
-            self.help.set_markdown_from_file(os.path.join(this_dir, 'deeplearning/docs', 'load_model.md'),
-                                             title='Load a model')
-            self.help.set_markdown_from_file(os.path.join(this_dir, 'deeplearning/docs', 'train.md'), title='Train')
-            self.help.set_markdown_from_file(os.path.join(this_dir, 'deeplearning/docs', 'predict.md'), title='Predict')
-            self.help.set_markdown_from_file(os.path.join(this_dir, 'deeplearning/docs', 'preprocessing.md'),
-                                             title='Training dataset parameters')
-            self.help.set_markdown_from_file(os.path.join(this_dir, 'deeplearning/docs', 'data_augmentation.md'),
-                                             title='Data augmentation')
-            # TODO prevent this window to be resized upon tab changes
-        except:
-            traceback.print_exc()
+
+
+        # fix for qwebengine not always working properly and very hard to install
+        #
+        # try:
+        #     this_dir, this_filename = os.path.split(__file__)
+        #     # print(this_dir)
+        #     self.help.set_markdown_from_file(os.path.join(this_dir, 'deeplearning/docs', 'getting_started2.md'),
+        #                                      title='getting started: predict using pre-trained network')
+        #     self.help.set_markdown_from_file(os.path.join(this_dir, 'deeplearning/docs', 'getting_started.md'),
+        #                                      title='getting started: build and train a custom network')
+        #     self.help.set_markdown_from_file(os.path.join(this_dir, 'deeplearning/docs', 'getting_started3.md'),
+        #                                      title='getting started: further train the EPySeg model on your data')
+        #     self.help.set_markdown_from_file(os.path.join(this_dir, 'deeplearning/docs', 'pretrained_model.md'),
+        #                                      title='Load a pre-trained model')
+        #     self.help.set_markdown_from_file(os.path.join(this_dir, 'deeplearning/docs', 'model.md'),
+        #                                      title='Build a model from scratch')
+        #     self.help.set_markdown_from_file(os.path.join(this_dir, 'deeplearning/docs', 'load_model.md'),
+        #                                      title='Load a model')
+        #     self.help.set_markdown_from_file(os.path.join(this_dir, 'deeplearning/docs', 'train.md'), title='Train')
+        #     self.help.set_markdown_from_file(os.path.join(this_dir, 'deeplearning/docs', 'predict.md'), title='Predict')
+        #     self.help.set_markdown_from_file(os.path.join(this_dir, 'deeplearning/docs', 'preprocessing.md'),
+        #                                      title='Training dataset parameters')
+        #     self.help.set_markdown_from_file(os.path.join(this_dir, 'deeplearning/docs', 'data_augmentation.md'),
+        #                                      title='Data augmentation')
+        #     # TODO prevent this window to be resized upon tab changes
+        # except:
+        #     traceback.print_exc()
 
         # add GUI settings to the tabs
         self.settings_GUI = QWidget()
@@ -1513,7 +1533,7 @@ class EPySeg(QWidget):
         # if we are using a pretrained model then enable post proc by default and select dark mode
         if self.model_pretrain_on_epithelia.isChecked():
             # A set of settings to apply only when using pre-trained models
-            # idx = self.set_custom_predict_parameters.bg_removal.findData(Img.background_removal[2])
+            # idx = self.set_custom_predict_parameters.bg_removal.findData(background_removal[2])
             # self.set_custom_predict_parameters.bg_removal.setCurrentIndex(2)
             self.set_custom_predict_parameters.bg_removal.setCurrentIndex(0)
             self.set_custom_predict_parameters.enable_post_process.setChecked(True)
@@ -1840,15 +1860,15 @@ class EPySeg(QWidget):
         self.deepTA.train(metaAugmenter, progress_callback=progress_callback, **train_parameters)
 
     def _output_normalization_changed(self):
-        if self.output_normalization.currentText() == Img.normalization_methods[0] \
-                or self.output_normalization.currentText() == Img.normalization_methods[1]:
+        if self.output_normalization.currentText() == normalization_methods[0] \
+                or self.output_normalization.currentText() == normalization_methods[1]:
             self.output_norm_range.setEnabled(True)
         else:
             self.output_norm_range.setEnabled(False)
 
     def _input_normalization_changed(self):
-        if self.input_normalization.currentText() == Img.normalization_methods[0] \
-                or self.input_normalization.currentText() == Img.normalization_methods[1]:
+        if self.input_normalization.currentText() == normalization_methods[0] \
+                or self.input_normalization.currentText() == normalization_methods[1]:
             self.input_norm_range.setEnabled(True)
         else:
             self.input_norm_range.setEnabled(False)

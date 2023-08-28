@@ -35,7 +35,7 @@ from epyseg.ta.database.sql import TAsql, get_properties_master_db, \
 
 
 class Example(QWidget):
-    def __init__(self, table_name, lst=None, db_to_connect_to=None, non_editable_columns=[0,1]):
+    def __init__(self, table_name='properties', lst=None, db_to_connect_to=None, non_editable_columns=[0,1]):
         super().__init__()
         self.db_connect = None
         self.non_editable_columns = non_editable_columns

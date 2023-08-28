@@ -35,7 +35,7 @@ import traceback
 from PIL import ImageDraw, Image
 
 from epyseg.draw.shapes.image2d import Image2D
-from epyseg.img import Img, PIL_to_numpy
+from epyseg.img import Img, PIL_to_numpy, invert
 from skimage.measure import regionprops
 import numpy as np
 import matplotlib
@@ -70,6 +70,7 @@ from epyseg.ta.tracking.tools import smart_name_parser
 import matplotlib.pyplot as plt
 from epyseg.tools.logger import TA_logger  # logging
 from epyseg.utils.loadlist import  loadlist
+import re
 
 logger = TA_logger()
 
@@ -96,287 +97,6 @@ TODO to be ok with TA
 //PLOT AS SQUARE
 //PLOT AS POINTS
 PLOT AS STRINGS 
-
-        plotCommandsTranslator.put("[Cc][Ee][Ll][Ll][Ss]{0,1}", "CELLS");
-        plotCommandsTranslator.put("[Bb][Oo][Nn][Dd][Ss]{0,1}", "BONDS");
-        plotCommandsTranslator.put("[Vv][Ee][Cc][Tt][Oo][Rr][Ss]{0,1}", "VECTORS");//vectors
-        plotCommandsTranslator.put("[Nn][Ee][Mm][Aa][Tt][Ii][Cc][Ss]{0,1}", "NEMATICS");
-        plotCommandsTranslator.put("[Ss][Qq][Uu][Aa][Rr][Ee][Ss]{0,1}", "SQUARES");
-        plotCommandsTranslator.put("[Rr][Ee][Cc][Tt][Aa][Nn][Gg][Ll][Ee][Ss]{0,1}", "RECTANGLES");
-        plotCommandsTranslator.put("[Ee][Ll][Ll][Ii][Pp][Ss][Ee][Ss]{0,1}", "ELLIPSES");
-        plotCommandsTranslator.put("[Cc][Ii][Rr][Cc][Ll][Ee][Ss]{0,1}", "CIRCLES");//should we cast it as an ellipse
-        plotCommandsTranslator.put("[Pp][Oo][Ll][Yy][Gg][Oo][Nn][Ss]{0,1}", "POLYGONS");
-        plotCommandsTranslator.put("[Ll][Ii][Nn][Ee][Ss]{0,1}", "LINES");
-        plotCommandsTranslator.put("[Aa][Rr][Rr][Oo][Ww][Ss]{0,1}", "ARROWS");//default arrow no rescaling allowed for this unlike for the nematics
-        plotCommandsTranslator.put("[Pp][Oo][Ii][Nn][Tt][Ss]{0,1}|[Dd][Oo][Tt][Ss]{0,1}", "DOTS");//points or DOTS
-        plotCommandsTranslator.put("[Ss][Tt][Rr][Ii][Nn][Gg][Ss]{0,1}|[Tt][Ee][Xx][Tt][Ss]{0,1}", "STRINGS");//points or DOTS
-
-
-    need implement this too
-         if (commandTypeAndCommand.containsKey("EROSION")) {
-            parsedPlot[4] = "EROSION " + commandTypeAndCommand.get("EROSION");
-        }
-        if (commandTypeAndCommand.containsKey("DILATATION")) {
-//            System.out.println("in " +commandTypeAndCommand.get("DILATATION"));
-            parsedPlot[4] = "DILATATION " + commandTypeAndCommand.get("DILATATION");
-        }
-        //now we further parse lut flavours to do things with them
-        if (commandTypeAndCommand.containsKey("LUT")) {
-            parsedPlot[3] = "LUT " + commandTypeAndCommand.get("LUT");
-        }
-        if (commandTypeAndCommand.containsKey("OPACITY")) {
-            parsedPlot[2] = "OPACITY " + commandTypeAndCommand.get("OPACITY");
-        }
-        if (commandTypeAndCommand.containsKey("TRANSPARENCY")) {
-            parsedPlot[2] = "TRANSPARENCY " + commandTypeAndCommand.get("TRANSPARENCY");
-        }
-        
-        
-        # see how I can parse it smartly --> now
-        
-        
-        
-        
-        some tests that need be implemented
-        
-           String testAdvancedCMD = "PLOT AS CELLS, area_cells+10 SELECT * FROM cells + OPACITY 55% + LUT (255*R,133+G,23+B)";
-
-            //sinon juste faire des parsers de LUTS
-            //styles LUT name ou formule des correspondances entre 
-            //si formule --> entre parentheses
-            HashMap<String, String> LUT_ParserNType = new HashMap<String, String>();
-
-            String testPercentages = "TEST 55% 63% #FF00FF 33%";
-            System.out.println(BrickPlotter.getPercent(testPercentages));
-
-            String colorSplitterTest = "TEST #00FF00 #FF0000 #0000AA";
-            System.out.println(BrickPlotter.parseHTMLColors(colorSplitterTest));
-
-            System.out.println(BrickPlotter.parseHTMLColors("LUT #FF00FF 0:0 255:16000 12:#FF0000 16:1500"));
-
-
-
-# manually force max and min too --> not sure it is very necessary 
-
- String maxParser = ".*([Mm][Aa][Xx]\\s{0,}[=]\\s{0,}(\\d{1,}[\\.,]{0,}\\d{0,})).*";//
-            String minParser = ".*([Mm][Ii][Nn]\\s{0,}[=]\\s{0,}(\\d{1,}[\\.,]{0,}\\d{0,})).*";//
-            String testCommand = "+ LUT DNA max=123.3 min=10.1";
-
-
-    and I should also be able to parse such a complex line --> DOES A COMBINATION OF ALL
-   String command = "PLOT AS CELLS SELECT first_pixel_x_cells,first_pixel_y_cells, area_cells FROM cells + LUT DNA +OPACITY 35% #FF0000\n"
-                + "PLOT AS CELLS   SELECT * FROM cells \n"
-                + "#SQL=SELECT * FROM bonds\n"
-                + "CREATE TABLE TEST2 AS SELECT * FROM cells\n"
-                + "#SQL=SELECT * FROM bonds\n"//ignore commented lines
-                + "#SQL =  SELECT * FROM bonds\n"
-                + "  PLOT   AS      BONDS  SELECT * FROM SELECT * FROM bonds   \n"
-                + "  PLOT   AS      CRABOUNIASSE  SELECT * FROM cells  \n"
-                + "PLOT AS  LINES SELECT * FROM cells\n"
-                + "PLOT AS VECTORS   SELECT * FROM polarity    "
-                + "PLOT AS VECTORS   SELECT * FROM polarity  + OPACITY 35% + LUT RAINBOW \n"
-                + "PLOT AS VECTORS SELECT first_pixel_x_cells,first_pixel_y_cells , center_x_cells,center_y_cells, '16166' AS COLORS, '1' AS STROKE_SIZE, 'DEFAULT_ARROW' AS ARROWHEAD_TYPE, '5' AS ARROWHEAD_HEIGHT,'3' AS ARROWHEAD_HEIGHT, '0.3' AS STROKE_OPACITY FROM cells +DILATATION -10\n"
-                + "PLOT AS VECTORS SELECT first_pixel_x_cells,first_pixel_y_cells , center_x_cells,center_y_cells, '16166' AS COLORS, '1' AS STROKE_SIZE, 'DEFAULT_ARROW' AS ARROWHEAD_TYPE, '5' AS ARROWHEAD_HEIGHT,'3' AS ARROWHEAD_HEIGHT, '0.3' AS STROKE_OPACITY FROM cells + OPACITY 100%\n"
-                + "PLOT AS VECTORS SELECT first_pixel_x_cells,first_pixel_y_cells , center_x_cells,center_y_cells, area_cells AS COLOR, '1' AS STROKE_SIZE, 'DEFAULT_ARROW' AS ARROWHEAD_TYPE, '5' AS ARROWHEAD_HEIGHT,'3' AS ARROWHEAD_HEIGHT, '0.3' AS STROKE_OPACITY FROM cells + LUT DNA\n";
-        
-        
-        
-        
-        HashMap<String, String> extraParser = new HashMap<String, String>();
-        extraParser.put(LUT_flavour, "LUT");
-        extraParser.put(OPACITY_flavour, "OPACITY");
-        extraParser.put(TRANSPARENCY_flavour, "TRANSPARENCY");
-        extraParser.put(DILATATION_flavour, "DILATATION");        
-
-   public static ArrayList<Float> getPercent(String textToParse) {
-        ArrayList<Float> percents = new ArrayList<Float>();
-        String percentParser = "(\\d{1,})%";
-        Pattern p = Pattern.compile(percentParser, Pattern.DOTALL);
-        Matcher m = p.matcher(textToParse);
-        while (m.find()) {
-            percents.add(CommonClasses.String2Float(m.group(1)) / 100f);
-        }
-        return percents;
-    }
-
-
-public static ArrayList<Integer> parseHTMLColors(String textToParse) {
-        /**
-         * we parse colors except if preceded by a : stuff
-         */
-        String colorTAGS = "[^:](#[0-9a-fA-F]{6}|[0-9\\.]{1,})";
-        Pattern p = Pattern.compile(colorTAGS, Pattern.DOTALL);
-        Matcher m = p.matcher(textToParse);
-
-        ArrayList<Integer> forbiddenColors = new ArrayList<Integer>();
-        while (m.find()) {
-            //System.out.println(m.group(1));
-            forbiddenColors.add(CommonClasses.getColorFromHtmlColor(m.group(1)));
-        }
-        return forbiddenColors;
-    }
-
-   /**
-     * deep parsing of LUT text files can do everything with that
-     *
-     * @param testLUT2
-     * @return
-     */
-    public static HashMap<Integer, Integer> parseLUT(String testLUT2) {
-        HashMap<Integer, Integer> LUTconversionTable = new HashMap<Integer, Integer>();
-        String LutHumanSpecified = "(\\d{1,}):[']{0,1}([#A-Fa-f0-9]{1,}|[0-9\\.]{1,})[']{0,1}";
-
-        Pattern p = Pattern.compile(LutHumanSpecified);
-        Matcher m = p.matcher(testLUT2);
-
-        while (m.find()) {
-            try {
-                String outputValue = m.group(2);
-                if (!outputValue.contains("#")) {
-                    LUTconversionTable.put(CommonClasses.String2Int(m.group(1)), CommonClasses.String2Int(outputValue));
-                } else {
-                    LUTconversionTable.put(CommonClasses.String2Int(m.group(1)), CommonClasses.getColorFromHtmlColor(outputValue));
-                }
-            } catch (Exception e) {
-            }
-        }
-        return LUTconversionTable;
-    }
-
-    private String getSupportedPlotTypes() {
-        String supportedPlots = "Supported plots are:";
-        for (Map.Entry<String, String> entry : plotCommandsTranslator.entrySet()) {
-            String value = entry.getValue();
-            supportedPlots += "\n" + value;
-        }
-        return supportedPlots + "\n";
-    }
-
-    public String[] parsedSinglePlotLine(String individualCommmand) {
-        if (individualCommmand == null || individualCommmand.isEmpty()) {
-            return null;
-        }
-        /**
-         * first we clean the commands
-         */
-        individualCommmand = individualCommmand.trim();
-
-        /**
-         * we ignore all commented lines
-         */
-        if (individualCommmand.startsWith("#") || individualCommmand.startsWith("//")) {
-            return null;
-        }
-        /**
-         * one is plot, two is SQL command, 3 is transparency, four is LUT
-         */
-        String[] parsedPlot = new String[5];
-//        System.out.println(individualCommmand);
-//        if (individualCommmand.matches(SQLPattern)) {
-//            //parse SQL command
-//            String SQLcommand = individualCommmand.replaceAll(SQLPattern, "$1").trim();
-////            System.out.println("extracted SQLcommand='" + SQLcommand + "'");
-//        }
-
-        HashMap<String, String> commandTypeAndCommand = new HashMap<String, String>();
-        //TODO do not cut if in between brackets --> allows formulas to be passed
-        //only cuts if + is not in between brackets
-
-        /**
-         * first we strip TRANSPARENCY and anaestetic commands
-         */
-        String LUT_flavour = ".*\\s{0,}[Ll][Uu][Tt][Ss]{0,1}(.*)|.*\\s{0,}[Pp][Aa][Ll][Ee][Tt][Tt][Ee][Ss]{0,1}(.*)";
-        String TRANSPARENCY_flavour = ".*\\s{0,}[Tt][Rr][Aa][Nn][Ss][Pp][Aa][Rr][Ee][Nn][Cc][Yy](.*\\d{1,}%.*)";
-        String OPACITY_flavour = ".*\\s{0,}[Oo][Pp][Aa][Cc][Ii][Tt][Yy](.*\\d{1,}%.*)";
-        String DILATATION_flavour = ".*\\s{0,}[Dd][Ii][Ll][Aa][Tt][Aa][Tt][Ii][Oo][Nn][Ss]{0,1}(.*)|.*\\s{0,}[Ee][Rr][Oo][Ss][Ii][Oo][Nn][Ss]{0,1}(.*)";
-        //pour les LUTs faire aussi un parser manuel
-        HashMap<String, String> extraParser = new HashMap<String, String>();
-        extraParser.put(LUT_flavour, "LUT");
-        extraParser.put(OPACITY_flavour, "OPACITY");
-        extraParser.put(TRANSPARENCY_flavour, "TRANSPARENCY");
-        extraParser.put(DILATATION_flavour, "DILATATION");
-
-        String[] ExtraSplitted = individualCommmand.split("\\+(?![^()]*\\))", -1);
-        //System.out.println(ExtraSplitted.length + " "+individualCommmand);
-        for (String string : ExtraSplitted) {
-            if (string.equals(individualCommmand)) {
-                break;
-            }
-            for (Map.Entry<String, String> entry : extraParser.entrySet()) {
-                String key = entry.getKey();
-                String value = entry.getValue();
-                //System.out.println(key + " "+string + " "+string.matches(key));
-
-                if (string.matches(key)) {
-                    commandTypeAndCommand.put(value, string.replaceAll(key, "$1").trim());
-                    //            System.out.println(string);
-                    individualCommmand = individualCommmand.replaceAll("\\+" + string, "").trim();
-                }
-            }
-        }
-
-        if (commandTypeAndCommand.containsKey("EROSION")) {
-            parsedPlot[4] = "EROSION " + commandTypeAndCommand.get("EROSION");
-        }
-        if (commandTypeAndCommand.containsKey("DILATATION")) {
-//            System.out.println("in " +commandTypeAndCommand.get("DILATATION"));
-            parsedPlot[4] = "DILATATION " + commandTypeAndCommand.get("DILATATION");
-        }
-        //now we further parse lut flavours to do things with them
-        if (commandTypeAndCommand.containsKey("LUT")) {
-            parsedPlot[3] = "LUT " + commandTypeAndCommand.get("LUT");
-        }
-        if (commandTypeAndCommand.containsKey("OPACITY")) {
-            parsedPlot[2] = "OPACITY " + commandTypeAndCommand.get("OPACITY");
-        }
-        if (commandTypeAndCommand.containsKey("TRANSPARENCY")) {
-            parsedPlot[2] = "TRANSPARENCY " + commandTypeAndCommand.get("TRANSPARENCY");
-        }
-
-        //TODO further reparse them if needed
-        // System.out.println("indi"+ individualCommmand);
-        // System.out.println(commndTypeAndCommand);
-        if (individualCommmand.matches(plotCommandPattern)) {
-//            System.out.println("parsed command");
-            //parse SQL command
-            String plotType = individualCommmand.replaceAll(plotCommandPattern, "$1").trim();
-            /**
-             * we check if the plot type matches one of the possible plot types
-             * I know
-             */
-            boolean matched = false;
-            for (Map.Entry<String, String> entry : plotCommandsTranslator.entrySet()) {
-                String key = entry.getKey();
-                if (plotType.matches(key)) {
-                    plotType = entry.getValue();
-                    matched = true;
-                    break;
-                }
-            }
-            if (!matched) {
-                System.err.println("UNKNOWN PLOT TYPE: '" + plotType + "'");
-                System.err.println(getSupportedPlotTypes());
-                plotType = "UNKNOWN";
-            }
-//            System.out.println("plot type='" + plotType + "'");
-            String SQLcommand = individualCommmand.replaceAll(plotCommandPattern, "$2").trim();
-//            System.out.println("SQLcommand='" + SQLcommand + "'");
-
-            parsedPlot[0] = plotType;
-            parsedPlot[1] = SQLcommand;
-//                SQLCommands.add(SQLcommand);
-//                plots.add(plotType);
-            //try plottings 
-        } else {
-            /**
-             * execute the unmatched pattern as an SQL command
-             */
-            parsedPlot[1] = individualCommmand;
-        }
-        return parsedPlot;
-        //now we perform the extraction
-    }
-
 '''
 
 # check a set of TA commands to see how I can parse them
@@ -387,12 +107,21 @@ public static ArrayList<Integer> parseHTMLColors(String textToParse) {
 
 extra_plot_commands_for_images = ['LUT', 'EROSION', 'DILATATION', 'DILATION', 'OPACITY', 'TRANSPARENCY']
 
-
 def plot_SQL(SQL_command):
-    # just get the word after
-    # or split and get all words --> very easy TODO in fact
-    # if SQL_command.lower().starts_with()
+    """
+    Plot SQL data based on the given SQL command.
 
+    Args:
+        SQL_command (str): The SQL command to plot.
+
+    Examples:
+        >>> plot_SQL("PLOT AS CELLS SELECT * FROM table")
+        cleaned_SQL_command "PLOT AS CELLS SELECT * FROM table"
+        plot_type "CELLS"
+        SQL_command "SELECT * FROM table"
+        extra_commands_to_parse "None"
+
+    """
     if SQL_command is None:
         logger.error('Empty SQL command --> nothing to do')
         return
@@ -402,7 +131,6 @@ def plot_SQL(SQL_command):
         return
 
     if SQL_command.strip().startswith('#') or SQL_command.strip().startswith('//'):
-        # assume this is a comment and then nothing TODO
         return
 
     cleaned_SQL_command = _clean_string(SQL_command)
@@ -410,107 +138,62 @@ def plot_SQL(SQL_command):
     print('cleaned_SQL_command "' + cleaned_SQL_command + '"')
 
     plot_type = None
-    # First we get the type of plot then we should get the SQL command
     if cleaned_SQL_command.upper().startswith('PLOT AS CELLS'):
-        # plot as cells --> need map data to the local ID database of cells
-        # print('plot as cells')
         plot_type = 'CELLS'
-        # cleaned_SQL_command.replace()
-        # get index and cut after
-
-        # cleaned_SQL_command = cleaned_SQL_command.upper().index('PLOT AS CELLS')
         cleaned_SQL_command = _strip_from_command(cleaned_SQL_command, 'PLOT AS CELLS')
     elif cleaned_SQL_command.upper().startswith('PLOT AS BONDS'):
-        # print('plot as bonds')
         plot_type = 'BONDS'
         cleaned_SQL_command = _strip_from_command(cleaned_SQL_command, 'PLOT AS BONDS')
     elif cleaned_SQL_command.upper().startswith('PLOT AS VERTICES'):
-        # print('plot as vertices')
         plot_type = 'VERTICES'
         cleaned_SQL_command = _strip_from_command(cleaned_SQL_command, 'PLOT AS VERTICES')
     else:
-        # unknown/unsupported plot --> raise an error
         logger.error('unsupported plot command: ' + str(cleaned_SQL_command))
         return
 
     print('plot_type "' + str(plot_type) + '"')
-    # print('cleaned_SQL_command',cleaned_SQL_command)
-
-    # now we need to get the pure SQL command --> see how I do that in TA
-    # further parse it --> get the command between different stuff
-    # SQL_command is actually anything before the first magic keyword encountered if any --> should be easy TODO
-
-    # get extras
 
     first_idx = None
     for extra in extra_plot_commands_for_images:
         try:
             idx = cleaned_SQL_command.upper().index(extra)
-            # if idx !=-1:
             if first_idx is None:
                 first_idx = idx
             else:
                 first_idx = min(first_idx, idx)
         except:
-            # extra command not found --> ignoring
             continue
-
-    # print('first_idx',first_idx)
 
     extra_commands_to_parse = None
     if first_idx is not None:
-        # cut after and before --> before is the SQL command otherwise ignore
-        # very good in fact
-
         SQL_command = cleaned_SQL_command[0:first_idx].strip()
         if SQL_command.endswith('+'):
             SQL_command = SQL_command[:-1].strip()
         extra_commands_to_parse = cleaned_SQL_command[first_idx:].strip()
-
-
     else:
         SQL_command = cleaned_SQL_command
 
     print('SQL_command "' + str(SQL_command) + '"')
-    print('extra_commands_to_parse "' + str(
-        extra_commands_to_parse) + '"')  # extras are indicated by a plus --> this way it is very simple to get them --> may remove plus if ends with it
+    print('extra_commands_to_parse "' + str(extra_commands_to_parse) + '"')
 
     if extra_commands_to_parse:
-        # need further parse these commands to get what I really need --> first find the identifier then find the values
-        # print('TODO --> need parse extras')
-
-        # we clean the extras and then get their values
-        # extra_commands_to_parse = extra_commands_to_parse.replace('+','')# remove the pluses from extras
-
-        if '+' in extra_commands_to_parse:
-            individual_extras = extra_commands_to_parse.split('+')
-        else:
-            individual_extras = [extra_commands_to_parse]
+        individual_extras = extra_commands_to_parse.split('+')
 
         for individual_extra in individual_extras:
             print('individual_extra "' + individual_extra.strip() + '"')
 
-            # ça marche super --> now I need to further parse the extras but I'm almost there in fact --> that is very easy TODO
-
-            # split it to get the first keyword then see later how to handle the rest
             extra_type = individual_extra.strip().split()
-
-            # print("extra_type",extra_type)
 
             if extra_type[0].strip().upper() not in extra_plot_commands_for_images:
                 logger.error('unknown image extra ' + str(extra_type[0]) + ' --> ignoring')
             else:
-                # known extra --> need parse it to make it meaningful --> TODO
-                # need Call a different function depending on the data --> TODO
                 if extra_type[0].strip().upper() == extra_plot_commands_for_images[0]:
-                    # ['LUT', 'EROSION', 'DILATATION','DILATION', 'OPACITY', 'TRANSPARENCY']
                     print('LUT to parse')
                     print('param', parse_lut(extra_type))
                 elif extra_type[0].strip().upper() == extra_plot_commands_for_images[1]:
                     print('EROSION to parse')
                     print('param', parse_erosion_dilation(extra_type))
-                elif extra_type[0].strip().upper() == extra_plot_commands_for_images[2] or extra_type[
-                    0].strip().upper() == extra_plot_commands_for_images[3]:
+                elif extra_type[0].strip().upper() == extra_plot_commands_for_images[2] or extra_type[0].strip().upper() == extra_plot_commands_for_images[3]:
                     print('DILATION to parse')
                     print('param', parse_erosion_dilation(extra_type))
                 elif extra_type[0].strip().upper() == extra_plot_commands_for_images[4]:
@@ -520,53 +203,22 @@ def plot_SQL(SQL_command):
                     print('TRANSPARENCY to parse')
                     print('param', 1. - parse_opacity(extra_type))
 
-                # else:
-                #     print('weird extra', extra_type[0])
-
-        # --> very good idea
-
-        # extra_commands_to_parse = _clean_string(extra_commands_to_parse)
-        # print('cleaned_extras',extra_commands_to_parse)
-        # now need parse it --> can do it in a consecutive way
-        # if unknwon keyword --> say it and move on to next step
-        # should not be too hard
-
-        # then need even further parse it to get the real value of the parameter
-        # extra_settings = extra_commands_to_parse.split()
-        # if keyword is known and until next keyword --> get the values --> pb how can I warn about unknown keywords!!!
-
-        # for extra_setting in extra_settings:
-        #     print(extra_setting)
-
-
-'''
-    public static HashMap<Integer, Integer> parseLUT(String testLUT2) {
-        HashMap<Integer, Integer> LUTconversionTable = new HashMap<Integer, Integer>();
-        String LutHumanSpecified = "(\\d{1,}):[']{0,1}([#A-Fa-f0-9]{1,}|[0-9\\.]{1,})[']{0,1}";
-
-        Pattern p = Pattern.compile(LutHumanSpecified);
-        Matcher m = p.matcher(testLUT2);
-
-        while (m.find()) {
-            try {
-                String outputValue = m.group(2);
-                if (!outputValue.contains("#")) {
-                    LUTconversionTable.put(CommonClasses.String2Int(m.group(1)), CommonClasses.String2Int(outputValue));
-                } else {
-                    LUTconversionTable.put(CommonClasses.String2Int(m.group(1)), CommonClasses.getColorFromHtmlColor(outputValue));
-                }
-            } catch (Exception e) {
-            }
-        }
-        return LUTconversionTable;
-    }
-'''
-
-
 def parse_lut(extra_type):
-    # ['LUT', 'DNA', 'MIN=GLOBAL_MIN', 'MAX=GLOBAL_MAX'] # do I need to reimplement that ??? not sure it is very ueseful as the SQL command can easily be edited to avoid that
-    # print(extra_type)
-    # print(len(extra_type), not ':' in extra_type[1])
+    """
+    Parse the LUT extra command.
+
+    Args:
+        extra_type (list): List of strings representing the LUT extra command.
+
+    Returns:
+        dict or str: The parsed LUT mapping as a dictionary or the name of the LUT.
+
+    Examples:
+        >>> parse_lut(['LUT', 'DNA'])
+        'DNA'
+
+    """
+
     if len(extra_type) == 2 and (not ':' in extra_type[1]):
         try:
             return extra_type[1]  # returns the name of the LUT
@@ -574,7 +226,6 @@ def parse_lut(extra_type):
             pass
     else:
         if ':' in extra_type[1]:
-            # get lutvalues and return them as a dict
             lut_mapping = {}
             for mapping in extra_type[1:]:
                 split_mappings = mapping.split(':')
@@ -582,25 +233,37 @@ def parse_lut(extra_type):
                 key = int(split_mappings[0])
                 value = split_mappings[1]
                 if '#' in value:
-                    # convert it back to integer
-                    value = int(value.replace('#', ''),
-                                16)  # convert hexadecimal (base 16) back to int --> must remove #
+                    value = int(value.replace('#', ''), 16)
                 else:
                     value = int(value)
                 lut_mapping[key] = value
         else:
-            # need handle a stuff with max min or something hybrid in fact
-            # TODO implement parsing of max and min but ignore for now ['LUT', 'DNA', 'MIN=GLOBAL_MIN', 'MAX=GLOBAL_MAX']
             logger.warning('LUT bounds not implemented yet')
             return parse_lut(extra_type=extra_type[0:2])
         return lut_mapping
-    # TODO
-    # something went wrong --> ignoring
+
     return None
 
 
 def parse_opacity(extra_type):
-    # TODO
+    """
+    Parse the opacity extra command.
+
+    Args:
+        extra_type (list): List of strings representing the opacity extra command.
+
+    Returns:
+        float or None: The parsed opacity value as a float or None if parsing fails.
+
+    Examples:
+        >>> parse_opacity(['OPACITY', '50'])
+        50.0
+
+        >>> parse_opacity(['OPACITY', '25%'])
+        0.25
+
+    """
+
     if len(extra_type) == 2:
         try:
             ispercent = '%' in extra_type[1]
@@ -609,58 +272,114 @@ def parse_opacity(extra_type):
             value = float(extra_type[1])
             if ispercent:
                 value /= 100.
-            return value  # returns the name of the LUT
+            return value
         except:
             pass
     return None
 
 
 def parse_erosion_dilation(extra_type):
-    # TODO
+    """
+    Parse the erosion or dilation extra command.
+
+    Args:
+        extra_type (list): List of strings representing the erosion or dilation extra command.
+
+    Returns:
+        int or None: The parsed erosion or dilation value as an integer or None if parsing fails.
+
+    Examples:
+        >>> parse_erosion_dilation(['EROSION', '2'])
+        2
+
+    """
+
     if len(extra_type) == 2:
         try:
-            return int(extra_type[1])  # returns the name of the LUT
+            return int(extra_type[1])
         except:
             pass
     return None
 
 
-def _clean_string(str):
-    parsed_SQL_commands = str.split()
-    parsed_SQL_commands = [parsed_SQL_command.strip() for parsed_SQL_command in parsed_SQL_commands]
-    # recreate it as a single sentence and do the tests
-    cleaned_SQL_command = ' '.join(parsed_SQL_commands)
-    return cleaned_SQL_command
+def _clean_string(string):
+    """
+    Clean the string by removing leading/trailing whitespaces and extra whitespaces between words.
+
+    Args:
+        string (str): The input string.
+
+    Returns:
+        str: The cleaned string.
+
+    Examples:
+        >>> _clean_string('  Hello     world!   ')
+        'Hello world!'
+
+    """
+
+    parsed_commands = string.split()
+    parsed_commands = [command.strip() for command in parsed_commands]
+    cleaned_string = ' '.join(parsed_commands)
+    return cleaned_string
 
 
 def _strip_from_command(command, things_to_strip):
-    # begin_strip = command.upper().index(things_to_strip)
-    # print('begin_strip', begin_strip)
-    # end_strip =len(things_to_strip)
-    # print('end_strip',end_strip)
+    """
+    Strip the specified things from the command.
 
-    # return command/
-    # command = command[begin_strip:end_strip]
-    # print('stripped "' +command+'"')
+    Args:
+        command (str): The command string.
+        things_to_strip (str): The things to strip from the command.
 
-    # print(text.removesuffix('ly'))
-    # print(text.removesuffix('World'))
+    Returns:
+        str: The stripped command.
+
+    Examples:
+        >>> _strip_from_command('SELECT * FROM table', 'SELECT')
+        '* FROM table'
+
+        >>> _strip_from_command('HELLO world', 'hello')
+        'world'
+
+    """
 
     import re
     case_insensitive_replace = re.compile(re.escape(things_to_strip), re.IGNORECASE)
     stripped = case_insensitive_replace.sub('', command).strip()
 
-    # print(stripped)
     return stripped
 
-# **kwargs are the extra params --> TODO also ask for opacity
-# indeed bg image must be provided there maybe also with a channel --> TODO--> see how I can handle that?
-
-# make it store the max and the minb
-
-
 # NB THERE IS A BUG THAT FORCES THE PLOT TWICE --> PROBABLY SOME ADJUSTMENT STUFF --> NEED CHANGE THIS
-def plot_as_any(parent_image, SQL_command, plot_type='cells', return_mask=False, invert_mask=True, db=None, current_frame=None, **kwargs):
+def plot_as_any(parent_image, SQL_command, plot_type='cells', return_mask=False, invert_mask=True, db=None,current_frame=None, **kwargs):
+    """
+    Plot image based on SQL command results.
+
+    Args:
+        parent_image (str): Path to the parent image.
+        SQL_command (str): SQL command to run and get the results for plotting.
+        plot_type (str, optional): Type of plot to generate. Defaults to 'cells'.
+        return_mask (bool, optional): Whether to return the mask image. Defaults to False.
+        invert_mask (bool, optional): Whether to invert the mask image. Defaults to True.
+        db (TAsql, optional): TAsql object representing the database. Defaults to None.
+        current_frame (int, optional): Current frame number. Defaults to None.
+        **kwargs: Additional keyword arguments for extra parameters.
+
+    Returns:
+        None
+
+    # Examples:
+    #     # Example 1: Plotting as cells with default parameters
+    #     plot_as_any('path/to/parent_image.tif', 'SELECT * FROM table')
+    #
+    #     # Example 2: Plotting as bonds with additional parameters
+    #     plot_as_any('path/to/parent_image.tif', 'SELECT * FROM table', plot_type='bonds', return_mask=True, LUT='rainbow', opacity=0.5)
+    #
+    #     # Example 3: Plotting as vertices with database object
+    #     db = TAsql('path/to/database.db')
+    #     plot_as_any('path/to/parent_image.tif', 'SELECT * FROM table', plot_type='vertices', db=db, current_frame=1)
+
+    """
     if parent_image is None:
         logger.error('No input image specified, cannot plot image!')
         return
@@ -1147,7 +866,7 @@ def plot_as_any(parent_image, SQL_command, plot_type='cells', return_mask=False,
         # plt.show()
     if return_mask:
         if invert_mask:
-            mask=Img.invert(mask)
+            mask=invert(mask)
         # also we apply the mask to the output
         output[mask!=0]=0
         return mask, output

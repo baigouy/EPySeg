@@ -22,7 +22,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from epyseg.deeplearning.deepl import EZDeepLearning
 import os
-from epyseg.img import Img, has_metadata
+from epyseg.img import Img, has_metadata, normalization_methods
 from tensorflow.keras.layers import Lambda
 from tensorflow.keras.models import Sequential
 
@@ -80,7 +80,7 @@ def surface_projection_pyta(deepTA, input_file, progress_callback=None, cur_prog
     # --> so my ensemble testing sucks
     # ideally always pass in the model with height map and surface proj, so that the output results are awlays the same
     result = predict_single_image(deepTA, input_file, Z_FRAMES_TO_ADD=Z_FRAMES_TO_ADD,
-                                  input_normalization={'method': Img.normalization_methods[7], 'range': [2, 99.8],
+                                  input_normalization={'method': normalization_methods[7], 'range': [2, 99.8],
                                                        'individual_channels': True, 'clip': False})
 
 
@@ -113,7 +113,7 @@ def surface_projection_pyta(deepTA, input_file, progress_callback=None, cur_prog
             deepTA.model = tmp_model
             for rrr in range(recursion_for_denoising):
                 result2 = predict_single_image(deepTA, surface_proj_file_path, Z_FRAMES_TO_ADD=Z_FRAMES_TO_ADD, input_channel_of_interest=None,
-                                              input_normalization={'method': Img.normalization_methods[7], 'range': [2, 99.8],
+                                              input_normalization={'method': normalization_methods[7], 'range': [2, 99.8],
                                                                    'individual_channels': True, 'clip': False})
                 denoised = result2[0]
                 Img(np.squeeze(denoised), dimensions='hw').save(surface_proj_file_path)
@@ -194,7 +194,7 @@ def surface_projection_pyta_bckup(deepTA, input_file, progress_callback=None, cu
     # --> so my ensemble testing sucks
     # ideally always pass in the model with height map and surface proj, so that the output results are awlays the same
     result = predict_single_image(deepTA, input_file, Z_FRAMES_TO_ADD=Z_FRAMES_TO_ADD,
-                                  input_normalization={'method': Img.normalization_methods[7], 'range': [2, 99.8],
+                                  input_normalization={'method': normalization_methods[7], 'range': [2, 99.8],
                                                        'individual_channels': True, 'clip': False})
 
     # could then repredict based on a smaller model
@@ -265,7 +265,7 @@ def denoise(deepTA, input_file):
     # apparently it's a terrible idea to add frames and it makes sense btw, even though some models do lose data --> exclude those models!!!
     Z_FRAMES_TO_ADD = None
     result = predict_single_image(deepTA, input_file, Z_FRAMES_TO_ADD=Z_FRAMES_TO_ADD,
-                                  input_normalization={'method': Img.normalization_methods[7], 'range': [2, 99.8],
+                                  input_normalization={'method': normalization_methods[7], 'range': [2, 99.8],
                                                        'individual_channels': True, 'clip': False})
     denoised = result[0]
     Img(denoised, dimensions='hw').save(
@@ -513,7 +513,7 @@ if __name__ == '__main__':
     SIZE_FILTER = None  # 100 # set to 100 to get rid of cells having pixel area < 100 pixels
 
     # input_normalization = {'method': 'Rescaling (min-max normalization)', 'range': [0, 1], 'individual_channels': True}
-    # input_normalization = {'method': Img.normalization_methods[7], 'range': [2, 99.8],'individual_channels': True, 'clip': False}
+    # input_normalization = {'method': normalization_methods[7], 'range': [2, 99.8],'individual_channels': True, 'clip': False}
     input_normalization = None
 
     # INPUT_FOLDER = '/path/to/files_to_segment/'
@@ -533,6 +533,8 @@ if __name__ == '__main__':
                   # '/E/Sample_images/sample_images_pyta/Image48.lsm',
                   #   '/E/Sample_images/sample_images_pyta/Image4.lsm'
                   ]
+
+    INPUT_FILE = ['/E/Sample_images/sample_images_denoise_manue/210313_armGFP_suz_19hAPF/Image1.lsm']
 
     # denoiser tests
     # INPUT_FILE = '/E/Sample_images/sample_images_pyta/focused_Series012.png'

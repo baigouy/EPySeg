@@ -12,7 +12,7 @@
 # also not easy to have panels with same size
 # also see how to do the external labels in a way that it is not too painful
 # the squares can have 'text' and 'img' depending on their content for the preview --> think about that!!!
-# or for the labels --> do a duplicate of a row or a column but then link the images --> or link it to cols or row --> think about it --> not that easy for left panels especially if they should span sevral rowsz5qix=
+# or for the labels --> do a duplicate of a row or a column but then link the images --> or link it to cols or row --> think about it --> not that easy for left panels especially if they should span sevral rows
 # implement clones and try another tracking algo
 # see how I should do that
 # if an image is selected --> offer a swap

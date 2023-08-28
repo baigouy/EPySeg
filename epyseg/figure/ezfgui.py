@@ -272,7 +272,7 @@ class EZFIG_GUI(QtWidgets.QMainWindow):
         #
         # # populate LUTs --> once for good at the beginning of the table
         # self.lut_combo = QComboBox()
-        # available_luts = list_availbale_luts()
+        # available_luts = list_available_luts()
         # for lut in available_luts:
         #     self.lut_combo.addItem(lut)
         #

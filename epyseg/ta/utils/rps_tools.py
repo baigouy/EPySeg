@@ -1,5 +1,6 @@
 import numpy as np
 import networkx as nx
+from skimage.data._binary_blobs import binary_blobs
 from sklearn.neighbors import NearestNeighbors
 from skimage.draw import line
 from skimage.measure import label, regionprops
@@ -9,15 +10,11 @@ import matplotlib.pyplot as plt
 from skimage.measure._regionprops import RegionProperties
 import math
 from timeit import default_timer as timer
+from sklearn.metrics import silhouette_score
+from sklearn.cluster import KMeans
 from numba import jit, njit
-
 __DEBUG__ = False  # for pavlidis code -> stores and prints decisions and directions
 
-# pavlidis coords all clockwise and properly ordered!
-# from personal.pyTA.tsts.px_ordering import order_points_new
-# from personal.pyTA.tsts.px_ordering3 import sort_pixels_clowkise2
-
-# maybe stop if visiting the first pixel for the third time
 
 pavlidis_front_up = [[-1, -1],  # px up left
                      [-1, 0],  # px up
@@ -57,267 +54,246 @@ pavlidis_lwr_pixels_270 =[[-1, 1],  # px upper right
 
 starting_pavlidis = [pavlidis_lwr_pixels_0, pavlidis_lwr_pixels_90, pavlidis_lwr_pixels_180, pavlidis_lwr_pixels_270]
 
-
-# KEEP I could even make this better using slice since it's anyway lines!!! --> IN FACT THIS IS NOT A GOOD IDEA as if outside of bonds it will crash and that also makes it hard to use for regions!
-# orientation_pavlidis = np.asarray([pavlidis_front_up, pavlidis_front_right, pavlidis_front_bottom, pavlidis_front_left])
 orientation_pavlidis = [pavlidis_front_up, pavlidis_front_right, pavlidis_front_bottom, pavlidis_front_left]
 
 
 def __check_pixel_pavlidis(img, y, x, color_of_interest=None):
+    """
+    Check if a pixel in the image matches the specified color of interest.
+
+    Args:
+        img (np.ndarray or list): Image or region properties.
+        y (int): Y-coordinate of the pixel.
+        x (int): X-coordinate of the pixel.
+        color_of_interest: Color value to compare against.
+
+    Returns:
+        bool: True if the pixel matches the color of interest, False otherwise.
+    """
     if isinstance(img, np.ndarray):
         return img[y, x] == color_of_interest
     if isinstance(img, list):
         return [y, x] in img
 
 
+def get_feret_from_region(region):
+    """
+    Calculate the Feret diameter (major axis) of a region.
 
+    Args:
+        region: Region properties.
 
-# the njit version is super slow and does not bring much --> skip it, it is however required to do measurements such as perimeter and alike
-# TODO do a njit version of pavlidis --> would be much faster this time
+    Returns:
+        tuple: Coordinates of the two endpoints of the major axis.
+    """
+    major_axis_length = region.major_axis_length
+    orientation = region.orientation
+    centroid = region.centroid
+
+    x0 = centroid[1] - np.sin(orientation) * major_axis_length / 2
+    y0 = centroid[0] - np.cos(orientation) * major_axis_length / 2
+    x1 = centroid[1] + np.sin(orientation) * major_axis_length / 2
+    y1 = centroid[0] + np.cos(orientation) * major_axis_length / 2
+
+    return (y0,x0),(y1,x1)
+
 @njit
 def pavlidis2(img, start_y=None, start_x=None, closed_contour=False, color_of_interest=None,
              auto_detect_extreme_points_for_region_upon_missing_start_coords=True):
-    # based on http://www.imageprocessingplace.com/downloads_V3/root_downloads/tutorials/contour_tracing_Abeer_George_Ghuneim/theo.html
+    """
+    Traces a contour in an image using the Pavlidis algorithm.
+
+    Args:
+        img (ndarray): The input image.
+        start_y (int): The starting y-coordinate for the contour tracing. Default is None.
+        start_x (int): The starting x-coordinate for the contour tracing. Default is None.
+        closed_contour (bool): Flag indicating whether the contour is closed. Default is False.
+        color_of_interest: The color value of interest for contour tracing. Default is None.
+        auto_detect_extreme_points_for_region_upon_missing_start_coords (bool): Flag indicating whether
+            to automatically detect extreme points for the region if start coordinates are missing.
+            Default is True.
+
+    Returns:
+        list: A list of (y, x) coordinates representing the traced contour.
+
+    # Examples:
+    #     >>> img = np.array([[0, 0, 0, 0, 0],
+    #     ...                 [0, 1, 1, 1, 0],
+    #     ...                 [0, 1, 0, 1, 0],
+    #     ...                 [0, 1, 1, 1, 0],
+    #     ...                 [0, 0, 0, 0, 0]])
+    #     >>> contour = pavlidis2(img, start_y=2, start_x=1, closed_contour=True)
+    #     >>> print(contour)
+    #     [(2, 1), (1, 2), (1, 3), (2, 4), (3, 3), (3, 2)]
+    #
+    #     >>> img = np.array([[0, 0, 0, 0, 0],
+    #     ...                 [0, 1, 1, 1, 0],
+    #     ...                 [0, 1, 0, 1, 0],
+    #     ...                 [0, 1, 1, 1, 0],
+    #     ...                 [0, 0, 0, 0, 0]])
+    #     >>> contour = pavlidis2(img, start_y=2, start_x=1, closed_contour=False)
+    #     >>> print(contour)
+    #     [(2, 1), (1, 2), (1, 3), (2, 4), (3, 3)]
+    """
 
     coords = []
-    # debug = []
-    # debug.append('test')
-    # debug.clear()
-    # if __DEBUG__:
-
-
-
-
-    # if not isinstance(img, RegionProperties):
-
-
 
     if start_x >= img.shape[1] or start_y >= img.shape[0] or start_x < 0 or start_y < 0:
         print('error coordinates outside the image')
         return coords
+
     if color_of_interest is None:
         color_of_interest = img[start_y, start_x]
+
     if img[start_y, start_x] != color_of_interest:
         print('error starting coordinates outside the object')
         return coords
-    # else:
-    #     # get regionprops coords
-    #     img = img.coords
-    #     if start_x is None or start_y is None:
-    #         if not auto_detect_extreme_points_for_region_upon_missing_start_coords:
-    #             start_y, start_x = img[0][0], img[0][1]
-    #         else:
-    #             # to be on the safe side get one of the most distant extreme points as a starting point
-    #             feret_1, feret_2 = get_feret_from_points(extreme_points(img))
-    #             start_y = feret_1[0]
-    #             start_x = feret_1[1]
-    #     else:
-    #         if not __check_pixel_pavlidis(img, start_y, start_x):
-    #             print('error coordinates outside the image')  # convert to logger error
-    #             return coords
-    #     # convert region props to list for convenience
-    #     img = img.tolist()
 
     cur_coord_x = start_x
     cur_coord_y = start_y
     coords.append((start_y, start_x))
 
-    # if __DEBUG__:
-    #     # pt = str((start_y, start_x))
-    #     # print('pt', pt)
-    #     # debug.append(pt)
-    #     print('__DEBUG__',(start_y, start_x))
-
     look_direction = 0
     counter = 0
     no_success_counter = 0
-
-    # count nb of orientation change without success and if too many --> quit!
-
-
-    # TODO need check the entry point is valid and fits with the data
-    # shall I even more recode pavlidis --> how to avoid infinite loops
-
     nb_of_encounters_of_first_pixel = 0
 
-    # if outside of the image need stop, in fact need implement the count of the nb of changes in direction
-
-    # f you rotate 3 times without finding any black pixels, this means that you are standing on an isolated pixel
-    while (True):  # danger infinite loop # maybe I should limit that somehow
+    while True:
         counter += 1
         success = False
         no_success_counter = 0
 
         if no_success_counter >= 3:
-            return coords # on an isolated pixel
+            return coords
 
-        if nb_of_encounters_of_first_pixel>=3:
+        if nb_of_encounters_of_first_pixel >= 3:
             return coords
 
         if cur_coord_x == start_x and cur_coord_y == start_y:
-            nb_of_encounters_of_first_pixel+=1
+            nb_of_encounters_of_first_pixel += 1
 
-        # need replace by two loops
-        # ppp=-1
-        # for shift in orientation_pavlidis[look_direction]:
+        print('look_direction', look_direction, counter)
 
-        # print()
-        # MEGA NB THERE IS AN INFINITE LOOP BUG HERE
-        # print('tutu', orientation_pavlidis[look_direction], orientation_pavlidis[look_direction].shape[0])
-        print('look_direction',look_direction, counter)
         for ppp in range(orientation_pavlidis[look_direction].shape[0]+1):
             shift = orientation_pavlidis[look_direction][ppp]
-            print('shift',shift, coords) #  shift [          160760960 7595447239221182464] --> bug here
-            # ppp+=1
-            # check pixels in front of the current pixel
-
-
+            print('shift', shift, coords)
 
             coords_to_test_x = cur_coord_x + int(shift[1])
             coords_to_test_y = cur_coord_y + int(shift[0])
 
-
-
             print(coords_to_test_x, coords_to_test_y)
 
-            # prevent infinite loop for non closed contours
-            # if not closed_contour:  # THIS PART OF THE CODE IS NOT VERY SMART AND CAN LEAD TO ERRORS IF START POINTS ARE NOT PROPERLY DEFINED (OK FOR NOW THOUGH!)
-            # required for debug and to avoid infinite loops
-            if True:
+            if True:  # Avoiding infinite loop for non-closed contours
                 if (coords_to_test_y, coords_to_test_x) in coords:
-                    # if __DEBUG__:
-                    #     # debug.append('point already encountered --> quitting')
-                    #     # print(debug)
-                    #     print('__DEBUG__','point already encountered --> quitting')
                     return coords
 
-            # if isinstance(img, np.ndarray):
-            if coords_to_test_y >= img.shape[0] or coords_to_test_x >= img.shape[
-                1] or coords_to_test_y < 0 or coords_to_test_x < 0:
+            if coords_to_test_y >= img.shape[0] or coords_to_test_x >= img.shape[1] or \
+                    coords_to_test_y < 0 or coords_to_test_x < 0:
                 continue
 
-            # if img[coords_to_test_y, coords_to_test_x] == color_of_interest:
-            # if __check_pixel_pavlidis(img, coords_to_test_y, coords_to_test_x, color_of_interest):
             if img[coords_to_test_y, coords_to_test_x] == color_of_interest:
-
                 cur_coord_y = coords_to_test_y
                 cur_coord_x = coords_to_test_x
 
                 if cur_coord_x == start_x and cur_coord_y == start_y:
-                    # if __DEBUG__:
-                    #     # print(debug)
-                    #     print('__DEBUG__','end')
                     return coords
                 coords.append((cur_coord_y, cur_coord_x))
-                # if __DEBUG__:
-                #     # debug.append((cur_coord_y, cur_coord_x))
-                #     print('__DEBUG__', (cur_coord_y, cur_coord_x))
 
-                # if P1 is the pixel then need change orientation
                 if ppp == 0:
                     look_direction -= 1
                     if look_direction < 0:
                         look_direction = 3
-                    # if __DEBUG__:
-                    #     # debug.append('successP1dir' + str(look_direction))
-                    #     print('__DEBUG__', 'successP1dir' + str(look_direction))
                 break
+
         if not success:
-            # if __DEBUG__:
-            #     # debug.append('faileddirection' + str(look_direction))
-            #     print('__DEBUG__','faileddirection' + str(look_direction))
-            # no valid pixel found --> rotate view
-
-            # I would need to restart the loop ???
-
             look_direction += 1
             if look_direction > 3:
                 look_direction = 0
+
             if no_success_counter >= 4:
-                # if __DEBUG__:
-                #     # print(debug)
-                #     print('__DEBUG__','end')
                 return coords
             no_success_counter += 1
 
-
-    #     if __DEBUG__:
-    #         # debug.append('direction' + str(look_direction))
-    #         print('__DEBUG__', 'direction' + str(look_direction))
-    # if __DEBUG__:
-    #     print('__DEBUG__', 'end')
     return coords
 
 
-
-
-
-# URGENT TODO check if it is really faster than the graph sklearn method or not especially for bonds and perimeter --> check??? at least it is definitely useful for filled shapes
-# TODO maybe auto add an extreme point for np.ndarray images too --> easy --> use maybe np.argwhere or alike !!!
 def pavlidis(img, start_y=None, start_x=None, closed_contour=False, color_of_interest=None,
-             auto_detect_extreme_points_for_region_upon_missing_start_coords=True, starting_orientation = 0):
+             auto_detect_extreme_points_for_region_upon_missing_start_coords=True, starting_orientation=0, early_stop=None):
+    """
+    Traces a contour in an image using the Pavlidis algorithm.
 
-    # __DEBUG__ = True
+    Args:
+        img: The input image.
+        start_y: The starting y-coordinate for the contour tracing. Default is None.
+        start_x: The starting x-coordinate for the contour tracing. Default is None.
+        closed_contour: Flag indicating whether the contour is closed. Default is False.
+        color_of_interest: The color value of interest for contour tracing. Default is None.
+        auto_detect_extreme_points_for_region_upon_missing_start_coords: Flag indicating whether
+            to automatically detect extreme points for the region if start coordinates are missing.
+            Default is True.
+        starting_orientation: The starting orientation for contour tracing. Default is 0.
+        early_stop: The number of pixels to trace before stopping. Default is None.
 
-    # print('__DEBUG__',__DEBUG__)
+    Returns:
+        list: A list of (y, x) coordinates representing the traced contour.
 
-    # based on http://www.imageprocessingplace.com/downloads_V3/root_downloads/tutorials/contour_tracing_Abeer_George_Ghuneim/theo.html
+    Examples:
+        >>> img = np.array([[0, 0, 0, 0, 0],
+        ...                 [0, 1, 1, 1, 0],
+        ...                 [0, 1, 0, 1, 0],
+        ...                 [0, 1, 1, 1, 0],
+        ...                 [0, 0, 0, 0, 0]])
+        >>> contour = pavlidis(img, start_y=1, start_x=1, closed_contour=True)
+        >>> print(contour)
+        [(1, 1), (1, 2), (1, 3), (2, 3), (3, 3), (3, 2), (3, 1), (2, 1)]
 
+        >>> img = np.array([[0, 0, 0, 0, 0],
+        ...                 [0, 1, 1, 1, 0],
+        ...                 [0, 1, 0, 1, 0],
+        ...                 [0, 1, 1, 1, 0],
+        ...                 [0, 0, 0, 0, 0]])
+        >>> contour = pavlidis(img, start_y=3, start_x=1, closed_contour=True)
+        >>> print(contour)
+        [(3, 1), (2, 1), (1, 1), (1, 2), (1, 3), (2, 3), (3, 3), (3, 2)]
+    """
     coords = []
-    if __DEBUG__:
-        debug = []
 
     if not isinstance(img, RegionProperties):
-        # print('not reg prop')
-        if start_x >= img.shape[1] or start_y >= img.shape[0] or start_x < 0 or start_y < 0:
-            print('error coordinates outside the image')
-            return coords
-        if color_of_interest is None:
-            color_of_interest = img[start_y, start_x]
-        if img[start_y, start_x] != color_of_interest:
-            print('error starting coordinates outside the object')
-            return coords
-        # if isolated --> return
-        # check color of all neighbs of ntry point and skip if alone
+        if start_x is not None and start_y is not None:
+            if start_x >= img.shape[1] or start_y >= img.shape[0] or start_x < 0 or start_y < 0:
+                print('error coordinates outside the image')
+                return coords
+            if color_of_interest is None:
+                color_of_interest = img[start_y, start_x]
+            if img[start_y, start_x] != color_of_interest:
+                print('error starting coordinates outside the object')
+                return coords
+        else:
+            feret_1, feret_2 = get_feret_from_points(extreme_points(img))
+            start_y = feret_1[0]
+            start_x = feret_1[1]
+            img = img.tolist()
     else:
-        # get regionprops coords
-        # print('reg prop')
         img = img.coords
         if start_x is None or start_y is None:
             if not auto_detect_extreme_points_for_region_upon_missing_start_coords:
                 start_y, start_x = img[0][0], img[0][1]
             else:
-                # to be on the safe side get one of the most distant extreme points as a starting point
-                # maybe best is to take a pavlidis optimal start maybe instead --> and maybe faster ...
                 feret_1, feret_2 = get_feret_from_points(extreme_points(img))
                 start_y = feret_1[0]
                 start_x = feret_1[1]
         else:
-            # img = img.tolist()
             if not __check_pixel_pavlidis(img.tolist(), start_y, start_x):
-                # print('type', type(img))
-
-                print('error coordinates outside the image')  # convert to logger error
+                print('error coordinates outside the image')
                 return coords
-        # if len(img[0]) == 1:
-        #     return [start_y, start_x]
-        # convert region props to list for convenience
         img = img.tolist()
-
-    # print(len(img))
-    # if len(img)==1:
-        # just one point --> nothing to sort --> return
-        # return [start_y, start_x]
 
     cur_coord_x = start_x
     cur_coord_y = start_y
     coords.append((start_y, start_x))
 
-    if __DEBUG__:
-        debug.append((start_y, start_x))
-
     look_direction = 0
-    if starting_orientation!=0:
+    if starting_orientation != 0:
         look_direction = starting_orientation
 
     counter = 0
@@ -330,143 +306,109 @@ def pavlidis(img, start_y=None, start_x=None, closed_contour=False, color_of_int
 
     limit = None
     if isinstance(img, list):
-        limit =  10 * len(img)
+        limit = 10 * len(img)
 
-    # count nb of orientation change without success and if too many --> quit!
-    while (True):  # danger infinite loop # maybe I should limit that somehow
+    while True:
         counter += 1
         success = False
-        no_success_counter = 0 # useless cause always reset
+        no_success_counter = 0
 
-        if limit is not  None:
-            if counter>limit:
-                print('error infinite loop Pavlidis --> breaking')
-                return coords
-        # print('counter', counter, no_success_counter, infinite_loop_counter, old_coords_x, old_coords_y, cur_coord_x, cur_coord_y)
-
-        # print(cur_coord_x, cur_coord_y)
-        if infinite_loop_counter>100:
-            if __DEBUG__:
-                print('debug', debug)
+        if early_stop is not None and len(coords) >= early_stop:
             return coords
 
-        if old_coords_y == cur_coord_y and old_coords_x== cur_coord_x:
-            infinite_loop_counter+=1
+        if limit is not None:
+            if counter > limit:
+                print('error infinite loop Pavlidis --> breaking')
+                return coords
 
+        if infinite_loop_counter > 100:
+            return coords
+
+        if old_coords_y == cur_coord_y and old_coords_x == cur_coord_x:
+            infinite_loop_counter += 1
         else:
             old_coords_y = cur_coord_y
             old_coords_x = cur_coord_x
-            # there was a big bug --> I wass never resetting the infinite loop counter which does not make sense for big bonds
-            infinite_loop_counter=0
+            infinite_loop_counter = 0
 
         for ppp, shift in enumerate(orientation_pavlidis[look_direction]):
-            # check pixels in front of the current pixel
             coords_to_test_x = cur_coord_x + shift[1]
             coords_to_test_y = cur_coord_y + shift[0]
 
             if counter > 1:
                 if coords_to_test_x == start_x and coords_to_test_y == start_y:
-                    if __DEBUG__:
-                        print('debug', debug)
-                    # we encountered the first pixel again --> return stuff
                     return coords
 
-            # prevent infinite loop for non closed contours
-            if not closed_contour:  # THIS PART OF THE CODE IS NOT VERY SMART AND CAN LEAD TO ERRORS IF START POINTS ARE NOT PROPERLY DEFINED (OK FOR NOW THOUGH!)
+            if not closed_contour:
                 if (coords_to_test_y, coords_to_test_x) in coords:
-                    if __DEBUG__:
-                        debug.append('point already encountered --> quitting')
-                        print('debug', debug)
                     return coords
 
             if isinstance(img, np.ndarray):
-                if coords_to_test_y >= img.shape[0] or coords_to_test_x >= img.shape[1] or coords_to_test_y < 0 or coords_to_test_x < 0:
+                if coords_to_test_y >= img.shape[0] or coords_to_test_x >= img.shape[1] or \
+                        coords_to_test_y < 0 or coords_to_test_x < 0:
                     continue
 
-            # if img[coords_to_test_y, coords_to_test_x] == color_of_interest:
             if __check_pixel_pavlidis(img, coords_to_test_y, coords_to_test_x, color_of_interest):
-
                 cur_coord_y = coords_to_test_y
                 cur_coord_x = coords_to_test_x
 
                 if cur_coord_x == start_x and cur_coord_y == start_y:
-                    if __DEBUG__:
-                        print('debug', debug)
                     return coords
                 coords.append((cur_coord_y, cur_coord_x))
-                if __DEBUG__:
-                    debug.append((cur_coord_y, cur_coord_x))
 
-                # if P1 is the pixel then need change orientation
                 if ppp == 0:
                     look_direction -= 1
                     if look_direction < 0:
                         look_direction = 3
-                    if __DEBUG__:
-                        debug.append('successP1dir' + str(look_direction))
                 success = True
                 break
+
         if not success:
-            # print('failed', no_success_counter)
-            if __DEBUG__:
-                debug.append('faileddirection' + str(look_direction))
-            # no valid pixel found --> rotate view
             look_direction += 1
             if look_direction > 3:
                 look_direction = 0
             if no_success_counter >= 4:
-                if __DEBUG__:
-                    print('debug', debug)
                 return coords
             no_success_counter += 1
-        if __DEBUG__:
-            debug.append('direction' + str(look_direction))
-    if __DEBUG__:
-        print('debug', debug)
+
     return coords
 
 
-# can plot images or regions (regionprops) and corresponding pavlidis coords
 def __plot_pavlidis(img, coords, skip_plot=True):
+    """
+    Plot the image or regions (regionprops) with corresponding Pavlidis coordinates.
+
+    Args:
+        img: Image or RegionProperties object.
+        coords: List of coordinates.
+        skip_plot: Boolean value indicating whether to skip plotting the image.
+
+    Returns:
+        None
+    """
+
     if isinstance(img, RegionProperties):
-        # convert region to image
-        # print(region.bbox)
         region = img
         tmp_img = np.zeros((max(region.bbox[2], region.bbox[0]) + 1,
                             max(region.bbox[1], region.bbox[3]) + 1))
-        # KEEP TOP MEGA TOP TIP TIPTOP TIP TOP fill numpy array using region coords
         tmp_img[region.coords[:, 0], region.coords[:, 1]] = 255
         img = tmp_img
 
-        # print('img.shape',img.shape) # fixed
-
-    # check if dupes
-    print(coords)
     output = np.zeros_like(img)
+
     if contains_duplicate_coordinates(coords):
-        print('DUPLICATED POINTS DETECTED')
-        print(find_duplicate_coordinates(coords))
         coords = remove_duplicate_coordinates(coords)
-        print('deduplicated coords', coords)
-        print('dist between extreme points after deduplication', dist2D(coords[0], coords[-1]),
-              dist2D(coords[0], coords[-1]) <= math.sqrt(2))
-        # TODO TRY FIX IT AND SEE IF THAT WORKS ???
-    else:
-        print('no dupes')
 
     for val, (y, x) in enumerate(coords):
-        # print(coords)
         output[y, x] = val + 1
-
-    # img[img == 255]=0
 
     if not skip_plot:
         plt.imshow(output)
         plt.show()
 
     output[output != 0] = 255
+
     if not (output == img).all():
-        print('MISSING PIXELS' * 20)
         missed = np.copy(img)
         missed[output != 0] = 128
         if not skip_plot:
@@ -476,33 +418,64 @@ def __plot_pavlidis(img, coords, skip_plot=True):
         print('FULL MATCH')
 
 
-# returns extreme points from region.coords
 def extreme_points(coords, return_array=True):
-    tmp_coords= coords
+    """
+    Find the extreme points from a set of coordinates.
 
+    Args:
+        coords: List of coordinates.
+        return_array: Boolean value indicating whether to return the extreme points as a list or individual tuples.
 
-    # print('coords',coords)
+    Returns:
+        List of extreme points [(top), (bottom), (left), (right)] if return_array is True, else returns individual tuples.
+    """
+    tmp_coords = coords
+
     if isinstance(coords, tuple):
-        tmp_coords=np.asarray(list(zip(coords[0].tolist(), coords[1].tolist())))
-        # tmp_coords = np.asarray(list(zip(coords)))
-        # print('coords', coords, tmp_coords)
+        tmp_coords = np.asarray(list(zip(coords[0].tolist(), coords[1].tolist())))
 
     top = tuple(tmp_coords[tmp_coords[..., 1].argmin()])
     bottom = tuple(tmp_coords[tmp_coords[..., 1].argmax()])
     left = tuple(tmp_coords[tmp_coords[..., 0].argmin()])
     right = tuple(tmp_coords[tmp_coords[..., 0].argmax()])
+
     if not return_array:
         return top, bottom, left, right
     else:
         return [top, bottom, left, right]
 
-
 # returns the most distant points in a set of points
+# nb I found a bug in this code in some cases --> needs a fix --> see /home/aigouy/mon_prog/Python/epyseg_pkg/personal/wing/ferret_error.tif
+# no clue why though
+# the feret is wrong with values ((612, 457), (612, 458), (612, 459), (612, 460), (612, 461), (612, 462), (612, 463), (612, 464), (613, 441), (613, 442), (613, 443), (613, 444), (613, 445), (613, 446), (613, 447), (613, 448), (613, 449), (613, 450), (613, 451), (613, 452), (613, 453), (613, 454), (613, 455), (613, 456), (614, 426), (614, 427), (614, 428), (614, 429), (614, 430), (614, 431), (614, 432), (614, 433), (614, 434), (614, 435), (614, 436), (614, 437), (614, 438), (614, 439), (614, 440), (615, 411), (615, 412), (615, 413), (615, 414), (615, 415), (615, 416), (615, 417), (615, 418), (615, 419), (615, 420), (615, 421), (615, 422), (615, 423), (615, 424), (615, 425), (616, 395), (616, 396), (616, 397), (616, 398), (616, 399), (616, 400), (616, 401), (616, 402), (616, 403), (616, 404), (616, 405), (616, 406), (616, 407), (616, 408), (616, 409), (616, 410), (617, 380), (617, 381), (617, 382), (617, 383), (617, 384), (617, 385), (617, 386), (617, 387), (617, 388), (617, 389), (617, 390), (617, 391), (617, 392), (617, 393), (617, 394), (617, 499), (617, 500), (617, 501), (617, 502), (617, 503), (617, 504), (617, 505), (617, 506), (617, 507), (617, 508), (617, 509), (617, 510), (617, 511), (617, 512), (617, 513), (617, 514), (617, 515), (617, 516), (618, 372), (618, 373), (618, 374), (618, 375), (618, 376), (618, 377), (618, 378), (618, 379), (618, 473), (618, 474), (618, 475), (618, 476), (618, 477), (618, 478), (618, 479), (618, 480), (618, 481), (618, 482), (618, 483), (618, 484), (618, 485), (618, 486), (618, 487), (618, 488), (618, 489), (618, 490), (618, 491), (618, 492), (618, 493), (618, 494), (618, 495), (618, 496), (618, 497), (618, 498), (618, 517), (618, 518), (618, 519), (618, 520), (618, 521), (618, 522), (618, 523), (618, 524), (618, 525), (618, 526), (619, 374), (619, 375), (619, 447), (619, 448), (619, 449), (619, 450), (619, 451), (619, 452), (619, 453), (619, 454), (619, 455), (619, 456), (619, 457), (619, 458), (619, 459), (619, 460), (619, 461), (619, 462), (619, 463), (619, 464), (619, 465), (619, 466), (619, 467), (619, 468), (619, 469), (619, 470), (619, 471), (619, 472), (619, 527), (619, 528), (619, 529), (619, 530), (619, 531), (619, 532), (619, 533), (619, 534), (619, 535), (619, 536), (620, 376), (620, 377), (620, 378), (620, 421), (620, 422), (620, 423), (620, 424), (620, 425), (620, 426), (620, 427), (620, 428), (620, 429), (620, 430), (620, 431), (620, 432), (620, 433), (620, 434), (620, 435), (620, 436), (620, 437), (620, 438), (620, 439), (620, 440), (620, 441), (620, 442), (620, 443), (620, 444), (620, 445), (620, 446), (620, 537), (620, 538), (620, 539), (620, 540), (620, 541), (620, 542), (620, 543), (620, 544), (620, 545), (620, 546), (621, 379), (621, 380), (621, 395), (621, 396), (621, 397), (621, 398), (621, 399), (621, 400), (621, 401), (621, 402), (621, 403), (621, 404), (621, 405), (621, 406), (621, 407), (621, 408), (621, 409), (621, 410), (621, 411), (621, 412), (621, 413), (621, 414), (621, 415), (621, 416), (621, 417), (621, 418), (621, 419), (621, 420), (621, 547), (621, 548), (621, 549), (621, 550), (621, 551), (621, 552), (621, 553), (621, 554), (621, 555), (621, 556), (622, 381), (622, 382), (622, 383), (622, 384), (622, 385), (622, 386), (622, 387), (622, 388), (622, 389), (622, 390), (622, 391), (622, 392), (622, 393), (622, 394), (622, 557), (622, 558), (622, 559), (622, 560), (622, 561), (622, 562), (622, 563), (622, 564), (622, 565), (622, 566), (623, 567), (623, 568), (623, 569), (623, 570), (623, 571), (623, 572), (623, 573), (623, 574), (623, 575), (623, 576), (624, 577), (624, 578), (624, 579), (624, 580), (624, 581), (624, 582), (624, 583), (624, 584), (624, 585), (624, 586), (625, 587), (625, 588), (625, 589), (625, 590), (625, 591), (625, 592), (625, 593), (625, 594), (625, 595), (625, 596), (626, 597), (626, 598), (626, 599), (626, 600), (626, 601), (626, 602), (626, 603), (626, 604), (626, 605), (626, 606), (627, 607), (627, 608), (627, 609), (627, 610), (627, 611), (627, 612), (627, 613), (627, 614), (627, 615), (627, 616), (628, 617), (628, 618), (628, 619), (628, 620), (628, 621), (628, 622), (629, 623), (629, 624), (629, 625), (630, 626), (630, 627), (630, 628), (631, 629), (631, 630), (631, 631), (632, 632), (632, 633), (632, 634), (633, 635), (633, 636), (633, 637), (634, 638), (634, 639), (634, 640), (635, 641), (635, 642), (635, 643), (636, 644), (636, 645), (636, 646), (637, 647), (637, 648), (637, 649), (638, 650), (638, 651), (638, 652), (639, 653), (639, 654), (639, 655), (640, 656), (640, 657), (640, 658), (641, 659), (641, 660), (641, 661), (642, 662), (642, 663), (643, 664), (643, 665), (643, 666), (644, 667), (644, 668), (644, 669), (645, 670), (645, 671), (645, 672), (645, 819), (645, 820), (645, 821), (645, 822), (645, 823), (645, 824), (645, 825), (645, 826), (645, 827), (645, 828), (645, 829), (645, 830), (645, 831), (645, 832), (645, 833), (645, 834), (645, 835), (645, 836), (645, 837), (645, 838), (645, 839), (645, 840), (645, 841), (645, 842), (645, 843), (645, 844), (645, 845), (645, 846), (645, 847), (645, 848), (645, 849), (645, 850), (645, 851), (645, 852), (645, 853), (645, 854), (645, 855), (645, 856), (645, 857), (645, 858), (645, 859), (645, 860), (645, 861), (645, 862), (645, 863), (645, 864), (645, 865), (645, 866), (645, 867), (645, 868), (645, 869), (645, 870), (645, 871), (645, 872), (645, 873), (645, 874), (645, 875), (645, 876), (645, 877), (645, 878), (645, 879), (645, 880), (645, 881), (646, 673), (646, 674), (646, 675), (646, 750), (646, 751), (646, 752), (646, 753), (646, 754), (646, 755), (646, 756), (646, 757), (646, 758), (646, 759), (646, 760), (646, 761), (646, 762), (646, 763), (646, 764), (646, 765), (646, 766), (646, 767), (646, 768), (646, 769), (646, 770), (646, 771), (646, 772), (646, 773), (646, 774), (646, 775), (646, 776), (646, 777), (646, 778), (646, 779), (646, 780), (646, 781), (646, 782), (646, 783), (646, 784), (646, 785), (646, 786), (646, 787), (646, 788), (646, 789), (646, 790), (646, 791), (646, 792), (646, 793), (646, 794), (646, 795), (646, 796), (646, 797), (646, 798), (646, 799), (646, 800), (646, 801), (646, 802), (646, 803), (646, 804), (646, 805), (646, 806), (646, 807), (646, 808), (646, 809), (646, 810), (646, 811), (646, 812), (646, 813), (646, 814), (646, 815), (646, 816), (646, 817), (646, 818), (647, 676), (647, 677), (647, 678), (647, 745), (647, 746), (647, 747), (647, 748), (647, 749), (648, 679), (648, 680), (648, 681), (648, 740), (648, 741), (648, 742), (648, 743), (648, 744), (649, 682), (649, 683), (649, 684), (649, 736), (649, 737), (649, 738), (649, 739), (650, 685), (650, 686), (650, 687), (650, 731), (650, 732), (650, 733), (650, 734), (650, 735), (651, 688), (651, 689), (651, 690), (651, 726), (651, 727), (651, 728), (651, 729), (651, 730), (652, 691), (652, 692), (652, 693), (652, 721), (652, 722), (652, 723), (652, 724), (652, 725), (653, 694), (653, 695), (653, 696), (653, 716), (653, 717), (653, 718), (653, 719), (653, 720), (654, 697), (654, 698), (654, 699), (654, 712), (654, 713), (654, 714), (654, 715), (655, 700), (655, 701), (655, 702), (655, 707), (655, 708), (655, 709), (655, 710), (655, 711), (656, 703), (656, 704), (656, 705), (656, 706))
+# BIG BUG THE SOLUTION MAY NOT BE UNIQUE --> NEED A FIX WHEN POSSIBLE IN THE CASE OF BONDS!!--> see example just above and the rps_tools test class
+
 def get_feret_from_points(contour_or_extreme_points):
+    """
+    Calculate the Feret diameter (maximum distance) between two points from a given set of contour or extreme points.
+
+    Args:
+        contour_or_extreme_points: List or array-like object containing contour or extreme points.
+
+    Returns:
+        Tuple of two points representing the Feret diameter.
+
+    # Examples:
+    #     >>> contour_points = [(10, 20), (30, 40), (50, 60), (70, 80)]
+    #     >>> extreme_points(contour_points, return_array=True)
+    #
+    #     # Calculate Feret diameter from contour points
+    #     >>> feret_contour = get_feret_from_points(contour_points)
+    #     >>> print('Feret Diameter (Contour Points):', feret_contour)
+    #
+    #     # Calculate Feret diameter from extreme points
+    #     >>> feret_extreme = get_feret_from_points(extreme_points)
+    #     >>> print('Feret Diameter (Extreme Points):', feret_extreme)
+    """
     C = cdist(contour_or_extreme_points, contour_or_extreme_points)
     furthest_points = np.where(C == C.max())
     feret_1 = contour_or_extreme_points[furthest_points[0][0]]
-    feret_2 = contour_or_extreme_points[furthest_points[1][0]]
+    feret_2 = contour_or_extreme_points[furthest_points[0][1]]
     return feret_1, feret_2
 
 
@@ -511,21 +484,36 @@ def get_feret_from_points(contour_or_extreme_points):
 # pb can have big jumps in it --> may need rotate the result array --> TODO URGENT --> DO THAT ESPECIALLY IF CONTOUR IS LONG
 # compute dist to first or last or between last and first and detect closest and do roll of the array so that all is ok after that --> TODO
 # RELY ON PAVLIDIS FOR NOW!!!
+
 def nearest_neighbor_ordering(coords, remove_dupes=False):
-    # largely based on https://stackoverflow.com/questions/37742358/sorting-points-to-form-a-continuous-line
+    """
+    Sort a set of coordinates to form a continuous line using the nearest neighbor algorithm.
+
+    Args:
+        coords (array-like): List or array-like object containing the coordinates.
+        remove_dupes (bool): Flag indicating whether to remove duplicate coordinates (default: False).
+
+    Returns:
+        Sorted coordinates forming a continuous line.
+
+    # Examples:
+    #     >>> coords = [(0, 0), (1, 1), (2, 2), (3, 3)]
+    #     >>> ordered_coords = nearest_neighbor_ordering(coords)
+    #     >>> print('Ordered Coordinates:', ordered_coords)
+    #
+    #     >>> coords = [(0, 0), (1, 1), (2, 2), (1, 1)]
+    #     >>> ordered_coords = nearest_neighbor_ordering(coords, remove_dupes=True)
+    #     >>> print('Ordered Coordinates (No Dupes):', ordered_coords)
+    """
     if not isinstance(coords, np.ndarray):
         coords = np.asarray(coords)
 
-    # create a graph to connect each point to its two nearest neighbors
     clf = NearestNeighbors(n_neighbors=2).fit(coords)
-    # sparse matrix where each row is a node
     G = clf.kneighbors_graph()
-    # construct a graph from the sparse matrix
     T = nx.from_scipy_sparse_matrix(G)
     order = list(nx.dfs_preorder_nodes(T, 0))
     coords = coords[order]
 
-    # remove dupes if user wants to
     if remove_dupes and contains_duplicate_coordinates(coords):
         no_dupes = remove_duplicate_coordinates(coords.tolist())
         coords = np.asarray(no_dupes)
@@ -534,10 +522,28 @@ def nearest_neighbor_ordering(coords, remove_dupes=False):
 
 
 def find_duplicate_coordinates(coords):
+    """
+    Find duplicate coordinates from a given list.
+
+    Args:
+        coords (array-like): List or array-like object containing the coordinates.
+
+    Returns:
+        List of duplicate coordinates.
+    """
     return [item for item, count in collections.Counter(coords).items() if count > 1]
 
 
 def contains_duplicate_coordinates(coords):
+    """
+    Check if a list contains duplicate coordinates.
+
+    Args:
+        coords (array-like): List or array-like object containing the coordinates.
+
+    Returns:
+        True if duplicate coordinates are found, False otherwise.
+    """
     if not isinstance(coords, list):
         coords = coords.tolist()
     try:
@@ -551,50 +557,229 @@ def contains_duplicate_coordinates(coords):
 
 
 def remove_duplicate_coordinates(coords):
+    """
+    Remove duplicate coordinates from a list.
+
+    Args:
+        coords (array-like): List or array-like object containing the coordinates.
+
+    Returns:
+        List of coordinates without duplicates.
+    """
     fixed_coords = []
     [fixed_coords.append(item) for item in coords if item not in fixed_coords]
     return fixed_coords
 
 
 def dist2D(pt1, pt2):
+    """
+    Calculate the 2D Euclidean distance between two points.
+
+    Args:
+        pt1 (tuple): First point (x1, y1).
+        pt2 (tuple): Second point (x2, y2).
+
+    Returns:
+        Euclidean distance between the two points.
+    """
     return math.sqrt((pt2[0] - pt1[0]) ** 2 + (pt2[1] - pt1[1]) ** 2)
 
 
-# perimeter_pixels should be an (N, 2 or 3) np.ndarray
-# This is really what I wanted to have
 def compute_perimeter(perimeter_pixels):
-    # for iii in range(0,len(perimeter_pixels[0])-1):
-    # pairwise distance
-    # D = np.sqrt(((perimeter_pixels[:, :, None] - perimeter_pixels[:, :, None].T) ** 2).sum(1))
+    """
+    Compute the perimeter length using a set of pixels.
 
-    # d = np.diff(perimeter_pixels, axis=0)
-    # consecutive_distances = np.hypot(d[:, 0], d[:, 1])
-    # print(consecutive_distances)
-    # consecutive_distances = np.sqrt((d ** 2).sum(axis=1))
-    # print(consecutive_distances)
-    # nb need compute distance between extremities too if they are in close contact --> TODO
+    Args:
+        perimeter_pixels (np.ndarray): Array of shape (N, 2 or 3) containing the perimeter pixels.
 
+    Returns:
+        Perimeter length.
+    """
     length = compute_distance_between_consecutive_points(perimeter_pixels).sum()
-    # print(length)
     return length
 
 
-def compute_distance_between_consecutive_points(oredered_pixels):
-    if isinstance(oredered_pixels, list):
-        oredered_pixels = np.asarray(oredered_pixels)
-    d = np.diff(oredered_pixels, axis=0)
-    # Equivalent to ``sqrt(x1**2 + x2**2)``, element-wise.  If `x1` or
-    #     `x2` is scalar_like (i.e., unambiguously cast-able to a scalar type),
-    #     it is broadcast for use with each element of the other argument.
-    #     (See Examples)
-    # consecutive_distances = np.hypot(d[:, 0], d[:, 1])
-    consecutive_distances = np.sqrt((d ** 2).sum(axis=1))  # smarter than hypot cause can also easily support 3D !!!
+
+def sort_rps_by_feature_using_its_name(rps, feature_name, feature_element=None, return_index=False):
+    '''
+    sorts rps by feature (area, centroid, ...) and feature index (i.e first element/axis of centroid)
+    can return the sorted features or an index
+    '''
+    sorted_list = sorted(enumerate(rps), key=lambda p: getattr(p[1], feature_name) if feature_element is None else getattr(p[1], feature_name)[feature_element])
+    if return_index:
+        return sorted_list
+    else:
+        return [region for idx, region in sorted_list]
+
+
+
+def get_rps_features_by_name(rps, feature_name, feature_element=None):
+    """
+    Returns a list of region property features with the specified name, optionally returning only a specific element
+    of tuple features.
+
+    Parameters
+    ----------
+    rps : list of skimage.measure._regionprops._RegionProperties
+        A list of region properties objects obtained from skimage.measure.regionprops.
+    feature_name : str
+        The name of the feature to extract from each region properties object.
+    feature_element : int or str, optional
+        The index or key of the element to extract from tuple features. Defaults to None.
+
+    Returns
+    -------
+    list
+        A list of features with the specified name, optionally containing only the specified element of tuple features.
+
+    Examples
+    --------
+    >>> # Get region properties and feature values for each region
+    >>> props = get_sample_rps()
+    >>> print('area_values', get_rps_features_by_name(props, 'area'))
+    area_values [42, 36, 45, 4, 3, 6, 3, 43, 32, 76, 2, 2, 35, 3, 104, 2, 4, 1, 37, 4, 5, 1, 1, 6, 3, 230, 1, 2, 2, 48, 5, 6, 7, 128, 40, 2, 1, 1, 6, 7, 1, 1, 8, 7, 7, 223, 3, 2, 82, 1, 5, 55, 3, 184, 1, 2, 28, 1, 38, 1]
+    >>> print('centroid_x_values', get_rps_features_by_name(props, 'centroid', 0))
+    centroid_x_values [1.5714285714285714, 1.6111111111111112, 5.133333333333334, 3.5, 5.333333333333333, 7.833333333333333, 10.333333333333334, 15.093023255813954, 15.90625, 21.55263157894737, 18.5, 18.5, 23.914285714285715, 24.333333333333332, 31.375, 26.5, 32.75, 33.0, 37.0, 35.25, 36.0, 38.0, 40.0, 41.5, 48.333333333333336, 56.582608695652176, 48.0, 52.0, 57.5, 60.354166666666664, 60.2, 64.83333333333333, 64.71428571428571, 77.359375, 68.5, 67.0, 75.0, 75.0, 78.16666666666667, 82.28571428571429, 81.0, 82.0, 84.0, 85.71428571428571, 88.0, 103.24215246636771, 92.33333333333333, 92.0, 98.28048780487805, 96.0, 100.0, 105.0, 101.66666666666667, 112.59782608695652, 106.0, 109.5, 117.5, 117.0, 124.5, 123.0]
+    """
+
+    # Get feature values for each region
+    features = [getattr(region, feature_name) for region in rps]
+
+    # If feature is a tuple, extract specified element
+    if feature_element is not None:
+        features = [feature[feature_element] for feature in features]
+
+    return features
+
+
+def get_sample_rps():
+    """
+    Returns region properties for connected regions in a binary blobs image.
+
+    Returns
+    -------
+    list of skimage.measure._regionprops._RegionProperties
+        A list of region properties objects obtained from skimage.measure.regionprops on a binary blobs image.
+
+    Examples
+    --------
+    >>> # Get region properties for connected regions in a binary blobs image
+    >>> print(len(get_sample_rps()))
+    60
+    """
+
+    # Load binary blobs image with 3 blobs
+    image = binary_blobs(length=128, blob_size_fraction=0.1, n_dim=2, volume_fraction=0.1, seed=1)
+
+    # Label connected regions in image
+    label_image = label(image)
+
+    # Calculate regionprops for each labeled region
+    props = regionprops(label_image)
+    return props
+
+def cluster_regionprops_by_feature(rps, feature_for_clustering, feature_element=None):
+
+    # sorted_list = sorted(enumerate(rps), key=lambda p: p[1].centroid[SORTING_AXIS])
+    sorted_list = sort_rps_by_feature_using_its_name(rps, feature_for_clustering, feature_element=feature_element, return_index=True)
+    # sorted_indices = [i for i, _ in sorted_list]
+    objects = [object for _, object in sorted_list]
+
+    # Sort the regionprops based on their centroids Y position
+    # objects = sorted(rps, key=lambda p: p.centroid[0])
+    # Sort the list and get a list of tuples containing the original index and element
+
+    # Extract the sorted indices from the list of tuples
+    # sorted_indices = [i for i, _ in sorted_list]
+
+    # indices_comparison = [elm.index()]
+
+    # X = np.array([[p.centroid[0]] for p in objects])
+    #
+    # print('X', X.shape)
+
+    # Determine the optimal number of clusters using the silhouette score
+    X = np.array(get_rps_features_by_name(objects, feature_for_clustering, feature_element=feature_element))
+    if len(X.shape) ==1:
+        X = X.reshape(-1, 1)
+
+    # best_k=-1
+    silhouette_scores = []
+    K = range(2, len(np.unique(X))) # max nb of clusters is actually the max nb of unique elements in X
+
+
+
+    # print('K',K)
+    for k in K:
+        kmeans = KMeans(n_clusters=k, random_state=0).fit(X)
+        labels = kmeans.labels_
+        # if len(labels)==X.shape[0]:
+        #     best_k = 1
+        # else:
+        score = silhouette_score(X, labels)
+        silhouette_scores.append(score)
+
+
+    # if best_k==-1:
+    best_k = K[np.argmax(silhouette_scores)]
+
+    # print('best_k',best_k)
+
+    if best_k != 1:
+        # Cluster the rows based on the y-coordinates of the centroids
+        kmeans = KMeans(n_clusters=best_k, random_state=0).fit(X)
+        labels = kmeans.labels_
+    else:
+        labels = [0 for _ in objects]
+
+    # print('labels', len(labels))
+
+    # Create a new list with the elements of `my_list` in the sorted order
+    # reordered_labels = [labels[i] for i in sorted_indices]
+
+
+    # maybe return labels with
+    # now group every ROI in each group --> TODO
+    groups_n_rps = {}
+    for iii,label in enumerate(labels):
+        if label in groups_n_rps:
+            regions = groups_n_rps[label]
+        else:
+            regions = []
+        regions.append(objects[iii])
+        groups_n_rps[label] = regions
+
+    return groups_n_rps
+
+
+
+def compute_distance_between_consecutive_points(ordered_pixels):
+    """
+    Compute the distance between consecutive points.
+
+    Args:
+        ordered_pixels (array-like): List or array-like object containing the ordered pixels.
+
+    Returns:
+        Array of distances between consecutive points.
+    """
+    if isinstance(ordered_pixels, list):
+        ordered_pixels = np.asarray(ordered_pixels)
+    d = np.diff(ordered_pixels, axis=0)
+    consecutive_distances = np.sqrt((d ** 2).sum(axis=1))
     return consecutive_distances
 
 
-# nb maybe force 2D to check if points are really continuous!!!
-# does that work in 3D --> need think a bit about it or fake convert to 2D --> good idea!!!
 def is_distance_continuous(ordered_distances):
+    """
+    Check if a set of ordered distances is continuous.
+
+    Args:
+        ordered_distances (array-like): List or array-like object containing the ordered distances.
+
+    Returns:
+        True if the distances are continuous, otherwise returns the maximum distance and its position.
+    """
     if isinstance(ordered_distances, list):
         ordered_distances = np.asarray(ordered_distances)
     if len(ordered_distances.shape) == 2:
@@ -602,108 +787,118 @@ def is_distance_continuous(ordered_distances):
     max_dist_pos = np.argmax(ordered_distances)
     max_dist = ordered_distances[max_dist_pos]
 
-    # print('max_dist, max_dist_pos',max_dist, max_dist_pos)
-    # if autoroll and max_dist>math.sqrt(2):
-    #     np.roll(ordered_distances)
     if max_dist <= math.sqrt(2):
         return True
     else:
         return max_dist, max_dist_pos
 
-
-# from http://www.imageprocessingplace.com/downloads_V3/root_downloads/tutorials/contour_tracing_Abeer_George_Ghuneim/theo.html
-# b) Go to the source of the problem; namely, the choice of the start pixel
-# There is an important restriction concerning the direction in which you enter the start pixel. Basically, you have to enter the start pixel such that when you're standing on it, the pixel adjacent to you from the left is white. The reason for imposing such a restriction is:
-# since you always consider the 3 pixels in front of you in a certain order, you'll tend to miss a boundary pixel lying directly to the left of the start pixel in certain patterns.
-# need check LWR pixels are black, may need to change orientation though if nothing is found --> a bit complex but doable still
-
-
-# NB THAT DOES NOT WORK FOR OPENED SHAPES --> THE SHAPE REALLY NEED BE CLOSED TO WORK!!!
-
-# with shape [('circle', ((2, 3), (15, 16)))] --> error optimal pavlidis not found, returning first pixel and inifinite loop --> need a control --> but most likely this shape cannot exist...
-# 2 15 optimal pavlidis start (2, 15)
-# You actually can choose ANY black boundary pixel to be your start pixel as long as when you're initially standing on it, your left adjacent pixel is NOT black. --> in fact easy then
-
 def find_pavlidis_optimal_orientation(pixel_coordinates, start_coords=None):
+    """
+    Find the optimal orientation for the Pavlidis algorithm based on the pixel coordinates.
 
+    Args:
+        pixel_coordinates (np.ndarray): Array of shape (N, 2) containing the pixel coordinates.
+        start_coords (tuple): Tuple containing the start coordinates (default: None).
+
+    Returns:
+        Optimal orientation value (0, 1, 2, or 3).
+
+    Notes:
+        The optimal orientation is chosen such that when standing on the start pixel, the left adjacent pixel is white.
+    #
+    # Examples:
+    #     >>> pixel_coords = np.array([[0, 0], [1, 1], [2, 2], [3, 3]])
+    #     >>> orientation = find_pavlidis_optimal_orientation(pixel_coords, start_coords=(1, 1))
+    #     >>> print('Optimal Orientation:', orientation)
+    #
+    #     >>> pixel_coords = np.array([[0, 0], [1, 1], [2, 2], [3, 3]])
+    #     >>> orientation = find_pavlidis_optimal_orientation(pixel_coords)
+    #     >>> print('Optimal Orientation:', orientation)
+    """
     pixel_coordinates = pixel_coordinates.tolist()
-    print(pixel_coordinates)
     if start_coords is not None:
-        y=start_coords[0]
-        x=start_coords[1]
-        if [y-1, x] in pixel_coordinates:
+        y = start_coords[0]
+        x = start_coords[1]
+        if [y - 1, x] in pixel_coordinates:
             return 0
-        if [y, x+1] in pixel_coordinates:
+        if [y, x + 1] in pixel_coordinates:
             return 1
-        if [y+1, x] in pixel_coordinates:
+        if [y + 1, x] in pixel_coordinates:
             return 2
-        if [y, x-1] in pixel_coordinates:
+        if [y, x - 1] in pixel_coordinates:
             return 3
 
     for y, x in pixel_coordinates:
-        print(y,x)
-        if [y-1, x] in pixel_coordinates:
+        if [y - 1, x] in pixel_coordinates:
             return 0
-        if [y, x+1] in pixel_coordinates:
+        if [y, x + 1] in pixel_coordinates:
             return 1
-        if [y+1, x] in pixel_coordinates:
+        if [y + 1, x] in pixel_coordinates:
             return 2
-        if [y, x-1] in pixel_coordinates:
+        if [y, x - 1] in pixel_coordinates:
             return 3
     return None
 
 
 def find_pavlidis_optimal_start2(pixel_coordinates):
-    # px_coords =pixel_coordinates.tolist()
+    """
+    Find the optimal start pixel for the Pavlidis algorithm based on the pixel coordinates.
+
+    Args:
+        pixel_coordinates (np.ndarray): Array of shape (N, 2) containing the pixel coordinates.
+
+    Returns:
+        Optimal start pixel coordinates.
+
+    Notes:
+        The optimal start pixel is chosen such that when initially standing on it, the left adjacent pixel is not black.
+
+    # Examples:
+    #     >>> pixel_coords = np.array([[0, 0], [1, 1], [2, 2], [3, 3]])
+    #     >>> start_coords = find_pavlidis_optimal_start2(pixel_coords)
+    #     >>> print('Optimal Start Coordinates:', start_coords)
+    """
     pixel_coordinates = pixel_coordinates.tolist()
 
     for y, x in pixel_coordinates:
-        # You actually can choose ANY black boundary pixel to be your start pixel as long as when you're initially standing on it, your left adjacent pixel is NOT black. --> in fact easy then
-        # nb the left adjacent pixel is the upper left pixel in fact --> no in fact it's left
-        # if (y-1, x-1) not in pixel_coordinates:
-        # if (y-1, x-1) not in pixel_coordinates and (y-1,x-0) in pixel_coordinates:
-        if [y-1, x] not in pixel_coordinates:
-            return (y,x)
+        if [y - 1, x] not in pixel_coordinates:
+            return y, x
     return None
 
 
 def find_pavlidis_optimal_start(pixel_coordinates):
-    # print(pixel_coordinates)
-    # px_coords = np.vstack(pixel_coordinates)
-    # print(px_coords)
-    # print(px_coords.shape)
+    """
+    Find the optimal start pixel and orientation for the Pavlidis algorithm based on the pixel coordinates.
 
-    # px_coords = list(zip(pixel_coordinates[0].tolist(),pixel_coordinates[1].tolist()))
+    Args:
+        pixel_coordinates (np.ndarray): Array of shape (N, 2) containing the pixel coordinates.
+
+    Returns:
+        Optimal start pixel coordinates and orientation.
+
+    # Examples:
+    #     >>> pixel_coords = np.array([[0, 0], [1, 1], [2, 2], [3, 3]])
+    #     >>> start_coords, orientation = find_pavlidis_optimal_start(pixel_coords)
+    #     >>> print('Optimal Start Coordinates:', start_coords)
+    #     >>> print('Optimal Orientation:', orientation)
+    """
     px_coords = pixel_coordinates.tolist()
-    # print('px_coords',px_coords)
-    # px_coords = np.asarray(px_coords)
-    for y,x in px_coords:
-        # print(y,x)
-        # in fact if in another orientation I need to set the entry so it will not work --> just loop for one direction then
-        for orientation, pavlidis_shift in enumerate(starting_pavlidis):
 
-            # print(orientation, '--', pavlidis_shift)
-            # pavlidis_shift = starting_pavlidis[0]
-            # check that all lwr neighbs of the starting pixel are black/non colored the same as the pavlidis cell
+    for y, x in px_coords:
+        for orientation, pavlidis_shift in enumerate(starting_pavlidis):
             counter_white = 0
             for shift in pavlidis_shift:
-                # print('g',(y + shift[0], x + shift[1]) in px_coords)
                 if (y + shift[0], x + shift[1]) in px_coords:
-                    counter_white+=1
+                    counter_white += 1
 
-                # print((y-0, x-0) in px_coords)
-            if counter_white !=0:
-                print('counter_white',counter_white)
+            if counter_white != 0:
+                print('counter_white', counter_white)
             if counter_white == 3:
-                return (y,x), orientation
+                return (y, x), orientation
 
-
-    print('error optimal pavlidis not found, returning None')
+    print('Error: Optimal pavlidis not found. Returning None')
     return None, 0
-    # return pixel_coordinates[0][0], pixel_coordinates[1][0]
 
-
-# fairly good --> keep pavlidis like that, hope it will not be too slow...
 
 if __name__ == '__main__':
 

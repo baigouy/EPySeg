@@ -812,7 +812,7 @@ class Image2D(Rect2D):
         # arr = np.array(image_pointer,copy=True).reshape(height, width, 4)
         arr = np.array(image_pointer).reshape(height, width, 4)
         arr = arr[..., 0:3]
-        arr = Img.RGB_to_BGR(arr)  # that seems to do the job
+        arr = RGB_to_BGR(arr)  # that seems to do the job
         return arr
 
     # simple equation for an image
@@ -902,7 +902,7 @@ if __name__ == '__main__':
     # shall I save
     # try with non RGB images just to see
 
-    # img = Img.RGB_to_BGR(img)
+    # img = RGB_to_BGR(img)
 
     # almost there --> just need to check that the size of the image is ok and that everything is fine
     plt.imshow(img)

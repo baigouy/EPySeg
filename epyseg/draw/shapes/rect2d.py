@@ -1,9 +1,7 @@
-# TODO pen.setJoinStyle(Qt.MiterJoin)# RoundJoin #BevelJoin # some day offer the handling of that but later
-# TODO offer shear and scale at the level of the stuff
-# Offer set to with also
-# si double click sur une image --> edit it # offer drawing of shapes etc
+# code cleaning not finished...
+
 import os
-from epyseg.settings.global_settings import set_UI # set the UI to be used py qtpy
+from epyseg.settings.global_settings import set_UI  # set the UI to be used py qtpy
 set_UI()
 from qtpy.QtCore import QPointF, QRectF, Qt
 from qtpy.QtGui import QBrush, QPen, QColor, QTransform
@@ -12,7 +10,35 @@ from epyseg.tools.logger import TA_logger
 
 logger = TA_logger()
 
+
 class Rect2D(QRectF):
+    """
+    A custom class for 2D rectangles with additional features such as color, fill color, opacity, stroke, line style,
+    rotation, scale, and translation.
+
+    Args:
+        *args: Variable-length arguments that can represent the rectangle coordinates.
+        color (int): Color of the rectangle in hexadecimal format (default: 0xFFFF00).
+        fill_color (int): Fill color of the rectangle in hexadecimal format (default: None).
+        opacity (float): Opacity value between 0.0 and 1.0 (default: 1.0).
+        stroke (float): Stroke width of the rectangle (default: 0.65).
+        line_style (Union[None, int, List[int]]): Line style of the rectangle. None for a solid line,
+            or any of the following values: Qt.SolidLine, Qt.DashLine, Qt.DashDotLine, Qt.DotLine, Qt.DashDotDotLine.
+            If a list of integers is provided, it represents a custom dash pattern (default: None).
+        theta (float): Rotation angle in degrees (default: 0.0).
+        **kwargs: Additional keyword arguments.
+
+    Attributes:
+        isSet (bool): Indicates whether the rectangle is set.
+        color (int): Color of the rectangle in hexadecimal format.
+        fill_color (int): Fill color of the rectangle in hexadecimal format.
+        stroke (float): Stroke width of the rectangle.
+        opacity (float): Opacity value between 0.0 and 1.0.
+        scale (float): Scaling factor of the rectangle (default: 1.0).
+        translation (QPointF): Translation of the rectangle.
+        line_style (Union[None, int, List[int]]): Line style of the rectangle.
+
+    """
 
     def __init__(self, *args, color=0xFFFF00, fill_color=None, opacity=1., stroke=0.65, line_style=None, theta=0, **kwargs):
         super(Rect2D, self).__init__(*args)
@@ -28,21 +54,35 @@ class Rect2D(QRectF):
         self.scale = 1
         self.translation = QPointF()
         self.line_style = line_style
-         # rotation
         self.theta = theta
 
     def set_rotation(self, theta):
+        """
+        Set the rotation angle of the rectangle.
+
+        Args:
+            theta (float): Rotation angle in degrees.
+
+        """
         self.theta = theta
 
     def set_opacity(self, opacity):
+        """
+        Set the opacity value of the rectangle.
+
+        Args:
+            opacity (float): Opacity value between 0.0 and 1.0.
+
+        """
         self.opacity = opacity
 
     def set_line_style(self,style):
-        '''allows lines to be dashed or dotted or have custom pattern
+        """
+        allows lines to be dashed or dotted or have custom pattern
 
         :param style: a list of numbers or any of the following Qt.SolidLine, Qt.DashLine, Qt.DashDotLine, Qt.DotLine, Qt.DashDotDotLine but not Qt.CustomDashLine, Qt.CustomDashLine is assumed by default if a list is passed in. None is also a valid value that resets the line --> assume plain line
         :return:
-        '''
+        """
         self.line_style = style
         # if style is a list then assume custom pattern otherwise apply solidline
 

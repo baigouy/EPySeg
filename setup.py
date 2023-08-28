@@ -34,17 +34,19 @@ setuptools.setup(
         "czifile",
         # "h5py", # should be installed with tensorflow gpu so do I need it ??? # probably better to remove it to avoid intsalling erroneous versions that are incompatible with tensorflow... similarly do I really need to have numpy it will be installed with tf anyways??? --> just try
         "Markdown",
-        "matplotlib>=3.5.2", #  required to have matplotlib support of pyqt6 --> which will be used by default
+        "matplotlib>=3.5.2", #  required to have matplotlib support of pyqt6 --> which will be used by default in the future
         "numpy",
-        "numpydoc",
-        "Pillow",
-        # "PyQt5", # PyQt5==5.15.4    PyQt5-Qt5==5.15.2 # check versions are ok!!!
-        "PyQt6", # PyQt5==5.15.4    PyQt5-Qt5==5.15.2 # check versions are ok!!!
-        # "PyQtWebEngine", #PyQtWebEngine==5.15.4 PyQtWebEngine-Qt5==5.15.2
-        "PyQt6-WebEngine", #PyQtWebEngine==5.15.4 PyQtWebEngine-Qt5==5.15.2
+        # "numpydoc", # not needed any longer
+        "Pillow>=8.1.2", # because there are security issues with below
+        # for now intsall both but soon just rely on pyqt6 ???
+        "PyQt5", # PyQt5==5.15.4    PyQt5-Qt5==5.15.2 # check versions are ok!!!
+        # "PyQtWebEngine", #PyQtWebEngine==5.15.4 PyQtWebEngine-Qt5==5.15.2  # removed because it cause several bugs to the soft and is sometimes hard to install
+        "PyQt6", # PyQt5==5.15.4    PyQt5-Qt5==5.15.2 # check versions are ok!!! # may require: sudo apt install qt6-base-dev
+        # "PyQt6-WebEngine", #PyQtWebEngine==5.15.4 PyQtWebEngine-Qt5==5.15.2 # removed because it cause several bugs to the soft and is sometimes hard to install
         "read-lif",
-        "scikit-image>=0.18.1", #scikit-image==0.18.1
-        "scipy", # scipy==1.6.3
+        "scikit-image>=0.19.3", #scikit-image>=0.18.1 # 0.19.3 is required for applying 3D affine trafo
+        "scipy>=1.7.3", # scipy==1.6.3 # 1.7.3 is required for applying 3D affine trafo
+        "scikit-learn>=1.0.2",  # for pyTA contour sorting deprecated (remove ?) # 1.0.2 is required for applying 3D affine trafo now
         "tifffile>=2021.11.2", #tifffile==2021.11.2 # ok bug is now fixed --> can keep all the versions of tifffile! # NB apparently there is a bug with the latest version for saving as imageJ (with metadata) --> I may need fix the version to 2021.11.2 # but try it
         "tqdm",
         "natsort",
@@ -57,18 +59,34 @@ setuptools.setup(
         "roifile", # for support of IJ ROIs soon
         "prettytable", # for SQL preview in pyTA
         "pyperclip", # for pyta lists
-        "sklearn", # for pyTA contour sorting deprecated (remove ?)
         "QtPy>=2.1.0", # from now on this is how I would handle the pyqt/pyside integration
+        # "aicsimageio", # new library t oread czi files (or any file maybe ????)--> replace my entire Img library ???
+        # "aicspylibczi>=3.0.5", # required for the above to read czi files !!!
+        # "pylibczi", # deprecated --> replaced by the 2 above --> DO NOT USE
+        # "pylibCZIrw" # --> a python wrapper for libCZI --> this is the Zeiss made stuff so -> SO COOL
+
+        # "parameterized",#required for unit tests
         # "sympy" # TODO add this if I finally use it in EZF
-        # six==1.15.0
+        # six==1.15.0,
+        # "cython",
+        # "cooltools",
+        # "cooler"
+        #
     ],
+
+    # !python --version # to check python version in colab
+
     # extras_require = {
     #     'all':  ["tensorflow-gpu>=2.0.0"]
     # },
-    python_requires='>=3.6, <3.9' # tensorflow is now supported by python 3.9 --> could put < 3.10 but then I would have to change tf version to 2.5 and I haven't tested it (see https://www.tensorflow.org/install/pip?hl=fr) --> should try that first --> check the colba version to see if that works or not !!!
+    # python_requires='>=3.6, <3.9' #  --> could put < 3.10 but then I would have to change tf version to 2.5 and I haven't tested it (see https://www.tensorflow.org/install/pip?hl=fr) --> should try that first --> check the colba version to see if that works or not !!!
+    # python_requires='>=3.6, <3.10' # from 16/03/23 tensorflow is now supported by python 3.9 and tf version is 2.11.0 --> could put < 3.10 but then I would have to change tf version to 2.5 and I haven't tested it (see https://www.tensorflow.org/install/pip?hl=fr) --> should try that first --> check the colba version to see if that works or not !!!
+    python_requires='>=3.6, <3.11' # from 04/05/23 colab is using python 3.10.11
     # NB colab uses tf 2.8.0 by default (date = 16/02/22) (https://colab.research.google.com/notebooks/tensorflow_version.ipynb#scrollTo=-XbfkU7BeziQ) --> see if my tool works with that then update
     # python version on colab is 3.7.12 --> therefore it is really worth keeping it that way (import sys  sys.version)
 )
+
+# to test with testpy !pip install --no-deps -i https://test.pypi.org/simple/ epyseg==0.1.30
 
 # pip3 freeze # the versions have changed --> try with a fresh install just to see if that works
 

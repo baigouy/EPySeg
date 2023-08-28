@@ -24,7 +24,10 @@ from epyseg.tools.logger import TA_logger # logging
 logger = TA_logger()
 
 class Createpaintwidget(QWidget):
-    auto_convert_float_to_binary_threshold = 0.4
+    # auto_convert_float_to_binary_threshold = 0.4
+
+    default_mask_name = 'handCorrection.tif'
+
     # maybe store
     def __init__(self, enable_shortcuts=False): #, methods_overriding=None
 
@@ -65,6 +68,8 @@ class Createpaintwidget(QWidget):
         self.force_cursor_visible = False # required to force activate cursor to be always visible
         self.save_file_name=None
         self.multichannel_mode = False
+
+        self.auto_convert_float_to_binary_threshold = 0.4
 
         # self.multi_channel_editor_n_save = False
         # TODO add sortcuts
@@ -361,7 +366,7 @@ class Createpaintwidget(QWidget):
                 # NB THIS IS VERY REDUNDNAT ---> STICK TO ONE METHOD
                 if isinstance(img, str):
                     # self.image_path = img# maybe this image path can be used for saving, could also be provided serparately
-                    self.save_file_name = smart_name_parser(img, ordered_output='handCorrection.tif')
+                    self.save_file_name = smart_name_parser(img, ordered_output=self.default_mask_name)
                     img = Img(img)
 
                 # self.image_path=None # maybe this image path can be used for saving
@@ -414,14 +419,18 @@ class Createpaintwidget(QWidget):
     def get_raw_image(self):
         return self.raw_image
 
-    def binarize(self, mask, auto_convert_float_to_binary=auto_convert_float_to_binary_threshold, force=False):
+    def binarize(self, mask, auto_convert_float_to_binary=None, force=False):
+        if auto_convert_float_to_binary is None:
+            auto_convert_float_to_binary = self.auto_convert_float_to_binary_threshold
         if auto_convert_float_to_binary and (mask.max() <= 1 or force):
             # print('autoconvert')
             mask = mask > auto_convert_float_to_binary
         return mask
 
     # do I need that ??? maybe yes if I just wanna change the mask
-    def set_mask(self, mask, auto_convert_float_to_binary=auto_convert_float_to_binary_threshold):
+    def set_mask(self, mask, auto_convert_float_to_binary=None):
+        if auto_convert_float_to_binary is None:
+            auto_convert_float_to_binary = self.auto_convert_float_to_binary_threshold
         if isinstance(mask, str):
             self.save_file_name = mask
             # self.image_path = img# maybe this image path can be used for saving, could also be provided serparately
@@ -451,6 +460,12 @@ class Createpaintwidget(QWidget):
             # convert mask to a mask
             # self.imageDraw = QtGui.QImage(self.image.size(), QtGui.QImage.Format_ARGB32)
             # self.imageDraw.fill(QtCore.Qt.transparent)
+
+            # print('in here tmp ', mask.shape)
+
+
+            # if image has z channels and is more than just 2D / is 3D I could make this smarter by loading just the right image --> TODO --> sync the channel here with the channel of the currently dispalyer image
+            # SHALL I MAKE A FULL GUI FOR THAT ON RELY ON WHAT I HAVE ALREADY !!!!
             self.imageDraw = toQimage(Img(self.createRGBA(mask), dimensions='hwc'),preserve_alpha=True) #.getQimage()  # marche pas car besoin d'une ARGB
             self.raw_user_drawing = QtGui.QImage(self.imageDraw.size(), QtGui.QImage.Format_ARGB32)
             self.raw_user_drawing.fill(QtCore.Qt.transparent) # somehow this is really required to have an empty image otherwise it is not --> ??? why
@@ -537,9 +552,21 @@ class Createpaintwidget(QWidget):
         return arr
 
     def createRGBA(self, handCorrection):
+
+
+
+
+
         # print('Im called')
         # use pen color to display the mask
         # in fact I need to put the real color
+        # nb this will definitely not work if the user wants to have full 3D stuff
+
+        # shall I also offer the zooming on the objects --> ????
+
+
+
+
         RGBA = np.zeros((handCorrection.shape[0], handCorrection.shape[1], 4), dtype=np.uint8)
 
         red = self.drawColor.red()
@@ -812,7 +839,9 @@ class Createpaintwidget(QWidget):
         drawn_mask[min_y:max_y, min_x:max_x][first_y:min(first_y + (bounds[1] - bounds[0]) + 1, minished.shape[0]),first_x:min(first_x + (bounds[3] - bounds[2]) + 1, minished.shape[1])] = minished[first_y:min(first_y + (bounds[1] - bounds[0]) + 1, minished.shape[0]), first_x:min(first_x + (bounds[3] - bounds[2]) + 1, minished.shape[1])]
         self.set_mask(drawn_mask)
 
-    def force_consistent_range(self, img, auto_convert_float_to_binary=auto_convert_float_to_binary_threshold):
+    def force_consistent_range(self, img, auto_convert_float_to_binary=None):
+        if auto_convert_float_to_binary is None:
+            auto_convert_float_to_binary = self.auto_convert_float_to_binary_threshold
         # for ch in range(img.shape[-1]):
         #     tmp = img[...,ch]
         #     min = tmp.min()
@@ -1282,17 +1311,17 @@ if __name__ == '__main__':
     # tst = Img('/E/Sample_images/fluorescent_wings_spots_charroux/909dsRed/0.tif')
     # tst = Img('/E/Sample_images/fluorescent_wings_spots_charroux/contoles_test_X1VK06/0.tif')
     # tst = Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini (copie)/focused_Series012.png')
-    # tst = Img.normalization(tst, method='Rescaling (min-max normalization)', range=[0,1], individual_channels=len(tst.shape)>2, clip=True)
-    # tst = Img.normalization(tst, method='Rescaling (min-max normalization)', range=[0,1], individual_channels=len(tst.shape)>2, clip=True)
-    # tst = Img.normalization(tst, method='Standardization', range=[0,1], individual_channels=True, clip=True)
-    # tst = Img.normalization(tst, method='Percentile', range=[0,1], individual_channels=len(tst.shape)>2, clip=True, normalization_minima_and_maxima=[1.,50.0])
+    # tst = normalization(tst, method='Rescaling (min-max normalization)', range=[0,1], individual_channels=len(tst.shape)>2, clip=True)
+    # tst = normalization(tst, method='Rescaling (min-max normalization)', range=[0,1], individual_channels=len(tst.shape)>2, clip=True)
+    # tst = normalization(tst, method='Standardization', range=[0,1], individual_channels=True, clip=True)
+    # tst = normalization(tst, method='Percentile', range=[0,1], individual_channels=len(tst.shape)>2, clip=True, normalization_minima_and_maxima=[1.,50.0])
     # tst = np.squeeze(tst)
 
     # tst = auto_threshold(tst)
     # save_as_tiff(tst, output_name='/E/Sample_images/sample_images_PA/trash_test_mem/mini (copie)/tst_norm.tif')
 
     # do I have a standar
-    # tst = Img.normalization(tst, method='standardization', range=[0,1], individual_channels=True)
+    # tst = normalization(tst, method='standardization', range=[0,1], individual_channels=True)
     # print(tst.max())
     # w.set_image(tst)
 

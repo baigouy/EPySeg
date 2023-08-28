@@ -18,7 +18,7 @@ from epyseg.gui.preview import crop_or_preview
 from qtpy.QtWidgets import QSpinBox, QComboBox, QVBoxLayout, QLabel, QCheckBox, QRadioButton, QButtonGroup, QGroupBox, \
     QDoubleSpinBox
 from qtpy.QtCore import Qt, QPoint
-from epyseg.img import Img
+from epyseg.img import Img, normalization_methods, normalization_ranges
 import sys
 import json
 import os
@@ -143,7 +143,8 @@ class image_input_settings(QDialog):
             self.bg_norm_label.setWordWrap(True)
 
             self.bg_removal = QComboBox(objectName=objectName + 'bg_removal')
-            for method in Img.background_removal:
+            background_removal = ['No', 'White bg', 'Dark bg']
+            for method in background_removal:
                 self.bg_removal.addItem(method)
 
         # help for pre-processing
@@ -168,10 +169,10 @@ class image_input_settings(QDialog):
 
         tiling_goup_layout = QGridLayout()
         tiling_goup_layout.setAlignment(Qt.AlignTop)
-        tiling_goup_layout.setColumnStretch(0, 12.5)
-        tiling_goup_layout.setColumnStretch(1, 37.5)
-        tiling_goup_layout.setColumnStretch(2, 12.5)
-        tiling_goup_layout.setColumnStretch(3, 37.5)
+        tiling_goup_layout.setColumnStretch(0, 12)
+        tiling_goup_layout.setColumnStretch(1, 37)
+        tiling_goup_layout.setColumnStretch(2, 12)
+        tiling_goup_layout.setColumnStretch(3, 37)
         tiling_goup_layout.setHorizontalSpacing(3)
         tiling_goup_layout.setVerticalSpacing(3)
 
@@ -225,9 +226,9 @@ class image_input_settings(QDialog):
         self.input_normalization_layout = QGridLayout()
         self.input_normalization_layout.setAlignment(Qt.AlignTop)
         self.input_normalization_layout.setColumnStretch(0, 25)
-        self.input_normalization_layout.setColumnStretch(1, 37.5)
+        self.input_normalization_layout.setColumnStretch(1, 37)
         # self.input_normalization_layout.setColumnStretch(0, 25)
-        self.input_normalization_layout.setColumnStretch(2, 37.5)
+        self.input_normalization_layout.setColumnStretch(2, 37)
         self.input_normalization_layout.setHorizontalSpacing(3)
         self.input_normalization_layout.setVerticalSpacing(3)
         # self.input_normalization_layout.setContentsMargins(0, 0, 0, 0)
@@ -236,7 +237,8 @@ class image_input_settings(QDialog):
         self.clip_by_freq_label = QLabel('Remove outliers (intensity frequency)')
         self.clip_by_freq_combo = QComboBox(objectName=objectName + 'clip_by_freq_combo')
 
-        for method in Img.clipping_methods:
+        clipping_methods = ['ignore outliers', '+', '+/-', '-']
+        for method in clipping_methods:
             self.clip_by_freq_combo.addItem(method)
         # self.clip_by_freq_combo.addItem('ignore outliers')
         # self.clip_by_freq_combo.addItem('+')
@@ -253,7 +255,7 @@ class image_input_settings(QDialog):
 
         input_normalization_type_label = QLabel('Method')
         self.input_normalization = QComboBox(objectName=objectName + 'input_normalization')
-        for method in Img.normalization_methods:
+        for method in normalization_methods:
             self.input_normalization.addItem(method)
         self.input_normalization.currentTextChanged.connect(self.input_norm_changed)
 
@@ -262,7 +264,7 @@ class image_input_settings(QDialog):
         self.input_b2.setChecked(True)
         input_normalization_range_label = QLabel('Range')
         self.input_norm_range = QComboBox(objectName=objectName + 'input_norm_range')
-        for rng in Img.normalization_ranges:
+        for rng in normalization_ranges:
             self.input_norm_range.addItem(str(rng))
         self.lower_range_percentile_input_normalization = QDoubleSpinBox(
             objectName=objectName + 'lower_range_percentile_input_normalization')
@@ -640,7 +642,7 @@ class image_input_settings(QDialog):
 
         output_normalization_type_label = QLabel('Method')
         self.output_normalization = QComboBox(objectName=objectName + 'output_normalization')
-        for method in Img.normalization_methods:
+        for method in normalization_methods:
             self.output_normalization.addItem(method)
         self.output_normalization.currentTextChanged.connect(self.output_norm_changed)
         self.lower_range_percentile_output_normalization = QDoubleSpinBox(
@@ -665,7 +667,7 @@ class image_input_settings(QDialog):
         self.output_b2.setChecked(True)
         output_normalization_range_label = QLabel('Range')
         self.output_norm_range = QComboBox(objectName=objectName + 'output_norm_range')
-        for rng in Img.normalization_ranges:
+        for rng in normalization_ranges:
             self.output_norm_range.addItem(str(rng))
 
         # help normalization output
@@ -1032,13 +1034,13 @@ class image_input_settings(QDialog):
             self.output_predictions_to.setEnabled(False)
 
     def output_norm_changed(self):
-        if self.output_normalization.currentText() == Img.normalization_methods[0] \
-                or self.output_normalization.currentText() == Img.normalization_methods[1]:
+        if self.output_normalization.currentText() == normalization_methods[0] \
+                or self.output_normalization.currentText() == normalization_methods[1]:
             self.output_norm_range.setEnabled(True)
             self.lower_range_percentile_output_normalization.setEnabled(False)
             self.upper_range_percentile_output_normalization.setEnabled(False)
             self.clip_in_range_output.setEnabled(False)
-        elif self.output_normalization.currentText() == Img.normalization_methods[7]:
+        elif self.output_normalization.currentText() == normalization_methods[7]:
             self.output_norm_range.setEnabled(False)
             self.lower_range_percentile_output_normalization.setEnabled(True)
             self.upper_range_percentile_output_normalization.setEnabled(True)
@@ -1050,13 +1052,13 @@ class image_input_settings(QDialog):
             self.clip_in_range_output.setEnabled(False)
 
     def input_norm_changed(self):
-        if self.input_normalization.currentText() == Img.normalization_methods[0] \
-                or self.input_normalization.currentText() == Img.normalization_methods[1]:
+        if self.input_normalization.currentText() == normalization_methods[0] \
+                or self.input_normalization.currentText() == normalization_methods[1]:
             self.input_norm_range.setEnabled(True)
             self.lower_range_percentile_input_normalization.setEnabled(False)
             self.upper_range_percentile_input_normalization.setEnabled(False)
             self.clip_in_range_input.setEnabled(False)
-        elif self.input_normalization.currentText() == Img.normalization_methods[7]:
+        elif self.input_normalization.currentText() == normalization_methods[7]:
             self.input_norm_range.setEnabled(False)
             self.lower_range_percentile_input_normalization.setEnabled(True)
             self.upper_range_percentile_input_normalization.setEnabled(True)

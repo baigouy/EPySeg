@@ -1,35 +1,39 @@
-# TODO rewrite code and make use of random seeding in order to have the same things done for augmentation of raw_input and GT --> but check code beforehand --> that works and it does not require any other code change --> much better
+# TODO clean and annotate this class
+# finally added support for adding images to it -−> THE ONLY THING IF DIRECTLY LOADING IMAGES IS THAT THE NB OF CHANNELS AND GENERAL SHAPE OF THE IMAGE SHOULD BE THE ONE TO BE USED
+# PRACTICALLY THE IMAGE WILL BE REPLACED BY A SINGLE STACK IMAGE AND THE SOFT WILL LOOP OVER THE FIRST DIMENSION -> REALLY GOOD IN A WAY AND EASIER TO USE!!
 
 from builtins import enumerate
+from functools import partial
+
 from natsort import natsorted
 import traceback
-from numpy import dtype
-from skimage import filters
-from skimage.util import random_noise
+
+import epyseg.img
 from epyseg.binarytools.cell_center_detector import get_seeds
 from skimage.measure import label
-from epyseg.img import Img, white_top_hat, black_top_hat, mask_rows_or_columns, elastic_deform, \
-    create_random_intensity_graded_perturbation, apply_2D_gradient
+from epyseg.deeplearning.augmentation.generators.data_augmentation_2 import graded_intensity_modification, elastic, \
+    random_intensity_gamma_contrast_changer, stretch, high_noise, low_noise, shuffleZ, rollZ, invert, translate, \
+    change_image_intensity_and_shift_range, blur, flip, rotate_interpolation_free, rotate, zoom, shear, \
+    execute_chained_augmentations, elastic_with_zoom_and_translation, strong_elastic, \
+    strong_elastic_with_zoom_and_translation, crop_augmentation
+from epyseg.img import Img, white_top_hat, black_top_hat, pad_border_xy, get_2D_tiles_with_overlap, tiles_to_linear, \
+    tiles_to_batch, clip_by_frequency, normalization_methods, normalization, to_stack, stack_to_imgs
 import random
 from scipy import ndimage
-from skimage import transform
 import numpy as np
 import glob
 import os
 from pathlib import Path
-from skimage import exposure
 from datetime import datetime
 import matplotlib.pyplot as plt
+
+from epyseg.ta.tracking.tools import smart_name_parser
 from epyseg.utils.loadlist import loadlist
 from epyseg.tools.logger import TA_logger # logging
 
 # TODO add augmentation randomly swap channels --> can learn by itself which channel is containing epithelia
 
 logger = TA_logger()
-
-
-# could add non damaging rotations to augment --> would for sure be better...
-# TODO try numpy.rot90(m, k=1, axes=(0, 1))
 
 class DataGenerator:
     # TODO should I also store increment there ???
@@ -50,7 +54,10 @@ class DataGenerator:
                                      'shuffle images along Z (2D + GT ignored)': None,
                                      'random_intensity_gamma_contrast': None,
                                      'high noise': None, 'stretch': stretch_range,
-                                     'elastic':None,
+                                     'elastic': None,
+                                     'strong_elastic': None,
+                                     'elastic_with_zoom_and_translation': None,
+                                     'strong_elastic_with_zoom_and_translation': None,
                                      'graded_intensity_modification':None}
 
     augmentation_types_and_values = {'None': None, 'shear': shear_range[2], 'zoom': zoom_range[2],
@@ -67,8 +74,28 @@ class DataGenerator:
                                      'random_intensity_gamma_contrast': None,
                                      'stretch': 3.,
                                      'elastic': None,
+                                     'strong_elastic': None,
+                                     'elastic_with_zoom_and_translation': None,
+                                     'strong_elastic_with_zoom_and_translation': None,
                                      'graded_intensity_modification': None
                                      }
+
+    augmentation_types_and_methods = {'None': None, 'shear': shear, 'zoom': zoom,
+                                      'rotate': rotate,
+                                      'rotate (interpolation free)': rotate_interpolation_free,
+                                      'flip': flip, 'blur': blur,
+                                      'intensity': change_image_intensity_and_shift_range,
+                                      'translate': translate, 'invert': invert,
+                                      'roll along Z (2D + GT ignored)': rollZ,
+                                      'shuffle images along Z (2D + GT ignored)': shuffleZ,
+                                      'low noise': low_noise, 'high noise': high_noise,
+                                      'stretch': stretch,
+                                      'random_intensity_gamma_contrast': random_intensity_gamma_contrast_changer,
+                                      'elastic': elastic,
+                                      'strong_elastic': strong_elastic,
+                                      'elastic_with_zoom_and_translation': elastic_with_zoom_and_translation,
+                                      'strong_elastic_with_zoom_and_translation': strong_elastic_with_zoom_and_translation,
+                                      'graded_intensity_modification': graded_intensity_modification}  # added elastic deformation because can be very useful
 
     # TODO add also the elastic deforms
     # TODO add the possibility to tranform inputs to masks
@@ -98,31 +125,27 @@ class DataGenerator:
                  z_frames_to_add=None,
                  **kwargs):
 
+        # NB Keep IF USING DIRECTLY IMAGES AS INPUT THEN ONE MUST ABSOLUTELY MAKE SURE IT HAS THE RIGHT NB OF CHANNELS !!! --> BE VERY CAREFUL WITH THAT
+
         logger.debug('clip by freq' + str(clip_by_frequency))
 
         self.random_seed = datetime.now()
-        self.augmentation_types_and_methods = {'None': None, 'shear': self.shear, 'zoom': self.zoom,
-                                               'rotate': self.rotate,
-                                               'rotate (interpolation free)': self.rotate_interpolation_free,
-                                               'flip': self.flip, 'blur': self.blur,
-                                               'intensity': self.change_image_intensity_and_shift_range,
-                                               'translate': self.translate, 'invert': self.invert,
-                                               'roll along Z (2D + GT ignored)': self.rollZ,
-                                               'shuffle images along Z (2D + GT ignored)': self.shuffleZ,
-                                               'low noise': self.low_noise, 'high noise': self.high_noise,
-                                               'stretch': self.stretch,
-                                               'random_intensity_gamma_contrast': self.random_intensity_gamma_contrast_changer,
-                                               'elastic': self.elastic,
-                                               'graded_intensity_modification':self.graded_intensity_modification}# added elastic deformation because can be very useful
 
         self.EXTRAPOLATION_MASKS = 1  # bicubic 0 # nearest # TODO keep like that because 3 makes really weird results for binary images
         self.is_predict_generator = is_predict_generator
 
-        # convert single input to list
-        if isinstance(inputs, str):
+        # convert single input string or image to list
+        if isinstance(inputs, (str,  np.ndarray)):
             inputs = [inputs]
-        if isinstance(outputs, str):
+        if isinstance(outputs,  (str,  np.ndarray)):
             outputs = [outputs]
+
+        # convert single images to list
+        # if isinstance(inputs, np.ndarray):
+        #     inputs=[inputs]
+        # if isinstance(outputs, np.ndarray):
+        #     outputs=[outputs]
+
 
         if self.is_predict_generator:
             self.overlap_x = overlap_x
@@ -247,14 +270,19 @@ class DataGenerator:
             for liste in self.full_set_inputs:
                 lst = []
                 for file in liste:
-                    # get path without ext
-                    mask_folder = os.path.splitext(file)[0]
-                    file = Path(mask_folder + '/handCorrection.tif')  # TODO do path join instead...
-                    if file.exists():
-                        mask = mask_folder + '/handCorrection.tif'
+
+                    if isinstance(file, str):
+                        # get path without ext
+                        mask_folder = os.path.splitext(file)[0]
+                        file = Path(mask_folder + '/handCorrection.tif')  # TODO do path join instead...
+                        if file.exists():
+                            mask = mask_folder + '/handCorrection.tif'
+                        else:
+                            mask = mask_folder + '/handCorrection.png'
+                        lst.append(mask)
                     else:
-                        mask = mask_folder + '/handCorrection.png'
-                    lst.append(mask)
+                        # if it is already an nd array --> just add it directly
+                        lst.append(file)
                 self.full_set_outputs.append(lst)
 
         # for training and validation I need inputs and outputs
@@ -335,364 +363,341 @@ class DataGenerator:
             if self.predict_inputs:
                 logger.debug('predict lst' + str(self.predict_inputs))
 
-        # print('self.train_inputs',len(self.train_inputs[0])) --> not same size --> will crash --> use lists maybe
-        # print('self.train_outputs', len(self.train_outputs[0]))
-
     def has_train_set(self):
+        """
+        Check if the generator has a train set.
+
+        Returns:
+            bool: True if a train set exists, False otherwise.
+        """
         return self.train_inputs and len(self.train_inputs) != 0
 
     def has_validation_set(self):
+        """
+        Check if the generator has a validation set.
+
+        Returns:
+            bool: True if a validation set exists, False otherwise.
+        """
         return self.validation_inputs and len(self.validation_inputs) != 0
 
     def has_test_set(self):
+        """
+        Check if the generator has a test set.
+
+        Returns:
+            bool: True if a test set exists, False otherwise.
+        """
         return self.test_inputs and len(self.test_inputs) != 0
 
-    # TODO do that more wisely
     def is_train_set_size_coherent(self):
+        """
+        Check if the train set size is coherent.
+
+        Returns:
+            bool: True if the train set size is coherent, False otherwise.
+        """
         return len(self.train_inputs) == len(self.train_outputs)
 
-    # TODO do that more wisely
     def is_test_set_size_coherent(self):
+        """
+        Check if the test set size is coherent.
+
+        Returns:
+            bool: True if the test set size is coherent, False otherwise.
+        """
         return len(self.test_inputs) == len(self.test_outputs)
 
-    # TODO do that more wisely
     def is_validation_set_size_coherent(self):
+        """
+        Check if the validation set size is coherent.
+
+        Returns:
+            bool: True if the validation set size is coherent, False otherwise.
+        """
         return len(self.validation_inputs) == len(self.validation_outputs)
 
     def get_validation_set_length(self):
+        """
+        Get the length of the validation set.
+
+        Returns:
+            int: Length of the validation set.
+        """
         if not self.validation_inputs:
             return 0
         return len(self.validation_inputs[0])
 
     def get_test_set_length(self):
+        """
+        Get the length of the test set.
+
+        Returns:
+            int: Length of the test set.
+        """
         if not self.test_inputs:
             return 0
         return len(self.test_inputs[0])
 
     def get_train_set_length(self):
+        """
+        Get the length of the train set.
+
+        Returns:
+            int: Length of the train set.
+        """
         if not self.train_inputs:
             return 0
         return len(self.train_inputs[0])
 
     def train_generator(self, skip_augment, first_run, __DEBUG__=False):
+        """
+        Generator function for training data.
+
+        Args:
+            skip_augment (bool): Flag indicating whether to skip data augmentation.
+            first_run (bool): Flag indicating whether it is the first run.
+            __DEBUG__ (bool, optional): Debug flag. Defaults to False.
+
+        Yields:
+            tuple: A tuple containing the original input and the corresponding mask.
+
+        Raises:
+            GeneratorExit: Raised when the generator is exited.
+        """
         if self.shuffle:
             indices = random.sample(range(len(self.train_inputs[0])), len(self.train_inputs[0]))
         else:
             indices = list(range(len(self.train_inputs[0])))
 
-        # print('indices',indices)
-        # print('vs', random.sample(range(len(self.train_inputs[0])), len(self.train_inputs[0])))
 
         for idx in indices:
             try:
-                # print(self.train_inputs[0], self.train_inputs[1]) # seems ok --> the two lists are the same so where is the bug ???
-                # can put whsed in there too
-
                 if __DEBUG__:
-                    print('self.train_inputs',self.train_inputs)
-                    print('self.train_outputs',self.train_outputs)
+                    print('self.train_inputs', self.train_inputs)
+                    print('self.train_outputs', self.train_outputs)
 
                 orig, mask = self.generate(self.train_inputs, self.train_outputs, idx,
-                                           skip_augment, first_run)  # need augment in there
+                                           skip_augment, first_run)
 
-                #  that works check that all are there and all are possible otherwise skip
-                # --> need ensure that width = height
-                # need set a parameter to be sure to use it or not and need remove rotation and flip from augmentation list (or not in fact)
-                # augmentations = 7
-                # if orig[0].shape[-2] != orig[0].shape[-3]:
-                #     augmentations = 3
-                # for aug in range(augmentations):
-                #     yield self.angular_yielder(orig, mask, aug)
                 yield orig, mask
             except GeneratorExit:
-                # except GeneratorExit
-                # print("Exception!")
-                # except:
                 break
             except Exception:
-                # erroneous/corrupt image detected --> continuing
                 traceback.print_exc()
                 continue
 
     def angular_yielder(self, orig, count=None):
-        # mask = self.extra_watershed_mask(mask) # shrink mask to 1 px wide irrespective of transfo
-        # NB could do here the generations of the nine stacks --> TODO --> would increase size by 9 but it is a good idea I think
-        # can also copy the code of the other stuff
+        """
+        Generate augmented versions of the input.
 
-        # print('in angular yielder', orig.shape)
+        Args:
+            orig (ndarray): Original input.
+            count (int, optional): Number of augmentations. Defaults to None.
 
-        # can create bugs if not size contant --> force constant size --> same is true for the interpolationless rotation I added recently --> fix that
-
+        Returns:
+            ndarray: Augmented version of the input.
+        """
         random.seed(self.random_seed)
 
         if count is None:
             augmentations = 8
-            # quick n dirty bug fix to keep batch size fixed!!!
             if orig[0].shape[-2] != orig[0].shape[-3]:
                 augmentations = 4
             count = random.choice(range(augmentations))
 
         if count == 0:
             return orig
-
-        if count == 1:
+        elif count == 1:
             # rot 180
             return np.rot90(orig, 2, axes=(-3, -2))
-
-        if count == 2:
+        elif count == 2:
             # flip hor
             return np.flip(orig, -2)
-
-        if count == 3:
+        elif count == 3:
             # flip ver
             return np.flip(orig, -3)
-
-        # make it yield the original and the nine versions of it
-        # --> TODO
-        # ça marche ça me genere les 9 versions du truc dans tous les sens --> probablement ce que je veux --> tt mettre ici
-        if count == 4:
-            # yield np.rot90(orig, axes=(-3, -2)), np.rot90(mask, axes=(-3, -2))
-
+        elif count == 4:
             # rot 90
             return np.rot90(orig, axes=(-3, -2))
-
-        if count == 5:
+        elif count == 5:
             # rot 90_flipped_hor or ver
             return np.flip(np.rot90(orig, axes=(-3, -2)), -2)
-
-        if count == 6:
+        elif count == 6:
             # rot 90_flipped_hor or ver
             return np.flip(np.rot90(orig, axes=(-3, -2)), -3)
-
-        if count == 7:
+        elif count == 7:
             # rot 270
             return np.rot90(orig, 3, axes=(-3, -2))
 
-    # def angular_yielder(self, orig, mask, count):
-    #     # mask = self.extra_watershed_mask(mask) # shrink mask to 1 px wide irrespective of transfo
-    #     # NB could do here the generations of the nine stacks --> TODO --> would increase size by 9 but it is a good idea I think
-    #     # can also copy the code of the other stuff
-    #
-    #     if count == 0:
-    #         # rot 180
-    #         return np.rot90(orig, 2, axes=(-3, -2)), np.rot90(mask, 2, axes=(-3, -2))
-    #
-    #     if count == 1:
-    #         # flip hor
-    #         return np.flip(orig, -2), np.flip(mask, -2)
-    #
-    #     if count == 2:
-    #         # flip ver
-    #         return np.flip(orig, -3), np.flip(mask, -3)
-    #
-    #     # make it yield the original and the nine versions of it
-    #     # --> TODO
-    #     # ça marche ça me genere les 9 versions du truc dans tous les sens --> probablement ce que je veux --> tt mettre ici
-    #     if count == 3:
-    #         # yield np.rot90(orig, axes=(-3, -2)), np.rot90(mask, axes=(-3, -2))
-    #
-    #         # rot 90
-    #         return np.rot90(orig, axes=(-3, -2)), np.rot90(mask, axes=(-3, -2))
-    #
-    #     if count == 4:
-    #         # rot 90_flipped_hor or ver
-    #         return np.flip(np.rot90(orig, axes=(-3, -2)), -2), np.flip(np.rot90(mask, axes=(-3, -2)), -2)
-    #
-    #     if count == 5:
-    #         # rot 90_flipped_hor or ver
-    #         return np.flip(np.rot90(orig, axes=(-3, -2)), -3), np.flip(np.rot90(mask, axes=(-3, -2)), -3)
-    #
-    #     if count == 6:
-    #         # rot 270
-    #         return np.rot90(orig, 3, axes=(-3, -2)), np.rot90(mask, 3, axes=(-3, -2))
-
-    # def extra_watershed_mask(self, mask):
-    #     # TODO probably need flood the borders to remove cells at the edges --> peut il y a voir une astuce pr garder 1px wide ???? sans perte sinon pas faire de nearest mais une bicubic interpolation # peut etre avec threshold --> deuxieme piste peut etre meme mieux
-    #     for idx in range(len(mask)):
-    #         # print(mask[idx].shape)
-    #         for idx2 in range(len(mask[idx])):
-    #             # np.squeeze
-    #             handcorr = Wshed.run((mask[idx][idx2]), seeds='mask', min_size=30)
-    #             mask[idx][idx2] = np.reshape(handcorr, (*handcorr.shape, 1))  # regenerate after stuff
-    #         # print('2', mask[idx].shape)
-    #     return mask
-
     def test_generator(self, skip_augment, first_run):
+        """
+        Generator function for test data.
+
+        Args:
+            skip_augment (bool): Flag indicating whether to skip data augmentation.
+            first_run (bool): Flag indicating whether it is the first run.
+
+        Yields:
+            tuple: A tuple containing the generated inputs and outputs for testing.
+        """
         for idx in range(len(self.test_inputs[0])):
             try:
-                #  that works check that all are there and all are possible otherwise skip
-                # --> need ensure that width = height
-                # need set a parameter to be sure to use it or not and need remove rotation and flip from augmentation list (or not in fact)
-                # DO I Need that for test gen too ??? probably not in fact --> think a bit about it
-                # augmentations = 7
-                # if orig[0].shape[-2] != orig[0].shape[-3]:
-                #     augmentations = 3
-                # for aug in range(augmentations):
-                #     yield self.angular_yielder(orig, mask, aug)
                 yield self.generate(self.test_inputs, self.test_outputs, idx, skip_augment, first_run)
-            except GeneratorExit:  # https://stackoverflow.com/questions/46542147/elegant-way-for-breaking-a-generator-loop-generatorexit-error
-                # except GeneratorExit
-                # print("Exception!")
-                # except:
+            except GeneratorExit:
                 break
             except Exception:
-                # erroneous/corrupt image detected --> continuing
                 traceback.print_exc()
                 continue
 
     def validation_generator(self, skip_augment, first_run):
+        """
+        Generator function for validation data.
+
+        Args:
+            skip_augment (bool): Flag indicating whether to skip data augmentation.
+            first_run (bool): Flag indicating whether it is the first run.
+
+        Yields:
+            tuple: A tuple containing the generated inputs and outputs for validation.
+        """
         for idx in range(len(self.validation_inputs[0])):
             try:
-                #  that works check that all are there and all are possible otherwise skip
-                # --> need ensure that width = height
-                # need set a parameter to be sure to use it or not and need remove rotation and flip from augmentation list (or not in fact)
-                # augmentations = 7
-                # if orig[0].shape[-2] != orig[0].shape[-3]:
-                #     augmentations = 3
-                # for aug in range(augmentations):
-                #     yield self.angular_yielder(orig, mask, aug)
                 yield self.generate(self.validation_inputs, self.validation_outputs, idx, skip_augment, first_run)
-            except GeneratorExit:  # https://stackoverflow.com/questions/46542147/elegant-way-for-breaking-a-generator-loop-generatorexit-error
-                # except GeneratorExit
-                # print("Exception!")
-                # except:
+            except GeneratorExit:
                 break
             except Exception:
-                # erroneous/corrupt image detected --> continuing
                 continue
 
     def predict_generator(self, skip_augment=True):
+        """
+        Generator function for prediction data.
+
+        Args:
+            skip_augment (bool, optional): Flag indicating whether to skip data augmentation. Defaults to True.
+
+        Yields:
+            ndarray: The generated inputs for prediction.
+        """
         for idx in range(len(self.predict_inputs[0])):
             try:
                 yield self.generate(self.predict_inputs, None, idx, skip_augment)
-            except GeneratorExit:  # https://stackoverflow.com/questions/46542147/elegant-way-for-breaking-a-generator-loop-generatorexit-error
-                # except GeneratorExit
-                # print("Exception!")
-                # except:
+            except GeneratorExit:
                 break
             except Exception:
-                # erroneous/corrupt image detected --> continuing
                 traceback.print_exc()
                 continue
 
     def _get_from(self, input_list, idx):
+        """
+        Get data from the input list at the specified index.
+
+        Args:
+            input_list (list): List of inputs.
+            idx (int): Index.
+
+        Returns:
+            list: Data at the specified index from the input list.
+        """
+
         if input_list is None:
             return None
         data = []
         for lst in input_list:
-            # if an input list is None then return always None for this lists
-            # print(lst)
             if lst and lst is not None:
                 data.append(lst[idx])
             else:
                 data.append(None)
-        # unpack data...
         return data
 
     def generate(self, inputs, outputs, cur_idx, skip_augment, first_run=False):
-        # print('inp',cur_idx, len(inputs))
-        # print('output',cur_idx, len(outputs)) # bug here should be len =1 not two...--> I do have a bug
-        # print('inp',inputs)
-        # print('output',outputs)
-        # in fact preprocessing needs be done before or in augment
+        """
+        Generates augmented inputs and outputs for a given index.
 
-        inp, out = self.augment(self._get_from(inputs, cur_idx),
-                                self._get_from(outputs, cur_idx), skip_augment, first_run)
+        Args:
+            inputs (list): List of input images.
+            outputs (list): List of output images.
+            cur_idx (int): Current index.
+            skip_augment (bool): Flag to skip augmentation.
+            first_run (bool, optional): Flag indicating the first run. Defaults to False.
 
-        # print('inp, out',inp[0].shape, out[0].shape) # no bug until there --> I do a crappy mistake after
+        Returns:
+            tuple: Augmented inputs and outputs.
 
-        # import sys
-        # sys.exit(0)
+        Raises:
+            AssertionError: If the length of inputs and outputs are not equal.
 
-        #TODO add preprocessing here if exists
+        # Examples:
+        #     >>> generator = MyGenerator()
+        #     >>> inputs = [...]
+        #     >>> outputs = [...]
+        #     >>> cur_idx = 0
+        #     >>> skip_augment = False
+        #     >>> first_run = True
+        #     >>> result = generator.generate(inputs, outputs, cur_idx, skip_augment, first_run)
+        """
+        # Preprocessing and augmenting inputs and outputs
+        inp, out = self.augment(self._get_from(inputs, cur_idx), self._get_from(outputs, cur_idx), skip_augment,
+                                first_run)
+
+
 
 
         if self.rebinarize_augmented_output:
-            # out[out > 0] = 1
-            # super_threshold_indices = a > thresh
-            # a[super_threshold_indices] = 0
+            # Rebinarize the augmented output
             for p, o in enumerate(out):
                 o[o > o.min()] = o.max()
                 out[p] = o
 
-        # moved clip bu frequency to before
-
-        # negative should be done here I think
         if self.invert_image:
+            # Invert the images if invert_image flag is True
             for idx, img in enumerate(inp):
-                inp[idx] = Img.invert(img)
-
-        # toss a coin to invert image if needed
-        # if self.invert_in_augs:
-        #     if random.uniform(0, 1) < 0.5:
-        #         # print('inverting...')
-        #         for idx, img in enumerate(inp):
-        #             inp[idx] = Img.invert(img)
-        # else:
-        #     print('not inevrting...')
+                inp[idx] = epyseg.img.invert(img)
 
         inputs = []
         outputs = []
         if self.keep_original_sizes:
+            # Generate inputs and outputs without resizing
             for img in inp:
-                # normalization moved before...
-                # inputs.append(Img.normalization(img, **self.input_normalization))
                 inputs.append(img)
                 if self.is_predict_generator:
                     outputs.append(None)
-                    return inputs, outputs  # outputs being crop parameters
+                    return inputs, outputs
             if not self.is_predict_generator:
                 for img in out:
-                    # normalization moved before...
-                    # outputs.append(Img.normalization(img, **self.output_normalization))
                     outputs.append(img)
             return inputs, outputs
         else:
+            # Generate inputs and outputs with resizing
             for idx, img in enumerate(inp):
                 input_shape = self.input_shape[idx]
-                # assume by default shape is 4
                 dimension_h = 1
                 dimension_w = 2
                 if len(input_shape) == 5:
                     dimension_h = 2
                     dimension_w = 3
 
-                # print('dimension_h, dimension_w',dimension_h, dimension_w) # --> bug is here
                 width = self.default_input_tile_width
                 height = self.default_input_tile_height
                 if input_shape[-2] is not None:
                     width = input_shape[-2]
                 if input_shape[-3] is not None:
                     height = input_shape[-3]
-                # nothing specified --> just take original width and height
                 if width is None:
                     width = img.shape[-2]
                 if height is None:
                     height = img.shape[-3]
-                # normalization moved before
-                # crop_parameters, tiles2D_inp = Img.get_2D_tiles_with_overlap(
-                #     Img.normalization(img, **self.input_normalization), width=width - self.overlap_x,
-                #     height=height - self.overlap_y, overlap_x=self.overlap_x,
-                #     overlap_y=self.overlap_y, overlap=0, dimension_h=dimension_h, dimension_w=dimension_w,
-                #     force_to_size=True)
-                # crop_parameters, tiles2D_inp = Img.get_2D_tiles_with_overlap(
-                #     img, width=width - self.overlap_x,
-                #     height=height - self.overlap_y, overlap_x=self.overlap_x,
-                #     overlap_y=self.overlap_y, overlap=0, dimension_h=dimension_h, dimension_w=dimension_w,
-                #     force_to_size=True)
-                # Big bug fix
-                crop_parameters, tiles2D_inp = Img.get_2D_tiles_with_overlap(
-                    img, width=width,
-                    height=height , overlap_x=self.overlap_x,
-                    overlap_y=self.overlap_y, overlap=0, dimension_h=dimension_h, dimension_w=dimension_w,
-                    force_to_size=True)
+
+                # Generate tiles with overlap
+                crop_parameters, tiles2D_inp = get_2D_tiles_with_overlap(
+                    img, width=width, height=height, overlap_x=self.overlap_x, overlap_y=self.overlap_y,
+                    overlap=0, dimension_h=dimension_h, dimension_w=dimension_w, force_to_size=True)
                 inputs.append(tiles2D_inp)
                 if self.is_predict_generator:
                     outputs.append(crop_parameters)
             if not self.is_predict_generator:
                 for idx, img in enumerate(out):
                     output_shape = self.output_shape[idx]
-                    # assume by default shape is 4
                     dimension_h = 1
                     dimension_w = 2
                     if len(output_shape) == 5:
@@ -704,215 +709,233 @@ class DataGenerator:
                         width = input_shape[-2]
                     if input_shape[-3] is not None:
                         height = input_shape[-3]
-                    # nothing specified --> just take original width and height
                     if width is None:
                         width = img.shape[-2]
                     if height is None:
                         height = img.shape[-3]
-                    # normalization moved before
-                    # _, tiles2D_out = Img.get_2D_tiles_with_overlap(img, width=width - self.overlap_x, # there should have been normalization here
-                    #                                                height=height - self.overlap_y,
-                    #                                                overlap_x=self.overlap_x,
-                    #                                                overlap_y=self.overlap_y, overlap=0,
-                    #                                                dimension_h=dimension_h, dimension_w=dimension_w,
-                    #                                                force_to_size=True)
-                    # _, tiles2D_out = Img.get_2D_tiles_with_overlap(img, width=width - self.overlap_x,
-                    #                                                height=height - self.overlap_y,
-                    #                                                overlap_x=self.overlap_x,
-                    #                                                overlap_y=self.overlap_y, overlap=0,
-                    #                                                dimension_h=dimension_h, dimension_w=dimension_w,
-                    #                                                force_to_size=True)
-                    # bug fix for reduced tile size
-                    _, tiles2D_out = Img.get_2D_tiles_with_overlap(img, width=width ,
-                                                                   height=height,
-                                                                   overlap_x=self.overlap_x,
-                                                                   overlap_y=self.overlap_y, overlap=0,
-                                                                   dimension_h=dimension_h, dimension_w=dimension_w,
-                                                                   force_to_size=True)
+
+                    # Generate tiles with overlap
+                    _, tiles2D_out = get_2D_tiles_with_overlap(
+                        img, width=width, height=height, overlap_x=self.overlap_x, overlap_y=self.overlap_y,
+                        overlap=0, dimension_h=dimension_h, dimension_w=dimension_w, force_to_size=True)
                     outputs.append(tiles2D_out)
 
             bckup_input_incr = self.input_incr
             bckup_output_incr = self.output_incr
             if self.output_folder is not None and not not self.is_predict_generator:
-
+                # Save input and output tiles to files
                 for idx, tiles2D_inp in enumerate(inputs):
                     self.input_incr = bckup_input_incr
-                    tiles2D_inp = Img.tiles_to_linear(tiles2D_inp)
+                    tiles2D_inp = tiles_to_linear(tiles2D_inp)
                     for idx2, inp in enumerate(tiles2D_inp):
                         if len(np.squeeze(inp).shape) != 1:
-                            # normalization moved before
-                            # Img(Img.normalization(inp, **self.input_normalization), dimensions='hw').save(
-                            #     self.output_folder + '/input_' + str(idx) + '_' + str(self.output_incr) + '.npz')
                             Img(inp, dimensions='hw').save(
                                 self.output_folder + '/input_' + str(idx) + '_' + str(self.output_incr) + '.npz')
                             self.input_incr += 1
                         else:
                             print('error size')
 
-                # TODO allow save lists and load lists and allow allow reload based on image patterns eg input_1_*.npz, input_2_*.npz, ....
                 for idx1, tiles2D_out in enumerate(outputs):
                     self.output_incr = bckup_output_incr
-                    tiles2D_out = Img.tiles_to_linear(tiles2D_out)
+                    tiles2D_out = tiles_to_linear(tiles2D_out)
                     for idx2, inp in enumerate(tiles2D_out):
                         if len(np.squeeze(inp).shape) != 1:
-                            # Img(np.squeeze(tiles2D_out[idx]), dimensions='hw').save(self.output_folder+'/output_'+ str(self.output_incr)+'.png')
-                            # normalization moved before
-                            # Img(Img.normalization(inp, **self.output_normalization), dimensions='hw').save(
-                            #     self.output_folder + '/output_' + str(idx) + '_' + str(self.output_incr) + '.npz')
                             Img(inp, dimensions='hw').save(
                                 self.output_folder + '/output_' + str(idx) + '_' + str(self.output_incr) + '.npz')
                             self.output_incr += 1
                         else:
                             print('error size')
-                # CODER SELF REMINDER: return is needed otherwise it stops at first iteration...
                 return
             else:
                 final_inputs = []
                 for tiles2D_inp in inputs:
-                    # normalisation moved before
-                    # final_inputs.append(
-                    #     Img.normalization(Img.tiles_to_batch(tiles2D_inp), **self.input_normalization))
-                    final_inputs.append(Img.tiles_to_batch(tiles2D_inp))
+                    final_inputs.append(tiles_to_batch(tiles2D_inp))
 
                 if self.is_predict_generator:
                     return final_inputs, outputs
 
                 final_outputs = []
                 for tiles2D_out in outputs:
-                    # normalisation moved before
-                    # final_outputs.append(
-                    #     Img.normalization(Img.tiles_to_batch(tiles2D_out), **self.output_normalization))
-                    final_outputs.append(Img.tiles_to_batch(tiles2D_out))
+                    final_outputs.append(tiles_to_batch(tiles2D_out))
                 return final_inputs, final_outputs
 
-    def increase_or_reduce_nb_of_channels(self, img, desired_shape, channel_of_ineterest, increase_rule=None, decrease_rule=None):
+    def increase_or_reduce_nb_of_channels(self, img, desired_shape, channel_of_interest, increase_rule=None,
+                                          decrease_rule=None):
+        """
+        Adjusts the number of channels in an image to match the desired shape.
 
-        input_has_channels = img.has_c()
-        if input_has_channels:
-            input_channels = img.get_dimension('c')
-        else:
-            input_channels = None
-        if input_channels is None:
-            input_channels = 1
+        Args:
+            img (np.ndarray): Input image.
+            desired_shape (tuple): Desired shape of the image.
+            channel_of_interest (int): Channel index to copy when increasing or reducing channels.
+            increase_rule (str, optional): Rule for increasing the number of channels. Defaults to None.
+            decrease_rule (str, optional): Rule for reducing the number of channels. Defaults to None.
 
-        if not input_has_channels:
-            img = np.reshape(img, (*img.shape, 1))
+        Returns:
+            np.ndarray: Image with adjusted number of channels.
+
+        Raises:
+            ValueError: If the increase_rule or decrease_rule is not recognized.
+
+        # Examples:
+        #     >>> generator = MyGenerator()
+        #     >>> img = np.zeros((100, 100, 3), dtype=np.uint8)
+        #     >>> desired_shape = (100, 100, 4)
+        #     >>> channel_of_interest = 0
+        #     >>> increase_rule = 'copy_all'
+        #     >>> decrease_rule = 'copy'
+        #     >>> result = generator.increase_or_reduce_nb_of_channels(img, desired_shape, channel_of_interest, increase_rule, decrease_rule)
+        """
 
 
-        # print('desired_shape',desired_shape)
+        try:
+            input_has_channels = img.has_c()
+            if input_has_channels:
+                input_channels = img.get_dimension('c')
+            else:
+                input_channels = None
+            if input_channels is None:
+                input_channels = 1
+
+            if not input_has_channels:
+                img = np.reshape(img, (*img.shape, 1))  # Reshape to add a channel dimension
+        except:
+            logger.debug('image fed directly by user and not loaded from disk --> assuming it contains the right dimensions')
+            # shall I copy the image to be on the safe side ?? --> probably yes so that the nb of pixels are not changed !!!
+            img = img.copy()
+            input_channels = img.shape[-1] #  if that is the case then the nb of channels is coming from the final stuff
+
         if desired_shape[-1] != input_channels:
             if input_channels < desired_shape[-1]:
-                # too few channels in image compared to expected input of the model --> need add channels
-                multi_channel_img = np.zeros((*img.shape[:-1], desired_shape[-1]),
-                                             dtype=img.dtype)
-                channel_to_copy = 0
-                if channel_of_ineterest is not None:
-                    channel_to_copy = channel_of_ineterest
+                # Too few channels in the image compared to the desired shape --> need to add channels
+                multi_channel_img = np.zeros((*img.shape[:-1], desired_shape[-1]), dtype=img.dtype)
+                channel_to_copy = channel_of_interest if channel_of_interest is not None else 0
 
                 if increase_rule and 'copy' in increase_rule:
                     if 'all' in increase_rule:
                         logger.debug('Increasing nb of channels by copying COI to all available channels')
-                        # case where we copy the channel of interest to all other channels
-                        # can for example be used to create an RGB image out of a single channel image
+                        # Copy the channel of interest to all available channels
                         for c in range(desired_shape[-1]):
                             multi_channel_img[..., c] = img[..., channel_to_copy]
                         img = multi_channel_img
-                    elif 'missing':
+                    elif 'missing' in increase_rule:
                         logger.debug('Increasing nb of channels by copying COI to extra channels only')
-                        # we copy the channel of interest to missing channels, other channels are kept unchanged
+                        # Copy the channel of interest to missing channels, other channels are kept unchanged
                         for c in range(img.shape[-1]):
                             multi_channel_img[..., c] = img[..., c]
                         for c in range(img.shape[-1], desired_shape[-1]):
                             multi_channel_img[..., c] = img[..., channel_to_copy]
                         img = multi_channel_img
                     else:
-                        logger.error('unknown channel nb increase rule ' + str(increase_rule))
+                        logger.error('Unknown channel number increase rule: ' + str(increase_rule))
                 elif increase_rule and 'add' in increase_rule:
                     logger.debug('Increasing nb of channels by adding empty (black) channels')
-                    # copy just the existing channel and keep the rest black
+                    # Copy just the existing channel and keep the rest black
                     for c in range(img.shape[-1]):
                         multi_channel_img[..., c] = img[..., c]
                     img = multi_channel_img
             elif input_channels > desired_shape[-1]:
-                reduced_channel_img = np.zeros((*img.shape[:-1], desired_shape[-1]),
-                                               dtype=img.dtype)
-                channel_to_copy = 0
-                if channel_of_ineterest is not None:
-                    channel_to_copy = channel_of_ineterest
+                # Too many channels in the image compared to the desired shape --> need to reduce channels
+                reduced_channel_img = np.zeros((*img.shape[:-1], desired_shape[-1]), dtype=img.dtype)
+                channel_to_copy = channel_of_interest if channel_of_interest is not None else 0
 
                 if decrease_rule and 'copy' in decrease_rule:
                     logger.debug('Decreasing nb of channels by copying COI to available channels')
+                    # Copy the channel of interest to available channels
                     for c in range(desired_shape[-1]):
                         reduced_channel_img[..., c] = img[..., channel_to_copy]
                     img = reduced_channel_img
                 elif decrease_rule and 'remove' in decrease_rule:
                     logger.debug('Decreasing nb of channels by removing extra channels')
+                    # Remove extra channels
                     for c in range(desired_shape[-1]):
                         reduced_channel_img[..., c] = img[..., c]
                     img = reduced_channel_img
                 else:
-                    logger.error('unknown channel nb decrease rule ' + str(decrease_rule))
-        else:  # input_channels == desired_shape[-1]:
-            if 'force' in increase_rule or 'force' in decrease_rule:
-                logger.debug('Force copy COI to all channels')
-                channel_to_copy = 0
-                if channel_of_ineterest is not None:
-                    channel_to_copy = channel_of_ineterest
-                for c in range(desired_shape[-1]):
-                    img[..., c] = img[..., channel_to_copy]
+                    logger.error('Unknown channel number decrease rule: ' + str(decrease_rule))
+            else:  # img.shape[-1] == desired_shape[-1]
+                if 'force' in increase_rule or 'force' in decrease_rule:
+                    logger.debug('Force copy COI to all channels')
+                    # Force copy channel of interest to all channels
+                    channel_to_copy = channel_of_interest if channel_of_interest is not None else 0
+                    for c in range(desired_shape[-1]):
+                        img[..., c] = img[..., channel_to_copy]
 
         return img
 
     @staticmethod
     def get_list_of_images(path):
-        # TODO Add more file formats or make it more customizable ???
+        """
+        Retrieves a list of image file paths from a given path.
 
-        if path is None:
+        Args:
+            path (str): Path to a directory containing images, a single image file, or a text file listing image paths.
+
+        Returns:
+            list: List of image file paths.
+
+        # Examples:
+        #     >>> generator = MyGenerator()
+        #     >>> path = 'images/'
+        #     >>> image_list = generator.get_list_of_images(path)
+        """
+
+
+        if isinstance(path, np.ndarray):
+            # if it is an ndarray return it as a list of images along the first dimension
+            return stack_to_imgs(path)
+
+        if path is None or not path:
             return []
 
-        if not path:
-            return []
-
-        # if the user passes a list of images, then there is nothing to do but simply returning it...
         if isinstance(path, list):
-            return path
+            return path  # If the path is already a list, return it
 
         folderpath = path
-        # TODO use python function to do that
         if not folderpath.endswith('/') and not folderpath.endswith(
                 '\\') and not '*' in folderpath and not os.path.isfile(folderpath):
-            folderpath += '/'
+            folderpath += '/'  # Add a trailing slash to the folder path if necessary
 
         list_of_files = []
 
         if folderpath.lower().endswith('.lst') or folderpath.lower().endswith('.txt'):
-            # loads list of files
+            # Load list of files from a text file
             list_of_files = loadlist(folderpath)
         elif '*' in folderpath:
-            # loads files with pattern using glob
+            # Load files using glob pattern matching
             list_of_files = natsorted(glob.glob(folderpath))
         elif os.path.isdir(folderpath):
-            list_of_files = glob.glob(folderpath + "*.png") + glob.glob(folderpath + "*.jpg") + glob.glob(
-                folderpath + "*.jpeg") + glob.glob(
-                folderpath + "*.tif") + glob.glob(folderpath + "*.tiff") + glob.glob(folderpath + "*.lsm") + glob.glob(
-                folderpath + "*.czi") + glob.glob(folderpath + "*.lif")
-            list_of_files = natsorted(list_of_files)
+            # Load image files from a directory
+            extensions = ('.png', '.jpg', '.jpeg', '.tif', '.tiff', '.lsm', '.czi', '.lif')
+            list_of_files = glob.glob(folderpath + "*")  # Get all files in the directory
+            list_of_files = [f for f in list_of_files if
+                             f.lower().endswith(extensions)]  # Filter by supported extensions
+            list_of_files = natsorted(list_of_files)  # Sort the file list
         elif os.path.isfile(folderpath):
-            # single image --> convert it to a list
+            # Single image file --> convert it to a list
             list_of_files.append(folderpath)
+
         return list_of_files
 
     # TODO remove
     def get_augment_method(self):
         if self.augmentations is not None and len(self.augmentations) > 0:
+            # print('augmenytations here',self.augmentations)
+            # print('random', random.randint(0,100000))
             method = random.choice(self.augmentations)
+            # print('picked', method)
             if 'value' in method:
                 # change range of augmentation
                 self.augmentation_types_and_values[method['type']] = method['value']
             # define augmentation method
             if method['type'] is None:
                 return None
-            method = self.augmentation_types_and_methods[method['type']]
+            meth = method['type']
+            # hack to support passing directly methods or chained methods to the augmenter
+            if isinstance(meth,str):
+                method = self.augmentation_types_and_methods[method['type']]
+            else:
+                method=meth
             return method
         else:
             return None
@@ -939,12 +962,14 @@ class DataGenerator:
     def augment(self, inputs, outputs, skip_augment, first_run):
         augmented_inputs = []
         augmented_outputs = []
-        augmentation_parameters = None
 
         if not skip_augment:
             method = self.get_augment_method()
+            # print('augmentation method picked', method) #--> ok till there but the lost... --> why
         else:
             method = None
+
+        random_sync_input=0
 
         inputs_outputs_to_skip = []
         for idx, input in enumerate(inputs):
@@ -957,25 +982,36 @@ class DataGenerator:
                 input = self._rescue_missing_items(inputs, idx)
             # en fait c'est ici qu'il faut que je permette de convert des inputs en outpus --> TODO
             if not self.treat_some_inputs_as_outputs or not self.treat_some_inputs_as_outputs[idx]:
-                method, augmentation_parameters, augmented = self.augment_input(input, self.input_shape[idx],
-                                                                                method, augmentation_parameters,
+                augmented = self.augment_input(input, self.input_shape[idx],
+                                                                                method,
                                                                                 skip_augment, first_run)
             else:
-                method, augmentation_parameters, augmented = self.augment_output(input, self.input_shape[idx],
-                                                                                 method, augmentation_parameters,
+                augmented = self.augment_output(input, self.input_shape[idx],
+                                                                                 method,
                                                                                  first_run)
             if augmented is None:
                 inputs_outputs_to_skip.append(idx)
             augmented_inputs.append(augmented)
+        # print('random value at the end of augmentation of input',random.random())
+        random_sync_input = random.random()
+
+
         if outputs is not None:
             for idx, output in enumerate(outputs):
-                method, augmentation_parameters, augmented = self.augment_output(output, self.output_shape[idx],
-                                                                                 method, augmentation_parameters,
+                augmented = self.augment_output(output, self.output_shape[idx],
+                                                                                 method,
                                                                                  first_run)
 
                 if augmented is None:
                     inputs_outputs_to_skip.append(idx)
                 augmented_outputs.append(augmented)
+            # print('random value at the end of augmentation of output', random.random())
+            # if random_sync_input != random.random()
+            try:
+                assert random_sync_input == random.random() , logger.error("NB Random is NOT IN SYNC, please stop immediately the training and check your augmentations")
+                # print('EVERYTHING OK: Random is in SYNC')
+            except AssertionError as e:
+               print(e)
         else:
             augmented_outputs = None
 
@@ -986,8 +1022,9 @@ class DataGenerator:
         return augmented_inputs, augmented_outputs
 
     # NB if there are several inputs they need to have the same random seed --> see how I can do that need to and also same is true for
-    def augment_input(self, input, input_shape, last_method, parameters, skip_augment, first_run):
-        logger.debug('method input ' + str(last_method) + ' ' + str(parameters) + ' ' + str(input))
+    def augment_input(self, input, input_shape, method,  skip_augment, first_run):
+        logger.debug('method input ' + str(method) + ' ' + str(input))
+        # print('method used', method)
 
         if isinstance(input, str):
             try:
@@ -1026,10 +1063,8 @@ class DataGenerator:
 
             except:
                 logger.error('Missing/corrupt/unsupported file \'' + input + '\'')
-                return None, None, None
+                return None, None
                 # so it will fail --> need continue
-
-
 
         input = self.increase_or_reduce_nb_of_channels(input, input_shape, self.input_channel_of_interest,
                                                        self.input_channel_augmentation_rule,
@@ -1051,31 +1086,31 @@ class DataGenerator:
             logger.debug('Clipping image prior to any processing')
             if isinstance(self.clip_by_frequency, float):
                 # for idx, img in enumerate(inp):
-                input = Img.clip_by_frequency(input, upper_cutoff=self.clip_by_frequency, channel_mode=True)
+                input = clip_by_frequency(input, upper_cutoff=self.clip_by_frequency, channel_mode=True)
                 # TODO should I add clipping here for GT too ???
             elif isinstance(self.clip_by_frequency, tuple):
                 if len(self.clip_by_frequency) == 2:
                     # for idx, img in enumerate(inp):
                     # print('clip by freq here', self.clip_by_frequency[0], self.clip_by_frequency[1])
-                    input = Img.clip_by_frequency(input, lower_cutoff=self.clip_by_frequency[0],
+                    input = clip_by_frequency(input, lower_cutoff=self.clip_by_frequency[0],
                                                   upper_cutoff=self.clip_by_frequency[1], channel_mode=True)
                 # TODO should I add clipping here for GT too ???
                 # if not self.is_predict_generator:
                 #     # clipping output...
                 #     print('clipping output...')
                 #     for idx, img in enumerate(out):
-                #         out[idx] = Img.clip_by_frequency(img, lower_cutoff=self.clip_by_frequency[0],
+                #         out[idx] = clip_by_frequency(img, lower_cutoff=self.clip_by_frequency[0],
                 #                                          upper_cutoff=self.clip_by_frequency[1], channel_mode=True)
                 else:
                     # for idx, img in enumerate(inp):
-                    input = Img.clip_by_frequency(input, upper_cutoff=self.clip_by_frequency[0], channel_mode=True)
+                    input = clip_by_frequency(input, upper_cutoff=self.clip_by_frequency[0], channel_mode=True)
                     # TODO should I add clipping here for GT too ???
             elif isinstance(self.clip_by_frequency, dict):
                 # for idx, img in enumerate(inp):
                 # print('clip by freq here', self.clip_by_frequency['lower_cutoff'], self.clip_by_frequency['upper_cutoff'])
                 # print('bef', img.min(), img.max())
 
-                input = Img.clip_by_frequency(input, lower_cutoff=self.clip_by_frequency['lower_cutoff'],
+                input = clip_by_frequency(input, lower_cutoff=self.clip_by_frequency['lower_cutoff'],
                                               upper_cutoff=self.clip_by_frequency['upper_cutoff'],
                                               channel_mode=self.clip_by_frequency['channel_mode'])
                 # TODO should I add clipping here for GT too ???
@@ -1083,14 +1118,14 @@ class DataGenerator:
                 #     # clipping output...
                 #     print('clipping output...')
                 #     for idx, img in enumerate(out):
-                #         out[idx] = Img.clip_by_frequency(img, lower_cutoff=self.clip_by_frequency['lower_cutoff'],
+                #         out[idx] = clip_by_frequency(img, lower_cutoff=self.clip_by_frequency['lower_cutoff'],
                 #                                          upper_cutoff=self.clip_by_frequency['upper_cutoff'],
                 #                                          channel_mode=self.clip_by_frequency['channel_mode'])
                 # print('aft', img.min(), img.max(), inp[idx].min(), inp[idx].max())
 
         self.normalization_minima_and_maxima_input = None
         if self.input_normalization is not None:
-            if self.input_normalization['method'] == Img.normalization_methods[7]:
+            if self.input_normalization['method'] == normalization_methods[7]:
                 if 'range' in self.input_normalization:
                     normalization_range = self.input_normalization['range']
                 else:
@@ -1121,10 +1156,10 @@ class DataGenerator:
         # do normalization here
         if self.normalization_minima_and_maxima_input is not None:
             # --> gain of time --> à tester
-            input = Img.normalization(input, normalization_minima_and_maxima=self.normalization_minima_and_maxima_input,
+            input = normalization(input, normalization_minima_and_maxima=self.normalization_minima_and_maxima_input,
                                       **self.input_normalization)
         elif self.input_normalization is not None:
-            input = Img.normalization(input, **self.input_normalization)
+            input = normalization(input, **self.input_normalization)
             # print('Classical normalization!', input.min(), input.max())
 
         if self.input_bg_subtraction is not None:
@@ -1155,11 +1190,17 @@ class DataGenerator:
         # except:
         #     traceback.print_exc()
 
-        method = last_method
+        # method = last_method
 
         # force invert/negative to be every other image if added to augmentation
         if method is not None:
-            parameters, input = method(input, parameters, False)
+            # hack to support chained/piped augmentations
+            if isinstance(method, list):
+                input =execute_chained_augmentations(method, orig=input, is_mask=False,
+                                              **self.augmentation_types_and_values)
+            else:
+                # if not a chain assume it is an executable so run it directly
+                input = method(input, False, **self.augmentation_types_and_values)
 
         input = np.reshape(input, (1, *input.shape))  # need add batch and need add one dim if not enough
 
@@ -1175,18 +1216,19 @@ class DataGenerator:
             input = self.angular_yielder(input)
             # Img(input, dimensions='hwc').save('/home/aigouy/Bureau/trash_soon/test_input.tif')
 
-        if method is None:
-            return method, None, input
-        else:
-            return method, parameters, input
+        # if method is None:
+        #     return input
+        # else:
+        return input
 
-    def augment_output(self, msk, output_shape, last_method,
-                       parameters,
+    def augment_output(self, msk, output_shape, method,
+
                        first_run):  # add as a parameter whether should do dilation or not and whether should change things --> then need add alos a parameter at the beginning of the class to handle that as well
 
         random.seed(self.random_seed)  # random seed is set for input and the same random is used for output
 
-        logger.debug('method output ' + str(last_method) + str(parameters))
+        logger.debug('method output ' + str(method))
+        # print('method used', method)
 
         skip = False
         # filename = None
@@ -1252,7 +1294,7 @@ class DataGenerator:
         self.normalization_minima_and_maxima_output = None
         if self.output_normalization is not None:
             # print(self.output_normalization, type(self.output_normalization))
-            if self.output_normalization['method'] == Img.normalization_methods[7]:
+            if self.output_normalization['method'] == normalization_methods[7]:
                 if 'range' in self.output_normalization:
                     normalization_range = self.output_normalization['range']
                 else:
@@ -1274,19 +1316,25 @@ class DataGenerator:
         # pre crop images if asked
         if self.crop_parameters:
             msk = self.crop(msk, self.crop_parameters)
-        method = last_method
+        # method = last_method
 
         # do normalization here
         if self.normalization_minima_and_maxima_output is not None:
             # --> gain of time --> à tester
-            msk = Img.normalization(msk, normalization_minima_and_maxima=self.normalization_minima_and_maxima_output,
+            msk = normalization(msk, normalization_minima_and_maxima=self.normalization_minima_and_maxima_output,
                                     **self.input_normalization)
         elif self.output_normalization is not None:
-            msk = Img.normalization(msk, **self.input_normalization)
+            msk = normalization(msk, **self.input_normalization)
             # print('Classical normalization msk!', msk.min(), msk.max())
 
         if method is not None:
-            parameters, msk = method(msk, parameters, True)
+            # hack to support chained methods
+            if isinstance(method, list):
+                msk =execute_chained_augmentations(method, orig=msk, is_mask=True,
+                                              **self.augmentation_types_and_values)
+            else:
+                # if not a chain assume it is an executable so run it directly
+                msk = method(msk, True, **self.augmentation_types_and_values)
         msk = np.reshape(msk, (1, *msk.shape))
 
         if self.mask_lines_and_cols_in_input_and_mask_GT_with_nans is not None:
@@ -1299,10 +1347,11 @@ class DataGenerator:
             logger.debug('data augmenter output before tiling ' + ' ' + str(msk.shape) + ' ' + str(msk.dtype))
             msk = self.angular_yielder(msk)
             # Img(msk, dimensions='hwc').save('/home/aigouy/Bureau/trash_soon/test_msk.tif')
-        if method is None:
-            return method, None, msk
-        else:
-            return method, parameters, msk
+        # if method is None:
+        #     return method, msk
+        # else:
+        #     return method, msk
+        return msk
 
         # else:
         #
@@ -1336,78 +1385,69 @@ class DataGenerator:
         #         # Img(msk, dimensions='hwc').save('/home/aigouy/Bureau/trash_soon/test_msk.tif')
         #     return method, parameters, msk
 
-    def change_image_intensity_and_shift_range(self, orig, parameters, is_mask):
-        if parameters is None:
-            scaling_factor = random.uniform(self.augmentation_types_and_values['intensity'], 1)
-        else:
-            scaling_factor = parameters[0]
+    # nb could do random crops too
+    # nb does crop work for images with channels ??? not so sure --> need check
+    # this method id duplicated in data augmentations but maybe keep it like that !!!
+    def crop(self, img, coords_dict):
+        startx = coords_dict['x1']
+        starty = coords_dict['y1']
 
-        # print(scaling_factor)
-        if not is_mask:
-            # loop over channels
-            for c in range(orig.shape[-1]):
-                cur = orig[..., c]
-                min_before = cur.min()
-                initial_range = cur.max() - min_before
-                # print('bef',min_before, cur.max())
-                try:
-                    import numexpr
-                    cur = numexpr.evaluate("cur * scaling_factor")
-                except:
-                    cur = cur * scaling_factor
-                new_min = cur.min()
-                shift_min = min_before - new_min
-                try:
-                    import numexpr
-                    cur = numexpr.evaluate("cur + shift_min")
-                except:
-                    cur += shift_min
-                shift_range = bool(random.getrandbits(1))
-                if shift_range:
-                    # shift rescaled image up
-                    new_range = cur.max() - cur.min()
-                    possible_range_increase = initial_range - new_range
-                    random_range_shift = random.uniform(0., possible_range_increase)
-                    # /2. # we divide by 2 to make it not too extreme
-                    try:
-                        import numexpr
-                        cur = numexpr.evaluate("cur + random_range_shift")
-                    except:
-                        cur += random_range_shift
-                    # print('range shift')
-                orig[..., c] = cur
-                # print('aft', orig[..., c].min(), orig[..., c].max())
-                del cur
-            out = orig
-        else:
-            out = orig
-        return [scaling_factor], out
+        # we now allow random crop (when startx and starty are None, i.e. not defined...)
+        if startx is None:
+            try:
+                width = coords_dict['w']
+            except:
+                width = coords_dict['width']
+            min = img.shape[-2] - width
+            if min < 0:
+                min = 0
+            startx = random.randrange(start=0, stop=min, step=1)
+        if starty is None:
+            try:
+                height = coords_dict['h']
+            except:
+                height = coords_dict['height']
+            min = img.shape[-3] - height
+            if min < 0:
+                min = 0
+            starty = random.randrange(start=0, stop=min, step=1)
 
-    def graded_intensity_modification(self, orig, parameters, is_mask):
-        out = orig
-        if not is_mask:
-            out = apply_2D_gradient(orig,create_random_intensity_graded_perturbation(orig, off_centered=True))
-        return [], out
-
-    def blur(self, orig, parameters, is_mask):
-        # we just blur input and keep masks unchanged
-        if parameters is None:
-            gaussian_blur = random.uniform(0, self.augmentation_types_and_values['blur'])
-        else:
-            gaussian_blur = parameters[0]
-
-        if not is_mask:
-            # aletrantively could do a 3D blur
-            if len(orig.shape) == 4:
-                for n, slc in enumerate(orig):
-                    orig[n] = filters.gaussian(slc, gaussian_blur, preserve_range=True, mode='wrap')
-                out = orig
+        if 'w' in coords_dict or 'width' in coords_dict:
+            if 'w' in coords_dict:
+                endx = startx + coords_dict['w']
             else:
-                out = filters.gaussian(orig, gaussian_blur, preserve_range=True, mode='wrap')
+                endx = startx + coords_dict['width']
         else:
-            out = orig
+            endx = coords_dict['x2']
+        if 'h' in coords_dict or 'height' in coords_dict:
+            if 'h' in coords_dict:
+                endy = starty + coords_dict['h']
+            else:
+                endy = starty + coords_dict['height']
+        else:
+            endy = coords_dict['y2']
 
-        return [gaussian_blur], out
+        if starty > endy:
+            tmp = starty
+            starty = endy
+            endy = tmp
+        if startx > endx:
+            tmp = startx
+            startx = endx
+            endx = tmp
+
+        # hack to support negative coords
+        if endx < 0:
+            endx = orig.shape[-2] + endx
+        if endy < 0:
+            endy = orig.shape[-3] + endy
+
+        # print('coords', startx, endx, starty, endy) # seems ok now
+        # TODO maybe implement that if crop is outside then add 0 or min to the extra region --> very important for the random crops --> TODO
+        if len(img.shape) == 3:
+            return img[starty:endy, startx:endx]
+        else:
+            return img[::, starty:endy, startx:endx]
 
     # only allow to load if not first pass
     def generate_or_load_pretrained_epyseg_style_mask(self, filename, output_shape, first_pass):
@@ -1494,7 +1534,8 @@ class DataGenerator:
 
         # now we get the watershed seeds
         cells = msk[..., 0].copy()
-        cells = label(Img.invert(cells), connectivity=1, background=0)
+        # from epyseg.img import invert
+        cells = label(epyseg.img.invert(cells), connectivity=1, background=0)
         # if several in one cell --> just keep the biggest
         tmp, wshed_seeds = get_seeds(cells)
         # plt.imshow(tmp)
@@ -1536,539 +1577,6 @@ class DataGenerator:
             return False
         return True
 
-    # nb does crop work for images with channels ??? not so sure --> need check
-    def crop(self, img, coords_dict):
-        startx = coords_dict['x1']
-        starty = coords_dict['y1']
-
-        # we now allow random crop (when startx and starty are None, i.e. not defined...)
-        if startx is None:
-            try:
-                width = coords_dict['w']
-            except:
-                width = coords_dict['width']
-            min = img.shape[-2] - width
-            if min < 0:
-                min = 0
-            startx = random.randrange(start=0, stop=min, step=1)
-        if starty is None:
-            try:
-                height = coords_dict['h']
-            except:
-                height = coords_dict['height']
-            min = img.shape[-3] - height
-            if min < 0:
-                min = 0
-            starty = random.randrange(start=0, stop=min, step=1)
-
-        if 'w' in coords_dict or 'width' in coords_dict:
-            if 'w' in coords_dict:
-                endx = startx + coords_dict['w']
-            else:
-                endx = startx + coords_dict['width']
-        else:
-            endx = coords_dict['x2']
-        if 'h' in coords_dict or 'height' in coords_dict:
-            if 'h' in coords_dict:
-                endy = starty + coords_dict['h']
-            else:
-                endy = starty + coords_dict['height']
-        else:
-            endy = coords_dict['y2']
-
-        if starty > endy:
-            tmp = starty
-            starty = endy
-            endy = tmp
-        if startx > endx:
-            tmp = startx
-            startx = endx
-            endx = tmp
-
-        # print('coords', startx, endx, starty, endy) # seems ok now
-        # TODO maybe implement that if crop is outside then add 0 or min to the extra region --> very important for the random crops --> TODO
-        if len(img.shape) == 3:
-            return img[starty:endy, startx:endx]
-        else:
-            return img[::, starty:endy, startx:endx]
-            # return img[..., starty:endy, startx:endx] # smarter
-
-    def invert(self, orig, parameters, is_mask):
-        if not is_mask:
-            inverted_image =Img.invert(orig)
-        else:
-            inverted_image = orig
-        return [], inverted_image
-
-    def rotate(self, orig, parameters, is_mask):
-        # rotate by random angle between 0 and 360
-        if parameters is None:
-            angle = random.randint(0, self.augmentation_types_and_values['rotate'] * 360)
-            angle *= 1 if random.random() < 0.5 else -1
-            order = random.choice([0, 1, 3])
-        else:
-            angle = parameters[0]
-            order = parameters[1]
-
-        final_order = order
-        if is_mask:
-            final_order = self.EXTRAPOLATION_MASKS
-
-        # bug fix for 3D images --> seems to work and should be portable even with n dims
-        rot_orig = ndimage.rotate(orig, angle, axes=(-3, -2), reshape=False, order=final_order)
-        # rot_mask = ndimage.rotate(mask, angle, reshape=False, order=0) # order 0 means nearest neighbor --> really required to avoid bugs here
-        return [angle, order], rot_orig
-
-    def elastic(self, orig, parameters, is_mask):
-        # masks must be modified in the same way as other images
-        if parameters is None:
-            # create a random deformation matrix
-            displacement = np.random.randn(2, 3, 3) * 25
-            order = random.choice([0, 1])
-        else:
-            displacement = parameters[0]
-            order = parameters[1]
-
-        # for 3D images I need to change things !!!
-        if len(orig.shape) == 4:
-            # assume 'dhwc'
-            rot_orig = elastic_deform(orig, displacement, axis=(1,2), order=order)
-        else:
-            # assume 'hwc'
-            rot_orig = elastic_deform(orig, displacement, axis=(0, 1), order=order)
-
-        # rot_mask = ndimage.rotate(mask, angle, reshape=False, order=0) # order 0 means nearest neighbor --> really required to avoid bugs here
-        return [displacement, order], rot_orig
-
-    # nb will that create a bug when images don't have same width and height --> most likely yes but test it --> TODO
-    # in fact I should not allow that except if image has same width and height or I should use a crop of it --> can I do that ???
-    def rotate_interpolation_free(self, orig, parameters, is_mask):
-        # rotate by random angle between [90 ,180, 270]
-
-        # print(orig.shape)
-        if parameters is None:
-            if orig.shape[-2] != orig.shape[-3]:
-                angle = 180
-            else:
-                angle = random.choice([90, 180, 270])
-        else:
-            angle = parameters[0]
-
-        rot_orig = Img.interpolation_free_rotation(orig, angle=angle)
-        return [angle], rot_orig
-
-    def translate(self, orig, parameters, is_mask):
-        import numpy as np
-        if parameters is None:
-            trans_x = np.random.randint(-int(orig.shape[-2] * self.augmentation_types_and_values['translate']),
-                                        int(orig.shape[-2] * self.augmentation_types_and_values['translate']))
-            trans_y = np.random.randint(-int(orig.shape[-3] * self.augmentation_types_and_values['translate']),
-                                        int(orig.shape[-3] * self.augmentation_types_and_values['translate']))
-            order = random.choice([0, 1, 3])
-        else:
-            trans_x = parameters[0]
-            trans_y = parameters[1]
-            order = parameters[2]
-        afine_tf = transform.AffineTransform(translation=(trans_y, trans_x))
-
-        final_order = order
-        if is_mask:
-            final_order = self.EXTRAPOLATION_MASKS
-
-        if len(orig.shape) <= 3:
-            zoomed_orig = transform.warp(orig, inverse_map=afine_tf, order=final_order, preserve_range=True,
-                                         mode='reflect')
-        else:
-            zoomed_orig = np.zeros_like(orig, dtype=orig.dtype)
-            for i, slice in enumerate(orig):
-                zoomed_orig[i] = transform.warp(slice, inverse_map=afine_tf, order=final_order, preserve_range=True,
-                                                mode='reflect')
-
-        return [trans_x, trans_y, order], zoomed_orig
-
-    def stretch(self, orig, parameters, is_mask):
-        if parameters is None:
-            scale = random.uniform(self.stretch_range[0],
-                                   self.augmentation_types_and_values['stretch'])
-            order = random.choice([0, 1, 3])
-            orientation = random.choice([0, 1])
-        else:
-
-            scale = parameters[0]
-            order = parameters[1]
-            orientation = parameters[2]
-
-        # print('scale', scale)
-
-        # scale = 3
-
-        # scale = 2 # shrink 2x
-        # scale = 0.5 # zoom 2x
-
-        # plt.imshow(np.squeeze(orig))
-        # plt.show()
-        # print('test', orig.max(), orig.min())
-
-        # nb the dilation is mandatory in case of stretch and 1px wide masks --> check if 1 px wide and take action
-        # ou alors prendre des trucs
-
-        # for scale = 3 need dilation 1 for scale 4 need dilation 2
-
-        # nb if scale = 5 then I need a dilation of 2
-        # if scale =3 need dilation 1
-
-        # nb if < 2 then ok but weaker, if >=2 then need a dilation of 1 if >=5 need a dilation of 2 --> do limit its use and probably does not make sense to stretch less than 2
-        # there are bugs in the interpolation of scipy
-
-        # si 4 faut une dilation de 2 # --> voir comment faire
-        # scale = 3 # make very stretched cells # 4 c'est parfait c'est comme dans le hinge --> top
-        # orientation = 0
-
-        # pb si trop de stretch --> blaste le max --> faudrait dilat avant
-        if orientation == 0:
-            afine_tf = transform.AffineTransform(scale=(scale, 1))
-        else:
-            afine_tf = transform.AffineTransform(scale=(1, scale))
-
-        final_order = order
-        if is_mask:
-            final_order = self.EXTRAPOLATION_MASKS
-            # TODO check that I'm not doing unnecessary stuff here but seems to work... maybe recheck dtype too
-            if self.is_output_1px_wide:
-                dilation = 0
-                if scale >= 2 and scale <= 3:
-                    # do 1 dilat
-                    dilation = 1
-                elif scale >= 3:
-                    # do 2 dilat
-                    dilation = 2
-                if dilation != 0:
-                    s = ndimage.generate_binary_structure(2, 1)
-                    # Apply dilation to every channel then reinject
-                    for c in range(orig.shape[-1]):
-                        dilated = orig[..., c]
-                        if len(orig.shape) == 4:
-                            for n, slc in enumerate(dilated):
-                                for dil in range(dilation):
-                                    dilated[n] = ndimage.grey_dilation(slc, footprint=s)
-                            orig[..., c] = dilated
-                        else:
-                            for dil in range(dilation):
-                                dilated = ndimage.grey_dilation(dilated, footprint=s)
-                            orig[..., c] = dilated
-            #     print('here')
-            #     # need dilate the mask
-        # print('test2', orig.max(), orig.min())
-
-        if len(orig.shape) == 4:
-            # handle 3D images
-            for n, slc in enumerate(orig):
-                orig[n] = transform.warp(slc, inverse_map=afine_tf, order=final_order, preserve_range=True,
-                                         mode='reflect')
-            stretched_orig = orig
-        else:
-            stretched_orig = transform.warp(orig, inverse_map=afine_tf, order=final_order, preserve_range=True,
-                                            mode='reflect')  # nb should I do this per channel to avoid issues --> MAYBE
-
-        # print('test3', stretched_orig.max(), stretched_orig.min())
-        return [scale, final_order, orientation], stretched_orig
-
-    # CODER KEEP TIP: SCALE IS INVERTED (COMPARED TO MY OWN LOGIC SCALE 2 MEANS DIVIDE SIZE/DEZOOM BY 2 AND 0.5 MEANS INCREASE SIZE/ZOOM BY 2 --> # shall I use 1/scale
-    def zoom(self, orig, parameters, is_mask):
-        if parameters is None:
-            scale = random.uniform(1. - self.augmentation_types_and_values['zoom'],
-                                   1. + self.augmentation_types_and_values['zoom'])
-            order = random.choice([0, 1, 3])
-        else:
-            scale = parameters[0]
-            order = parameters[1]
-
-        # scale = 2 # shrink 2x
-        # scale = 0.5 # zoom 2x
-        afine_tf = transform.AffineTransform(scale=(scale, scale))
-
-        final_order = order
-        if is_mask:
-            final_order = self.EXTRAPOLATION_MASKS
-
-        if len(orig.shape) == 4:
-            # handle 3D images
-            for n, slc in enumerate(orig):
-                orig[n] = transform.warp(slc, inverse_map=afine_tf, order=final_order, preserve_range=True,
-                                         mode='reflect')
-            zoomed_orig = orig
-        else:
-            zoomed_orig = transform.warp(orig, inverse_map=afine_tf, order=final_order, preserve_range=True,
-                                         mode='reflect')
-        return [scale, final_order], zoomed_orig
-
-    def shear(self, orig, parameters, is_mask):
-
-        if parameters is None:
-            shear = random.uniform(-self.augmentation_types_and_values['shear'],
-                                   self.augmentation_types_and_values['shear'])
-            order = random.choice([0, 1, 3])
-        else:
-            shear = parameters[0]
-            order = parameters[1]
-
-        afine_tf = transform.AffineTransform(shear=shear)
-
-        final_order = order
-        if is_mask:
-            final_order = self.EXTRAPOLATION_MASKS
-
-        if len(orig.shape) == 4:
-            # handle 3D images
-            for n, slc in enumerate(orig):
-                orig[n] = transform.warp(slc, inverse_map=afine_tf, order=final_order, preserve_range=True,
-                                         mode='reflect')  # is that a good idea --> maybe not...
-            sheared_orig = orig
-        else:
-            sheared_orig = transform.warp(orig, inverse_map=afine_tf, order=final_order, preserve_range=True,
-                                          mode='reflect')
-
-        return [shear, order], sheared_orig
-
-    # allow for shift mask but only for the mask
-    def mask_pixels_and_compute_for_those(self, orig, is_mask, shift_mask=False):
-        if not is_mask:
-            rolled_orig = mask_rows_or_columns(orig, spacing_X=2, spacing_Y=5)
-        else:
-            # THIS ALLOWS MODEL TO PARTIALLY LEARN IDENTITY OR AT LEAST TO ALSO LEARN FROM THE PIXEL OF INTEREST WHICH DOES MAKE A LOT OF SENSE!!!
-            initial_shift_X = 0
-            initial_shift_Y = 0
-            if shift_mask:
-                if random.uniform(0, 1) < 0.5:
-                    if random.uniform(0, 1) < 0.5:
-                        if random.uniform(0, 1) < 0.5:
-                            initial_shift_X = 1
-                        else:
-                            initial_shift_Y = 1
-                    else:
-                        initial_shift_X = 1
-                        initial_shift_Y = 1
-            rolled_orig = mask_rows_or_columns(orig, spacing_X=2, spacing_Y=5, initial_shiftX=initial_shift_X,
-                                               initial_shiftY=initial_shift_Y, return_boolean_mask=True)
-            orig[rolled_orig == False] = np.nan
-            rolled_orig = orig  # pb non nan anymore
-        return rolled_orig
-
-    # rolls along the Z axis of a 3D image ignores for 2D images and ignores for masks
-    def rollZ(self, orig, parameters, is_mask):
-        # print('in rollz', orig.shape)
-        if parameters is None:
-            if len(orig.shape) == 4:
-                random_roll = np.random.randint(0, orig.shape[0])
-                # do random signed roll
-                if random_roll != 0:
-                    random_roll = random_roll if random.random() < 0.5 else -random_roll
-            else:
-                random_roll = 0
-        else:
-            random_roll = parameters[0]
-
-        if not is_mask and random_roll != 0 and len(orig.shape) == 4 and \
-                random_roll != orig.shape[0] and random_roll != -orig.shape[0]:
-            # print('really rolling', orig.shape)
-            # if image is a 3D stack roll it, except if rolling generates identity images
-            rolled_orig = np.roll(orig, random_roll, axis=0)
-        else:
-            # print('not rolling')
-            # if image is 2D then do not roll it...
-            rolled_orig = orig
-        return [random_roll], rolled_orig
-
-    # shuffle images along the Z axis, may be useful for best focus algorithms
-    def shuffleZ(self, orig, parameters, is_mask):
-        # print('in shuffle', orig.shape)
-        if not is_mask and len(orig.shape) == 4:
-            # print('really shuffling', orig.shape)
-            # if image is a 3D stack shuffle it otherwise ignore
-            np.random.shuffle(orig)
-        # else:
-        #     print('not shuffling')
-        #     pass
-        return [], orig
-
-    def flip(self, orig, parameters, is_mask):
-        if parameters is None:
-            if len(orig.shape) == 4:
-                axis = random.choice([-2, -3, -4])
-            else:
-                axis = random.choice([-2, -3])
-        else:
-            axis = parameters[0]
-
-        # THAT WAS CREATING A BIG BUG FOR MASKS --> REALLY BAD BUG converting image to int
-        if axis == -4 and len(orig.shape) == 3:
-            flipped_orig = orig  # there was a bug here
-        else:
-            flipped_orig = np.flip(orig, axis)
-        return [axis], flipped_orig
-
-    def high_noise(self, orig, parameters, is_mask):
-        return self._add_noise(orig, parameters, is_mask, 'high')
-
-    def low_noise(self, orig, parameters, is_mask):
-        return self._add_noise(orig, parameters, is_mask, 'low')
-
-    # (img, Zpos=-4, z_frames_to_add_above=0, z_frames_to_add_below=0):
-    def add_z_frames(self, orig, parameters, is_mask):
-        # print(orig.shape)
-        # TODO do expand along the Z with black
-        # de meme si l'image est 2D --> ignore I guess -->
-
-        # ignore that for masks --> is that wise or not to ignore it for masks ???
-        if is_mask:
-            return orig
-
-        if self.z_frames_to_add_below == 0 and self.z_frames_to_add_above == 0:
-            # nothing to do...
-            return orig
-
-        # smarter way --> get Z pos
-        zpos = -4
-        try:
-            zpos = orig.get_dim_idx('d')
-        except:
-            logger.error('dimension d/z not found, assuming Z pos = -4, i.e. ...dhwc image')
-
-        # print('in1')
-
-        # if orig.ndim < 4:
-        #     # orig has no Z channel --> nothing to do ...
-        #     return orig
-
-        # print('in2')
-
-        # print('zpos', zpos)
-        if orig.shape[zpos] == 1:
-            # image is 2D --> nothing to do ...
-            return orig
-
-        # print('in3')
-
-        if self.z_frames_to_add_above != 0:
-            # add Z frames before
-            smallest_shape = list(orig.shape)
-            smallest_shape[zpos] = self.z_frames_to_add_above
-            missing_frames_above = np.zeros((smallest_shape), dtype=orig.dtype)
-
-            # print(missing_frames_above.shape)
-
-            orig = np.append(missing_frames_above, orig, axis=zpos)  # nb should do that per channel in fact... -->
-            # print(orig.shape)
-
-        if self.z_frames_to_add_below != 0:
-            # add Z frames after
-            smallest_shape[zpos] = self.z_frames_to_add_below
-            missing_frames_below = np.zeros((smallest_shape), dtype=orig.dtype)
-            # print(missing_frames_below.shape)
-            orig = np.append(orig, missing_frames_below, axis=zpos)  # nb should do that per channel in fact... -->
-            # print(orig.shape)
-
-        # print(orig.shape)
-
-        # print('final', orig.shape)
-        # TODO maybe just do this as a classical function that does not return the parameters...
-        return [], orig
-
-    # use skimage to add noise
-    def _add_noise(self, orig, parameters, is_mask, strength='low'):
-        if parameters is None:
-            # fraction of image that should contain salt black or pepper white pixels
-            mode = random.choice(['gaussian', 'localvar', 'poisson', 's&p',
-                                  'speckle'])
-        else:
-            mode = parameters[0]
-
-        # debug force mode
-        # mode = 'salt'  #'speckle' # 's&p' # 'pepper' # 'salt' # 'gaussian' # 'localvar' # localvar not that strong
-
-        if not is_mask:
-            extra_params = {}
-            if mode in ['salt', 'pepper', 's&p']:
-                if strength == 'low':
-                    extra_params['amount'] = 0.1  # weak
-                else:
-                    extra_params['amount'] = 0.25  # strong
-            if mode in ['gaussian', 'speckle']:
-                if strength == 'low':
-                    extra_params['var'] = 0.025  # weak gaussian
-                else:
-                    extra_params['var'] = 0.1  # strong gaussian
-                if mode == 'speckle':
-                    if strength == 'low':
-                        extra_params['var'] = 0.1
-                    else:
-                        extra_params['var'] = 0.40
-
-            min = orig.min()
-            max = orig.max()
-
-            # print('noise', mode, extra_params, is_mask)
-
-            noisy_image = random_noise(orig, mode=mode, clip=True, **extra_params)
-            if min == 0 and max == 1 or max == min:
-                pass
-            else:
-                # we preserve original image range (very important to keep training consistent)
-                noisy_image = (noisy_image * (max - min)) + min
-        else:
-            noisy_image = orig
-        return [mode], noisy_image
-
-    def random_intensity_gamma_contrast_changer(self, orig, parameters, is_mask):
-        return self._random_intensity_gamma_contrast_changer(orig, parameters, is_mask)
-
-    # use skimage to change gamma/contrast, ... pixel intensity and/or scale
-    def _random_intensity_gamma_contrast_changer(self, orig, parameters, is_mask):
-        # seems ok but try with 3D images
-        if parameters is None:
-            # fraction of image that should contain salt black or pepper white pixels
-            mode = random.choice([exposure.rescale_intensity, exposure.adjust_gamma, exposure.adjust_log,
-                                  exposure.adjust_sigmoid])
-            strength = random.choice(['medium', 'strong'])
-        else:
-            mode = parameters[0]
-            strength = parameters[1]
-
-        # debug force mode
-        # mode = exposure.rescale_intensity # exposure.adjust_gamma # exposure.adjust_log # exposure.adjust_sigmoid
-
-        if not is_mask:
-            if orig.min() >= 0:
-                extra_params = {}
-                if mode == exposure.rescale_intensity:
-                    if strength == 'strong':
-                        v_min, v_max = np.percentile(orig, (5, 95))
-                    else:
-                        v_min, v_max = np.percentile(orig, (0.9, 98))
-                    extra_params['in_range'] = (v_min, v_max)
-                elif mode == exposure.adjust_gamma:
-                    if strength == 'strong':
-                        extra_params['gamma'] = 0.4
-                        extra_params['gain'] = 0.9
-                    else:
-                        extra_params['gamma'] = 0.8
-                        extra_params['gain'] = 0.9
-                elif mode == exposure.adjust_sigmoid:
-                    if strength == 'strong':
-                        extra_params['gain'] = 5
-                    else:
-                        extra_params['gain'] = 2
-                # print(mode, extra_params, is_mask)
-                contrast_changed_image = mode(orig, **extra_params)
-            else:
-                logger.warning(
-                    'Negative intensities detected --> ignoring random_intensity_gamma_contrast_changer augmentation.')
-                contrast_changed_image = orig
-        else:
-            contrast_changed_image = orig
-
-        return [mode, strength], contrast_changed_image
-
 
 if __name__ == '__main__':
 
@@ -2088,54 +1596,191 @@ if __name__ == '__main__':
     # SELECTED_AUG = [{'type': 'intensity'}, {'type': 'random_intensity_gamma_contrast'}]
     # SELECTED_AUG = [{'type': 'roll along Z (2D + GT ignored)'}, {'type': 'shuffle images along Z (2D + GT ignored)'}]
     # SELECTED_AUG = [{'type': 'mask_pixels'}] # not existing anymore will rather be an option
-    SELECTED_AUG = [{'type': 'graded_intensity_modification'}]
+    # SELECTED_AUG = [{'type': 'graded_intensity_modification'}]
+    # chained_augmentation =  [pad_border_xy, rotate_interpolation_free, flip]
+    # chained_augmentation2 = [None]
+    # chained_augmentation3 = ['invert']
+    # chained_augmentation4 = ['rotate (interpolation free)']
+    # chained_augmentation5 = ['flip']
+    # chained_augmentation6 = [pad_border_xy, 'elastic']
+    # SELECTED_AUG = [{'type': chained_augmentation}, {'type':chained_augmentation2}, {'type':chained_augmentation3}, {'type':chained_augmentation4}, {'type':chained_augmentation5}, {'type':chained_augmentation6}]
+    # SELECTED_AUG = [{'type': 'blur'}]
+    SELECTED_AUG = [{'type': 'elastic'}] #strong_elastic strong elastic is  too big for cells but perfect for wings
+    # SELECTED_AUG = [{'type': 'graded_intensity_modification'}] #strong_elastic strong elastic is  too big for cells but perfect for wings
 
-    normalization = {'method': Img.normalization_methods[7], 'range': [2, 99.8],
-                     'individual_channels': True, 'clip': False}
+    crop_with_parameters = partial(crop_augmentation, coords_dict={'x1': 10, 'x2': -10, 'y1': 10,
+                                                                   'y2': -10})  # does that work with negative values by the way
+    chained_augmentation = [crop_with_parameters, strong_elastic]
+    chained_augmentation = [blur, invert]
+    chained_augmentation = [blur, invert, rotate]
+
+    # tt marche et ça marche vraiment super -−> I coul maybe push it soon
+
+    # normal aug
+    SELECTED_AUG = [{'type': 'elastic'}]
+    # this is the test of a piped augmentation and as you can see that works
+    SELECTED_AUG = [{'type': chained_augmentation}]
+
+
+
+    normalization_meth = {'method': normalization_methods[7], 'range': [2, 99.8],'individual_channels': True, 'clip': False}
+    normalization_meth = {'method': 'Rescaling (min-max normalization)', 'range': [0, 1],'individual_channels': True}
+
+
 
     mask_lines_and_cols_in_input_and_mask_GT_with_nans = None
 
-    # 3D
-    # seems to work --> but check
-    augmenter = DataGenerator(
-        # 'D:/dataset1/tests_focus_projection', 'D:/dataset1/tests_focus_projection',
-        # 'D:/dataset1/tests_focus_projection/proj', 'D:/dataset1/tests_focus_projection/proj/*/hand*.tif',
-        # inputs='/E/Sample_images/sample_images_denoise_manue/210219/raw', # 3D input
-        # outputs='/E/Sample_images/sample_images_denoise_manue/210219/raw/predict', # 2D ouput otherwise change model shape... below !!!!
-        # input_channel_of_interest=0,
-        # comment the 2 next lines and restore the 3 above to get back to 3D
-        inputs='/E/Sample_images/sample_images_PA/trash_test_mem/mini/*.png',  # 3D input
-        input_channel_of_interest=1,
-        # outputs='/E/Sample_images/sample_images_denoise_manue/210219/raw/predict',
-        # 2D ouput otherwise change model shape... below !!!!
-        # '/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/tests_focus_projection/proj', '/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/tests_focus_projection/proj/',
-        # '/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/tests_focus_projection', '/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/tests_focus_projection',
-        # '/home/aigouy/Bureau/last_model_not_sure_that_works/tmp', '/home/aigouy/Bureau/last_model_not_sure_that_works/tmp',
-        # is_predict_generator=True,
-        # crop_parameters={'x1':256, 'y1':256, 'x2':512, 'y2':512},
-        # crop_parameters={'x1':512, 'y1':512, 'x2':796, 'y2':796},
-        input_normalization=normalization,
-        # shuffle=False, input_shape=[(None, None, None, None, 1)], output_shape=[(None, None, None, None, 1)],
-        # shuffle=False, input_shape=[(None, None, None, None, 1)], output_shape=[(None, None, None, 1)], # 3D input and 2D output --> if not the case there will be errors !!!
-        shuffle=False, input_shape=[(None, None, None, 1)], output_shape=[(None, None, None, 1)], # 3D input and 2D output --> if not the case there will be errors !!!
-        augmentations=SELECTED_AUG,
-        output_channel_of_interest=0,
-        # mask_dilations=7,
-        # default_input_tile_width=2048, default_input_tile_height=1128,
-        # default_output_tile_width=2048, default_output_tile_height=1128,
-        # default_input_tile_width=512, default_input_tile_height=512,
-        # default_output_tile_width=512, default_output_tile_height=512,
-        default_input_tile_width=512, default_input_tile_height=256,
-        default_output_tile_width=512, default_output_tile_height=256,
-        # default_input_tile_width=256, default_input_tile_height=256,
-        # default_output_tile_width=256, default_output_tile_height=256,
-        # is_output_1px_wide=True,
-        # rebinarize_augmented_output=True
-        create_epyseg_style_output=False,
-        rotate_n_flip_independently_of_augmentation=True,
-        mask_lines_and_cols_in_input_and_mask_GT_with_nans=mask_lines_and_cols_in_input_and_mask_GT_with_nans,
-        # force rotation and flip of images independently of everything
-    )
+    # TODO --> do a version that would take directly a numpy array as an input and then loop over the first dimension -−> should be easy
+
+    if False:
+        # 3D
+        # seems to work --> but check
+        augmenter = DataGenerator(
+            # 'D:/dataset1/tests_focus_projection', 'D:/dataset1/tests_focus_projection',
+            # 'D:/dataset1/tests_focus_projection/proj', 'D:/dataset1/tests_focus_projection/proj/*/hand*.tif',
+            # inputs='/E/Sample_images/sample_images_denoise_manue/210219/raw', # 3D input
+            # outputs='/E/Sample_images/sample_images_denoise_manue/210219/raw/predict', # 2D ouput otherwise change model shape... below !!!!
+            # input_channel_of_interest=0,
+            # comment the 2 next lines and restore the 3 above to get back to 3D
+            inputs='/E/Sample_images/sample_images_PA/trash_test_mem/mini/*.png',  # 3D input
+            input_channel_of_interest=1,
+            # outputs='/E/Sample_images/sample_images_denoise_manue/210219/raw/predict',
+            # 2D ouput otherwise change model shape... below !!!!
+            # '/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/tests_focus_projection/proj', '/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/tests_focus_projection/proj/',
+            # '/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/tests_focus_projection', '/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/tests_focus_projection',
+            # '/home/aigouy/Bureau/last_model_not_sure_that_works/tmp', '/home/aigouy/Bureau/last_model_not_sure_that_works/tmp',
+            # is_predict_generator=True,
+            # crop_parameters={'x1':256, 'y1':256, 'x2':512, 'y2':512},
+            # crop_parameters={'x1':512, 'y1':512, 'x2':796, 'y2':796},
+            input_normalization=normalization_meth,
+            # shuffle=False, input_shape=[(None, None, None, None, 1)], output_shape=[(None, None, None, None, 1)],
+            # shuffle=False, input_shape=[(None, None, None, None, 1)], output_shape=[(None, None, None, 1)], # 3D input and 2D output --> if not the case there will be errors !!!
+            shuffle=False, input_shape=[(None, None, None, 1)], output_shape=[(None, None, None, 1)], # 3D input and 2D output --> if not the case there will be errors !!!
+            augmentations=SELECTED_AUG,
+            output_channel_of_interest=0,
+            # mask_dilations=7,
+            # default_input_tile_width=2048, default_input_tile_height=1128,
+            # default_output_tile_width=2048, default_output_tile_height=1128,
+            # default_input_tile_width=512, default_input_tile_height=512,
+            # default_output_tile_width=512, default_output_tile_height=512,
+            default_input_tile_width=512, default_input_tile_height=512,
+            default_output_tile_width=512, default_output_tile_height=512,
+            # default_input_tile_width=256, default_input_tile_height=256,
+            # default_output_tile_width=256, default_output_tile_height=256,
+            # is_output_1px_wide=True,
+            # rebinarize_augmented_output=True
+            create_epyseg_style_output=False,
+            rotate_n_flip_independently_of_augmentation=True,
+            mask_lines_and_cols_in_input_and_mask_GT_with_nans=mask_lines_and_cols_in_input_and_mask_GT_with_nans,
+            # force rotation and flip of images independently of everything
+        )
+    else:
+        # KEEP THIS IS CODE TO RUN THE DATAGEN WITH IMAGES AS INPUT INSTEAD OF TEXT --> PLEASE ALWAYS MAKE SURE THEY HAVE THE RIGHT NB OF DIMS BECAUSE DIMS CAN'T BE ADDED TO THEM BY DEFAULT!!!
+        images = [img for img in loadlist('/E/Sample_images/sample_images_PA/trash_test_mem/mini/*.png')]
+        # we make a stack of these images and since the input single images have three channels then the last will have three channels
+        images = to_stack(images)
+
+        masks = [smart_name_parser(img,'TA')+'/handCorrection.tif' for img in loadlist('/E/Sample_images/sample_images_PA/trash_test_mem/mini/*.png')]
+        masks = to_stack(masks)
+        # here the stack misses channels because orig masks also miss channel --> so channel need be added
+
+        print('starting shape',images.shape)
+        print('starting shape masks',masks.shape)
+
+        # # add a channel dim to masks because it uis missing and therefore I need it
+        masks = masks[..., np.newaxis]
+
+        # mask = [mask[..., np.newaxis] for mask in masks]  # really need add a channel dim to the image
+
+
+        # test an augmenter already taking images as input --> probably need some small modifs
+        # 3D
+        # seems to work --> but check
+        augmenter = DataGenerator(
+            # 'D:/dataset1/tests_focus_projection', 'D:/dataset1/tests_focus_projection',
+            # 'D:/dataset1/tests_focus_projection/proj', 'D:/dataset1/tests_focus_projection/proj/*/hand*.tif',
+            # inputs='/E/Sample_images/sample_images_denoise_manue/210219/raw', # 3D input
+            # outputs='/E/Sample_images/sample_images_denoise_manue/210219/raw/predict', # 2D ouput otherwise change model shape... below !!!!
+            # input_channel_of_interest=0,
+            # comment the 2 next lines and restore the 3 above to get back to 3D
+            inputs=images,  # 3D input
+            outputs=masks, # images,
+            input_channel_of_interest=1,
+            output_channel_of_interest=0, #1,
+            # outputs='/E/Sample_images/sample_images_denoise_manue/210219/raw/predict',
+            # 2D ouput otherwise change model shape... below !!!!
+            # '/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/tests_focus_projection/proj', '/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/tests_focus_projection/proj/',
+            # '/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/tests_focus_projection', '/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/tests_focus_projection',
+            # '/home/aigouy/Bureau/last_model_not_sure_that_works/tmp', '/home/aigouy/Bureau/last_model_not_sure_that_works/tmp',
+            # is_predict_generator=True,
+            # crop_parameters={'x1':256, 'y1':256, 'x2':512, 'y2':512},
+            # crop_parameters={'x1':512, 'y1':512, 'x2':796, 'y2':796},
+            input_normalization=normalization_meth,
+            # shuffle=False, input_shape=[(None, None, None, None, 1)], output_shape=[(None, None, None, None, 1)],
+            # shuffle=False, input_shape=[(None, None, None, None, 1)], output_shape=[(None, None, None, 1)], # 3D input and 2D output --> if not the case there will be errors !!!
+            shuffle=False, input_shape=[(None, None, None, 1)], output_shape=[(None, None, None, 1)],
+            # 3D input and 2D output --> if not the case there will be errors !!!
+            augmentations=SELECTED_AUG,
+            # mask_dilations=7,
+            # default_input_tile_width=2048, default_input_tile_height=1128,
+            # default_output_tile_width=2048, default_output_tile_height=1128,
+            # default_input_tile_width=512, default_input_tile_height=512,
+            # default_output_tile_width=512, default_output_tile_height=512,
+            default_input_tile_width=512, default_input_tile_height=512,
+            default_output_tile_width=512, default_output_tile_height=512,
+            # default_input_tile_width=256, default_input_tile_height=256,
+            # default_output_tile_width=256, default_output_tile_height=256,
+            # is_output_1px_wide=True,
+            # rebinarize_augmented_output=True
+            create_epyseg_style_output=False,
+            rotate_n_flip_independently_of_augmentation=True,
+            mask_lines_and_cols_in_input_and_mask_GT_with_nans=mask_lines_and_cols_in_input_and_mask_GT_with_nans,
+            # force rotation and flip of images independently of everything
+        )
+
+        if False:
+            # 3D
+            # seems to work --> but check
+            augmenter = DataGenerator(
+                # 'D:/dataset1/tests_focus_projection', 'D:/dataset1/tests_focus_projection',
+                # 'D:/dataset1/tests_focus_projection/proj', 'D:/dataset1/tests_focus_projection/proj/*/hand*.tif',
+                # inputs='/E/Sample_images/sample_images_denoise_manue/210219/raw', # 3D input
+                # outputs='/E/Sample_images/sample_images_denoise_manue/210219/raw/predict', # 2D ouput otherwise change model shape... below !!!!
+                # input_channel_of_interest=0,
+                # comment the 2 next lines and restore the 3 above to get back to 3D
+                inputs='/E/Sample_images/sample_images_PA/trash_test_mem/mini/*.png',  # 3D input
+                input_channel_of_interest=1,
+                # outputs='/E/Sample_images/sample_images_denoise_manue/210219/raw/predict',
+                # 2D ouput otherwise change model shape... below !!!!
+                # '/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/tests_focus_projection/proj', '/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/tests_focus_projection/proj/',
+                # '/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/tests_focus_projection', '/D/datasets_deep_learning/keras_segmentation_dataset/TA_test_set/tests_focus_projection',
+                # '/home/aigouy/Bureau/last_model_not_sure_that_works/tmp', '/home/aigouy/Bureau/last_model_not_sure_that_works/tmp',
+                # is_predict_generator=True,
+                # crop_parameters={'x1':256, 'y1':256, 'x2':512, 'y2':512},
+                # crop_parameters={'x1':512, 'y1':512, 'x2':796, 'y2':796},
+                input_normalization=normalization_meth,
+                # shuffle=False, input_shape=[(None, None, None, None, 1)], output_shape=[(None, None, None, None, 1)],
+                # shuffle=False, input_shape=[(None, None, None, None, 1)], output_shape=[(None, None, None, 1)], # 3D input and 2D output --> if not the case there will be errors !!!
+                shuffle=False, input_shape=[(None, None, None, 1)], output_shape=[(None, None, None, 1)],
+                # 3D input and 2D output --> if not the case there will be errors !!!
+                augmentations=SELECTED_AUG,
+                output_channel_of_interest=0,
+                # mask_dilations=7,
+                # default_input_tile_width=2048, default_input_tile_height=1128,
+                # default_output_tile_width=2048, default_output_tile_height=1128,
+                # default_input_tile_width=512, default_input_tile_height=512,
+                # default_output_tile_width=512, default_output_tile_height=512,
+                default_input_tile_width=512, default_input_tile_height=512,
+                default_output_tile_width=512, default_output_tile_height=512,
+                # default_input_tile_width=256, default_input_tile_height=256,
+                # default_output_tile_width=256, default_output_tile_height=256,
+                # is_output_1px_wide=True,
+                # rebinarize_augmented_output=True
+                create_epyseg_style_output=False,
+                rotate_n_flip_independently_of_augmentation=True,
+                mask_lines_and_cols_in_input_and_mask_GT_with_nans=mask_lines_and_cols_in_input_and_mask_GT_with_nans,
+                # force rotation and flip of images independently of everything
+            )
 
     # augmenter = DataGenerator(
     #     # 'D:/dataset1/tests_focus_projection', 'D:/dataset1/tests_focus_projection',
@@ -2209,6 +1854,7 @@ if __name__ == '__main__':
 
     # why is this shit called twice
 
+    LIMIT = 22
     full_count = 0
     counter = 0
     for orig, mask in augmenter.train_generator(False, True):
@@ -2236,16 +1882,17 @@ if __name__ == '__main__':
             sys.exit(0)
             print('hello')
 
+
         full_count += 1
         for i in range(len(orig)):
             # print('in here', orig[i].shape)
-            if counter < 5:
+            if counter < LIMIT:
                 try:
                     center = int(len(orig[i]) / 2)
                     # center = 0
 
                     plt.imshow(np.squeeze(orig[i][center]))  # , cmap='gray')
-
+                    print(orig[i].shape, orig[i].max(), orig[i].min())
                     print(mask[
                               i].dtype)  # float 32 --> marche aussi avec le wshed --> cool in fact # peut etre essayer comme ça
                     # first_blur=None, second_blur=None,
@@ -2280,9 +1927,9 @@ if __name__ == '__main__':
 
                 # plt.show()
         for i in range(len(mask)):
-            print('in here2', mask[i].shape)  # --> seems ok
+            print('in here2', mask[i].shape, mask[i].max(), mask[i].min())  # --> seems ok
             # print(mask[i]) # marche car contient des nans
-            if counter < 5:
+            if counter < LIMIT:
                 try:
                     center = int(len(mask[i]) / 2)
                     # center = 0
@@ -2303,9 +1950,10 @@ if __name__ == '__main__':
                     Img(mask[i], dimensions='dhwc').save('/home/aigouy/Bureau/trashme.tif')
                 # plt.show()
         counter += 1
-        if counter >= 6:
+        if counter >= LIMIT:
             plt.close(fig='all')
         # do stuff with that
+
     print('end')
     print(counter)
     print(full_count)

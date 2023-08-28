@@ -3,7 +3,7 @@ from skimage.filters import threshold_otsu
 # from skimage.segmentation import watershed 
 from skimage.segmentation import watershed
 
-from epyseg.img import Img
+from epyseg.img import Img, invert
 from skimage.measure import label, regionprops
 import os
 import numpy as np
@@ -14,34 +14,44 @@ from epyseg.postprocess.filtermask import FilterMask
 from epyseg.postprocess.edmshed import segment_cells
 
 logger = TA_logger()
-
-
 class RefineMaskUsingSeeds:
-
     def __init__(self):
         pass
 
-    def process(self, input=None, mode=None, _DEBUG=False, _VISUAL_DEBUG=False, output_folder=tempfile.gettempdir(),
-                output_name='handCorrection.tif', threshold=None,
-                filter=None,
-                correction_factor=2,
-                **kwargs):
+    def process(self, input=None, mode=None, _DEBUG=False, _VISUAL_DEBUG=False,
+                output_folder=tempfile.gettempdir(), output_name='handCorrection.tif',
+                threshold=None, filter=None, correction_factor=2, **kwargs):
+        """
+        Perform post-processing on the input image.
+
+        Args:
+            input (numpy.ndarray): The input image.
+            mode (str): The processing mode.
+            _DEBUG (bool): Debug flag.
+            _VISUAL_DEBUG (bool): Visual debug flag.
+            output_folder (str): Output folder path.
+            output_name (str): Output file name.
+            threshold (float): Threshold value.
+            filter: Filter value.
+            correction_factor (int): Correction factor.
+
+        Returns:
+            numpy.ndarray: The processed image mask.
+
+        """
 
         if input is None:
             logger.error('no input image --> nothing to do')
             return
 
-        # TODO test it with several images just to see if that works
         if isinstance(mode, str) and 'first' in mode:
-            # return first channel only # shall I had a channel axis to it to avoid issues
+            # Return first channel only
             out = input[..., 0]
-            # I do this to keep the ...hwc format...
             return out[..., np.newaxis]
 
         img_orig = input
 
         if not img_orig.has_c() or img_orig.shape[-1] != 7:
-            # TODO in fact could do the fast mode still on a single image --> may be useful
             logger.error('image must have 7 channels to be used for post process')
             return img_orig
 
@@ -49,6 +59,7 @@ class RefineMaskUsingSeeds:
             Img(img_orig, dimensions='hwc').save(os.path.join(output_folder, 'raw_input.tif'))
 
         bckup_img_wshed = img_orig[..., 0].copy()
+
         if mode is not None and isinstance(mode, str):
             if 'ast' in mode:
                 logger.debug('fast mode')
@@ -68,23 +79,23 @@ class RefineMaskUsingSeeds:
         if img_orig.shape[-1] >= 5:
             img_orig[..., 1] = segment_cells(img_orig[..., 1], min_threshold=0.06, min_unconnected_object_size=6)
             img_orig[..., 2] = segment_cells(img_orig[..., 2], min_threshold=0.15, min_unconnected_object_size=12)
-            img_orig[..., 3] = Img.invert(img_orig[..., 3])
+            img_orig[..., 3] = invert(img_orig[..., 3])
             img_orig[..., 3] = segment_cells(img_orig[..., 3], min_threshold=0.06, min_unconnected_object_size=6)
-            img_orig[..., 4] = Img.invert(img_orig[..., 4])
+            img_orig[..., 4] = invert(img_orig[..., 4])
             img_orig[..., 4] = segment_cells(img_orig[..., 4], min_threshold=0.15, min_unconnected_object_size=12)
 
         if img_orig.shape[-1] == 7:
             img_orig[..., 5] = self.binarise(img_orig[..., 5], threshold=0.15)
-            img_orig[..., 6] = Img.invert(img_orig[..., 6])
+            img_orig[..., 6] = invert(img_orig[..., 6])
             img_orig[..., 6] = self.binarise(img_orig[..., 6], threshold=0.1)
 
         if _DEBUG:
             Img(img_orig, dimensions='hwc').save(os.path.join(output_folder, 'thresholded_masks.tif'))
 
-        # get watershed mask for all images
+        # Get watershed mask for all images
         for i in range(img_orig.shape[-1]):
             if i < 5:
-                final_seeds = label(Img.invert(img_orig[..., i]), connectivity=1, background=0)
+                final_seeds = label(invert(img_orig[..., i]), connectivity=1, background=0)
             else:
                 final_seeds = label(img_orig[..., i], connectivity=None, background=0)
             final_wshed = watershed(bckup_img_wshed, markers=final_seeds, watershed_line=True)
@@ -119,19 +130,19 @@ class RefineMaskUsingSeeds:
         if _DEBUG:
             Img(final_mask, dimensions='hw').save(os.path.join(output_folder, 'binarized.tif'))
 
-        # close wshed mask to fill super tiny holes
+        # Close watershed mask to fill super tiny holes
         s = ndimage.generate_binary_structure(2, 1)
         final_mask = ndimage.grey_dilation(final_mask, footprint=s)
 
-        # remove super tiny artificial cells (very small value cause already dilated)
-        mask = label(Img.invert(final_mask), connectivity=1, background=0)
+        # Remove super tiny artificial cells (very small value cause already dilated)
+        mask = label(invert(final_mask), connectivity=1, background=0)
         for region in regionprops(mask):
             if region.area < 5:
                 for coordinates in region.coords:
                     final_mask[coordinates[0], coordinates[1]] = 255
         del mask
 
-        final_mask = label(Img.invert(final_mask), connectivity=1, background=0)
+        final_mask = label(invert(final_mask), connectivity=1, background=0)
         final_mask = watershed(bckup_img_wshed, markers=final_mask, watershed_line=True)
 
         final_mask[final_mask != 0] = 1
@@ -145,6 +156,16 @@ class RefineMaskUsingSeeds:
             return FilterMask(bckup_img_wshed, final_mask, filter=filter, correction_factor=correction_factor)
 
     def autothreshold(self, single_2D_img):
+        """
+                Automatically calculates the threshold for a single 2D image.
+
+                Args:
+                    single_2D_img (numpy.ndarray): The input 2D image.
+
+                Returns:
+                    float: The calculated threshold value.
+
+        """
         try:
             return threshold_otsu(single_2D_img)
         except ValueError:
@@ -152,7 +173,19 @@ class RefineMaskUsingSeeds:
             return single_2D_img
 
     def binarise(self, single_2D_img, threshold=0.5, bg_value=0, fg_value=255):
-        # TODO may change this to >= and < try it
+        """
+           Binarizes a single 2D image using a threshold value.
+
+           Args:
+               single_2D_img (numpy.ndarray): The input 2D image.
+               threshold (float): The threshold value.
+               bg_value (int): Background value.
+               fg_value (int): Foreground value.
+
+           Returns:
+               numpy.ndarray: The binarized image.
+
+        """
         single_2D_img[single_2D_img > threshold] = fg_value
         single_2D_img[single_2D_img <= threshold] = bg_value
         return single_2D_img

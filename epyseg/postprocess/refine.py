@@ -3,7 +3,7 @@ import traceback
 from scipy import ndimage
 # from skimage.segmentation import watershed 
 from skimage.segmentation import watershed
-from epyseg.img import Img
+from epyseg.img import Img, get_2D_tiles_with_overlap, invert
 from matplotlib import pyplot as plt
 from skimage.measure import label, regionprops
 from timeit import default_timer as timer
@@ -69,7 +69,7 @@ class EPySegPostProcess():
                 img_seg = img_orig[..., 0].copy()
 
             seeds_1 = img_orig[..., img_orig.shape[-1] - 1]
-            seeds_1 = Img.invert(seeds_1)
+            seeds_1 = invert(seeds_1)
             # seeds_1[seeds_1 >= 0.5] = 255
             # seeds_1[seeds_1 < 0.5] = 0
             seeds_1[seeds_1 >= 0.2] = 255  # TODO maybe be more stringent here
@@ -100,8 +100,8 @@ class EPySegPostProcess():
                 Img(seeds_1, dimensions='hw').save(
                     os.path.join(output_folder, 'extras', 'wshed_seeds_deblobed.tif'))
 
-            img_orig[..., 3] = Img.invert(img_orig[..., 3])
-            img_orig[..., 4] = Img.invert(img_orig[..., 4])
+            img_orig[..., 3] = invert(img_orig[..., 3])
+            img_orig[..., 4] = invert(img_orig[..., 4])
 
             # seems to work --> now need to do the projection
             for c in range(1, img_orig.shape[-1] - 2):
@@ -147,7 +147,7 @@ class EPySegPostProcess():
         # if pixel is not labeled then read it
         if restore_safe_cells:
             labels_n_area_rescue_seeds = {}
-            rescue_seeds = label(Img.invert(secure_mask), connectivity=1, background=0)
+            rescue_seeds = label(invert(secure_mask), connectivity=1, background=0)
             for region in regionprops(rescue_seeds):
                 labels_n_area_rescue_seeds[region.label] = region.area
             if _DEBUG:
@@ -197,7 +197,7 @@ class EPySegPostProcess():
 
             # other_seeds = label(invert(np.grey_dilation(dilated, footprint=s).astype(np.uint8)), connectivity=1, background=0)
 
-            labs = label(Img.invert(img_saturated.astype(np.uint8)), connectivity=1, background=0)
+            labs = label(invert(img_saturated.astype(np.uint8)), connectivity=1, background=0)
             for region in regionprops(labs):
                 seeds = []
 
@@ -228,7 +228,7 @@ class EPySegPostProcess():
             del dilated
 
         list_of_cells_to_dilate = []
-        labs = label(Img.invert(img_saturated.astype(np.uint8)), connectivity=1, background=0)
+        labs = label(invert(img_saturated.astype(np.uint8)), connectivity=1, background=0)
 
         # c'est cette correction qui fixe bcp de choses mais recree aussi des choses qui n'existent pas... --> voir à quoi sont dus ces lignes blobs
         # faudrait redeblober
@@ -271,7 +271,7 @@ class EPySegPostProcess():
                             image = region.image.copy()
                             image[region.intensity_image > threshold] = True
                             image[region.intensity_image <= threshold] = False
-                            final = Img.invert(image.astype(np.uint8))
+                            final = invert(image.astype(np.uint8))
                             final[final < 255] = 0
                             final[mask == False] = 0
                             new_seeds = label(final, connectivity=1, background=0)
@@ -304,14 +304,14 @@ class EPySegPostProcess():
             Img(img_saturated, dimensions='hw').save(
                 os.path.join(output_folder, 'extras', 'saturated_mask4.tif'))
 
-        final_seeds = label(Img.invert(img_saturated), connectivity=1,
+        final_seeds = label(invert(img_saturated), connectivity=1,
                             background=0)  # keep like that otherwise creates tiny cells with erroneous wshed
 
         # for debug
         if _DEBUG:
             Img(final_seeds, dimensions='hw').save(
                 os.path.join(output_folder, 'extras', 'final_seeds_before.tif'))
-        final_seeds = label(Img.invert(img_saturated), connectivity=2, background=0)  # is that needed ???
+        final_seeds = label(invert(img_saturated), connectivity=2, background=0)  # is that needed ???
         # for debug
         if _DEBUG:
             Img(final_seeds, dimensions='hw').save(
@@ -345,7 +345,7 @@ class EPySegPostProcess():
             if _DEBUG:
                 Img(final_wshed, dimensions='hw').save(os.path.join(output_folder, 'extras', 'test_size_cells.tif'))
 
-            final_seeds = Img.invert(final_wshed)
+            final_seeds = invert(final_wshed)
             final_seeds = label(final_seeds, connectivity=1, background=0)
 
             if _VISUAL_DEBUG:
@@ -380,7 +380,7 @@ class EPySegPostProcess():
                                 break
                             break
 
-                _, tiles = Img.get_2D_tiles_with_overlap(final_seeds, overlap=64, dimension_h=-2, dimension_w=-1)
+                _, tiles = get_2D_tiles_with_overlap(final_seeds, overlap=64, dimension_h=-2, dimension_w=-1)
 
                 for r in tiles:
                     for tile in r:

@@ -3,7 +3,7 @@ from scipy import ndimage
 from skimage.filters import threshold_otsu
 # from skimage.segmentation import watershed 
 from skimage.segmentation import watershed
-from epyseg.img import Img
+from epyseg.img import Img, get_2D_tiles_with_overlap, invert
 from matplotlib import pyplot as plt
 from skimage.measure import label, regionprops
 from timeit import default_timer as timer
@@ -14,15 +14,26 @@ from epyseg.tools.logger import TA_logger # logging
 
 logger = TA_logger()
 
-def simpleFilter(img_orig, threshold=None, **kwargs): # threshold=None is autofilter
+def simpleFilter(img_orig, threshold=None, **kwargs):
+    """
+    Applies a simple thresholding filter to an image.
+
+    Args:
+        img_orig (numpy.ndarray): The input image.
+        threshold (float): The threshold value. Defaults to None.
+
+    Returns:
+        numpy.ndarray: The filtered image.
+
+    """
     if img_orig.has_c():
         for c in range(img_orig.shape[-1]):
             if threshold is not None:
-                current = img_orig[...,c]
-                current = current/current.max()
-                current[current<=threshold]=0
-                current[current>threshold]=255
-                img_orig[...,c]=current
+                current = img_orig[..., c]
+                current = current / current.max()
+                current[current <= threshold] = 0
+                current[current > threshold] = 255
+                img_orig[..., c] = current
             else:
                 current = img_orig[..., c]
                 cur_threshold = threshold_otsu(current)
@@ -41,12 +52,27 @@ def simpleFilter(img_orig, threshold=None, **kwargs): # threshold=None is autofi
             img_orig[img_orig > cur_threshold] = 255
             return img_orig.astype(np.uint8)
 
-def FilterMask(img_orig, final_wshed, filter='local median',  correction_factor=2,
-             _DEBUG=False,
-             _VISUAL_DEBUG=False,
-             **kwargs):
 
-    labs = label(Img.invert(final_wshed.astype(np.uint8)), connectivity=1, background=0)
+def FilterMask(img_orig, final_wshed, filter='local median', correction_factor=2,
+               _DEBUG=False,
+               _VISUAL_DEBUG=False,
+               **kwargs):
+    """
+    Filters the watershed result based on cell size or local median.
+
+    Args:
+        img_orig (numpy.ndarray): The original image.
+        final_wshed (numpy.ndarray): The watershed result.
+        filter (str or int): The filter to be applied. Defaults to 'local median'.
+        correction_factor (int): The correction factor for filtering. Defaults to 2.
+        _DEBUG (bool): Debug flag. Defaults to False.
+        _VISUAL_DEBUG (bool): Visual debug flag. Defaults to False.
+
+    Returns:
+        numpy.ndarray: The filtered watershed result.
+
+    """
+    labs = label(invert(final_wshed.astype(np.uint8)), connectivity=1, background=0)
 
     start = timer()
 
@@ -63,7 +89,7 @@ def FilterMask(img_orig, final_wshed, filter='local median',  correction_factor=
         if _DEBUG:
             Img(final_wshed, dimensions='hw').save(os.path.join(output_folder, 'extras', 'test_size_cells.tif'))
 
-        final_seeds = Img.invert(final_wshed)
+        final_seeds = invert(final_wshed)
         final_seeds = label(final_seeds, connectivity=1, background=0)
 
         if _VISUAL_DEBUG:
@@ -85,12 +111,10 @@ def FilterMask(img_orig, final_wshed, filter='local median',  correction_factor=
                 labels_n_bbox[region.label] = region.bbox
                 labels_n_area[region.label] = region.area
                 if (region.bbox[0] <= 3 or region.bbox[1] <= 3 or region.bbox[2] >= final_seeds.shape[-2] - 5 or
-                        region.bbox[
-                            3] >= \
-                        final_seeds.shape[-1] - 5):
+                        region.bbox[3] >= final_seeds.shape[-1] - 5):
                     border_cells.append(region.label)
 
-            _, tiles = Img.get_2D_tiles_with_overlap(final_seeds, overlap=64, dimension_h=-2, dimension_w=-1)
+            _, tiles = get_2D_tiles_with_overlap(final_seeds, overlap=64, dimension_h=-2, dimension_w=-1)
 
             for r in tiles:
                 for tile in r:
@@ -101,8 +125,7 @@ def FilterMask(img_orig, final_wshed, filter='local median',  correction_factor=
 
                         if (region.bbox[0] <= 3 or region.bbox[1] <= 3 or region.bbox[2] >= final_seeds.shape[
                             -2] - 5 or
-                                region.bbox[
-                                    3] >= \
+                                region.bbox[3] >= \
                                 final_seeds.shape[-1] - 5):
                             continue
 
@@ -162,8 +185,7 @@ def FilterMask(img_orig, final_wshed, filter='local median',  correction_factor=
                     if region.area < filter_by_size:
                         if (region.bbox[0] <= 2 or region.bbox[1] <= 2 or region.bbox[2] >= labs.shape[
                             -2] - 3 or
-                                region.bbox[
-                                    3] >= \
+                                region.bbox[3] >= \
                                 labs.shape[
                                     -1] - 3):
                             continue
@@ -196,7 +218,19 @@ def FilterMask(img_orig, final_wshed, filter='local median',  correction_factor=
 
         return final_wshed.astype(np.uint8)
 
+
 def rect_distance(bbox1, bbox2):
+    """
+    Calculates the distance between two bounding boxes.
+
+    Args:
+        bbox1 (tuple): Bounding box coordinates of the first box.
+        bbox2 (tuple): Bounding box coordinates of the second box.
+
+    Returns:
+        float: The distance between the two bounding boxes.
+
+    """
     width1 = abs(bbox1[3] - bbox1[1])
     width2 = abs(bbox2[3] - bbox2[1])
     height1 = abs(bbox1[2] - bbox1[0])

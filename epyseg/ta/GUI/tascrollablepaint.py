@@ -1,33 +1,60 @@
-from epyseg.ta.GUI.paint2 import Createpaintwidget
 from epyseg.ta.GUI.scrollablepaint import scrollable_paint
+from epyseg.ta.GUI.paint2 import Createpaintwidget
+from epyseg.settings.global_settings import set_UI
+from qtpy.QtWidgets import QApplication
+from qtpy.QtGui import QIcon, QPixmap
+from qtpy.QtCore import Qt
+import sys
 
-# this is the perfect TA like drawing area --> just need replace it
 class tascrollablepaint(scrollable_paint):
-    def __init__(self):
-        class overriding_apply(Createpaintwidget):
-            # all seems ok now and functions as in TA
-            # just do the shift enter to get rid of small cells
+    """
+    A customized version of the scrollable_paint class for TA-like drawing area.
 
-            # avec ça ça marche 100% à la TA ... --> cool --> maybe make it a TA drawing pad
-            def apply(self):
-                self.apply_drawing(minimal_cell_size=0)
+    Args:
+        overriding_paint_widget (Createpaintwidget, optional): Custom paint widget to override the default behavior. Defaults to None.
+    """
 
-            def shift_apply(self):
-                # MEGA TODO IMPLEMENT SIZE within this stuff!!!
-                self.apply_drawing(minimal_cell_size=10)
+    def __init__(self, overriding_paint_widget=None):
+        if overriding_paint_widget is None:
+            class overriding_apply(Createpaintwidget):
+                """
+                Custom paint widget with TA-like functions.
+                """
 
-            def ctrl_m_apply(self):
-                self.manually_reseeded_wshed() # how can I pass the channel to the stuff ???
-                # channel = self.get_selected_channel()
+                def apply(self):
+                    """
+                    Apply the drawing with a minimal cell size of 0.
+                    """
+                    self.apply_drawing(minimal_cell_size=0)
 
-            def m_apply(self):
-                self.maskVisible = not self.maskVisible
-                self.update()
+                def shift_apply(self):
+                    """
+                    Apply the drawing with a minimal cell size of 10.
+                    """
+                    self.apply_drawing(minimal_cell_size=10)
 
-            def save(self):
-                self.save_mask()
+                def ctrl_m_apply(self):
+                    """
+                    Manually reseed the watershed with the selected channel.
+                    """
+                    self.manually_reseeded_wshed()
 
-        super().__init__(custom_paint_panel=overriding_apply())
+                def m_apply(self):
+                    """
+                    Toggle the visibility of the mask.
+                    """
+                    self.maskVisible = not self.maskVisible
+                    self.update()
+
+                def save(self):
+                    """
+                    Save the mask.
+                    """
+                    self.save_mask()
+
+            super().__init__(custom_paint_panel=overriding_apply())
+        else:
+            super().__init__(custom_paint_panel=overriding_paint_widget)
 
 
 if __name__ == '__main__':
