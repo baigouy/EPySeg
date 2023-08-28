@@ -165,7 +165,7 @@ if PYQT_VERSION_STR<'6':
 
 __MAJOR__ = 1
 __MINOR__ = 0
-__MICRO__ = 0
+__MICRO__ = 2
 __RELEASE__ = 'c'  # https://www.python.org/dev/peps/pep-0440/#public-version-identifiers --> alpha beta, ...
 __VERSION__ = ''.join([str(__MAJOR__), '.', str(__MINOR__), '.'.join([str(__MICRO__)]) if __MICRO__ != 0 else '', __RELEASE__])
 __AUTHOR__ = 'Benoit Aigouy'
@@ -958,7 +958,6 @@ class TissueAnalyzer(QtWidgets.QMainWindow):
             self.last_opened_file_name.setText('')
 
     def onTabChange(self):
-        # tab changed --> therefore need update the image --> TODO
         # tab changed --> therefore need update the image --> TODO
         # maybe should have different behaviours depending on image change or tab change --> TODO
         self.update_preview_depending_on_selected_tab()

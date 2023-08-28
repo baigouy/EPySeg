@@ -17,6 +17,8 @@
 # ça marche mais faut le rendre un peu plus smart
 
 import os
+import traceback
+
 from epyseg.settings.global_settings import set_UI # set the UI to be used py qtpy
 set_UI()
 import numpy as np
@@ -148,10 +150,16 @@ class Example(QWidget):
         # self.db_connect = db
 
         # rowcount = cursor.execute('''SELECT COUNT(*) FROM '''+table_name).fetchone()[0]
-        #
+
+        # pb table may not exist BUT WHY NOT CREATED YET DID I BREAK SMTHG ???
 
         # print(rowcount)
-        self.cursor.execute('''SELECT * FROM ''' + self.table_name)
+        try:
+            self.cursor.execute('''SELECT * FROM ''' + self.table_name)
+        except:
+            # if table does not exist --> skip
+            # traceback.print_exc()
+            return
         content = self.cursor.fetchall()
 
         self.table_widget.setRowCount(len(content))
@@ -374,14 +382,10 @@ if __name__ == "__main__":
     #     import sys
     #     sys.exit(0)
 
-
-
     app = QApplication([])
 
     lst = loadlist('/E/Sample_images/sample_images_PA/trash_test_mem/mini_different_nb_of_channels/list.lst')
     # _tmp_remove_props(lst)
-
-
 
     # db = get_properties_master_db(lst)
 

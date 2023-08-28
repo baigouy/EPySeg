@@ -410,7 +410,7 @@ class Createpaintwidget(QWidget):
         height = self.image.size().height()
         top = self.geometry().x()
         left = self.geometry().y()
-        self.setGeometry(top, left, width*self.scale, height*self.scale)
+        self.setGeometry(top, left, int(width*self.scale), int(height*self.scale))
 
         self.cursor = QtGui.QImage(self.image.size(), QtGui.QImage.Format_ARGB32)
         self.cursor.fill(QtCore.Qt.transparent)
@@ -1077,8 +1077,8 @@ class Createpaintwidget(QWidget):
             painter.setPen(QtGui.QPen(self.cursorColor, stroke_size, QtCore.Qt.SolidLine, QtCore.Qt.RoundCap,
                                       QtCore.Qt.RoundJoin))
             if self.brushSize >1:
-                painter.drawEllipse(zoom_corrected_pos, self.brushSize / 2.,
-                                self.brushSize / 2.)
+                painter.drawEllipse(zoom_corrected_pos, int(self.brushSize / 2.),
+                                int(self.brushSize / 2.))
             else:
                 painter.drawPoint(zoom_corrected_pos)
         except:
@@ -1231,8 +1231,8 @@ class Createpaintwidget(QWidget):
             # the corresponding rect
             visibleRect = visibleRegion.boundingRect()
             # the visibleRect taking zoom into account
-            scaledVisibleRect = QRect(visibleRect.x() / self.scale, visibleRect.y() / self.scale,
-                                      visibleRect.width() / self.scale, visibleRect.height() / self.scale)
+            scaledVisibleRect = QRect(int(visibleRect.x() / self.scale), int(visibleRect.y() / self.scale),
+                                      int(visibleRect.width() / self.scale), int(visibleRect.height() / self.scale))
 
             if self.image is None:
                 canvasPainter.eraseRect(visibleRect)

@@ -1491,119 +1491,120 @@ def createMasterDB(lst, outputName=None, progress_callback=None, database_name=N
         masterDB = TAsql(filename_or_connection=outputName, add_useful_missing_SQL_commands=False)
 
         # Iterate over each database file
-        for l, db_l in enumerate(database_list):
-            try:
-                # Check if the process should be stopped
-                if early_stop.stop:
-                    return
+        if database_list is not None:
+            for l, db_l in enumerate(database_list):
+                try:
+                    # Check if the process should be stopped
+                    if early_stop.stop:
+                        return
 
-                # Update progress if a callback function is provided
-                if progress_callback is not None:
-                    progress_callback.emit((l / len(database_list)) * 100)
-                else:
-                    logger.info(str((l / len(database_list)) * 100) + '%')
-            except:
-                pass
+                    # Update progress if a callback function is provided
+                    if progress_callback is not None:
+                        progress_callback.emit((l / len(database_list)) * 100)
+                    else:
+                        logger.info(str((l / len(database_list)) * 100) + '%')
+                except:
+                    pass
 
-            # Open the database file
-            dbHandler = None
-            try:
-                dbHandler = TAsql(filename_or_connection=db_l)
+                # Open the database file
+                dbHandler = None
+                try:
+                    dbHandler = TAsql(filename_or_connection=db_l)
 
-                # Get all tables in the database
-                tables = dbHandler.get_tables()
+                    # Get all tables in the database
+                    tables = dbHandler.get_tables()
 
-                if force_track_cells_db_update:
-                    force_update = False
+                    if force_track_cells_db_update:
+                        force_update = False
 
-                    # Check if 'cell_tracks' table is missing or empty
-                    if 'cell_tracks' not in tables or dbHandler.isTableEmpty('cell_tracks'):
-                        force_update = True
-
-                    if not force_update:
-                        try:
-                            # Check if 'track_id' column is empty
-                            data = dbHandler.run_SQL_command_and_get_results('SELECT track_id FROM cell_tracks LIMIT 1')
-                            if data == None or data[0][0] == None:
-                                force_update = True
-                        except:
+                        # Check if 'cell_tracks' table is missing or empty
+                        if 'cell_tracks' not in tables or dbHandler.isTableEmpty('cell_tracks'):
                             force_update = True
 
-                        if force_update:
-                            # Drop 'cell_tracks' table and create a new one
-                            dbHandler.drop_table('cell_tracks')
-                            dbHandler.execute_command('CREATE TABLE cell_tracks AS SELECT local_id as cell_id, -1 as track_id FROM cells')
+                        if not force_update:
+                            try:
+                                # Check if 'track_id' column is empty
+                                data = dbHandler.run_SQL_command_and_get_results('SELECT track_id FROM cell_tracks LIMIT 1')
+                                if data == None or data[0][0] == None:
+                                    force_update = True
+                            except:
+                                force_update = True
 
-                # Iterate over each table in the database
-                for string in tables:
-                    if string == 'cell_tracks':
-                        # Skip the 'cell_tracks' table if force_track_cells_db_update is False
-                        if not force_track_cells_db_update:
-                            continue
+                            if force_update:
+                                # Drop 'cell_tracks' table and create a new one
+                                dbHandler.drop_table('cell_tracks')
+                                dbHandler.execute_command('CREATE TABLE cell_tracks AS SELECT local_id as cell_id, -1 as track_id FROM cells')
 
-                    # Read column names and types from the table
-                    cols = dbHandler.get_column_names_and_types(string)
+                    # Iterate over each table in the database
+                    for string in tables:
+                        if string == 'cell_tracks':
+                            # Skip the 'cell_tracks' table if force_track_cells_db_update is False
+                            if not force_track_cells_db_update:
+                                continue
 
-                    if database_name is not None:
-                        # Skip tables from other databases if a specific database name is provided
-                        if cols['database'][0] != database_name:
-                            continue
+                        # Read column names and types from the table
+                        cols = dbHandler.get_column_names_and_types(string)
 
-                    # Get column names and types from the masterDB table (if exists)
-                    cols_master = masterDB.get_column_names_and_types(string)
+                        if database_name is not None:
+                            # Skip tables from other databases if a specific database name is provided
+                            if cols['database'][0] != database_name:
+                                continue
 
-                    # Check for column mismatches between the database and masterDB
-                    present_in_master_but_missing_in_cur = None
-                    fixed_cols = set(_to_lower(cols.keys()))
-                    fixed_cols.add(frame_nb)
-                    fixed_cols.add(fileName)
+                        # Get column names and types from the masterDB table (if exists)
+                        cols_master = masterDB.get_column_names_and_types(string)
 
-                    fixed_master = set(_to_lower(cols_master.keys()))
-                    cols_master = {k.lower():v for k,v in cols_master.items()}
-                    cols = {k.lower():v for k,v in cols.items()}
+                        # Check for column mismatches between the database and masterDB
+                        present_in_master_but_missing_in_cur = None
+                        fixed_cols = set(_to_lower(cols.keys()))
+                        fixed_cols.add(frame_nb)
+                        fixed_cols.add(fileName)
 
-                    if not fixed_cols == fixed_master:
-                        present_in_master_but_missing_in_cur = fixed_master - fixed_cols
-                        present_in_cur_but_missing_in_master = fixed_cols - fixed_master
+                        fixed_master = set(_to_lower(cols_master.keys()))
+                        cols_master = {k.lower():v for k,v in cols_master.items()}
+                        cols = {k.lower():v for k,v in cols.items()}
 
-                        if present_in_master_but_missing_in_cur:
-                            # Create a temporary table for adding missing columns
-                            masterDB.drop_table('pytaTMP')
-                            masterDB.execute_command('CREATE TABLE pytaTMP AS SELECT * from ' + str(db_l))
+                        if not fixed_cols == fixed_master:
+                            present_in_master_but_missing_in_cur = fixed_master - fixed_cols
+                            present_in_cur_but_missing_in_master = fixed_cols - fixed_master
 
-                            for col in present_in_master_but_missing_in_cur:
-                                # Add missing columns to the temporary table
-                                masterDB.add_column('pytaTMP', col, col_type=cols_master[col])
+                            if present_in_master_but_missing_in_cur:
+                                # Create a temporary table for adding missing columns
+                                masterDB.drop_table('pytaTMP')
+                                masterDB.execute_command('CREATE TABLE pytaTMP AS SELECT * from ' + str(db_l))
 
-                            db_l = 'pytaTMP'
+                                for col in present_in_master_but_missing_in_cur:
+                                    # Add missing columns to the temporary table
+                                    masterDB.add_column('pytaTMP', col, col_type=cols_master[col])
 
-                        for col in present_in_cur_but_missing_in_master:
-                            # Add missing columns to the masterDB table
-                            masterDB.add_column(string, col, col_type=cols[col])
+                                db_l = 'pytaTMP'
 
-                    name = smart_name_parser(lst[l], ordered_output=['short'])[0]
+                            for col in present_in_cur_but_missing_in_master:
+                                # Add missing columns to the masterDB table
+                                masterDB.add_column(string, col, col_type=cols[col])
 
-                    # Insert data from the database table into the masterDB table
-                    masterDB.execute_command(
-                        "INSERT INTO '" + str(string) + "' SELECT " + str(l) + " AS '" + str(frame_nb) + "', '" + str(
-                            name) + "' AS '" + str(fileName) + "', * FROM " + str(db_l))
+                        name = smart_name_parser(lst[l], ordered_output=['short'])[0]
 
-                    # Drop the temporary table
-                    masterDB.drop_table('pytaTMP')
+                        # Insert data from the database table into the masterDB table
+                        masterDB.execute_command(
+                            "INSERT INTO '" + str(string) + "' SELECT " + str(l) + " AS '" + str(frame_nb) + "', '" + str(
+                                name) + "' AS '" + str(fileName) + "', * FROM " + str(db_l))
 
-            except:
-                traceback.print_exc()
-            finally:
-                if dbHandler is not None:
-                    # Detach the database table and close the connection
-                    masterDB.detach_table('tmp')
-                    dbHandler.close()
+                        # Drop the temporary table
+                        masterDB.drop_table('pytaTMP')
+
+                except:
+                    traceback.print_exc()
+                finally:
+                    if dbHandler is not None:
+                        # Detach the database table and close the connection
+                        masterDB.detach_table('tmp')
+                        dbHandler.close()
 
     except:
         traceback.print_exc()
 
     finally:
-        print(outputName)
+        # print(outputName)
 
         # Clean up and close the masterDB if an outputName is provided
         if masterDB is not None and outputName is not None:
@@ -1717,23 +1718,24 @@ def get_properties_master_db(lst):
     """
     database_list = smart_TA_list(lst, 'pyTA.db')
 
-    for db_file in database_list:
-        db = TAsql(db_file)
+    if database_list is not None:
+        for db_file in database_list:
+            db = TAsql(db_file)
 
-        if not 'properties' in db.get_tables():
-            db.create_table('properties', ['voxel_z_over_x_ratio', 'time'], ['float', 'float'])
-            db.execute_command("INSERT INTO properties ('voxel_z_over_x_ratio', 'time') "
-                               "SELECT NULL, NULL "
-                               "WHERE NOT EXISTS (SELECT * FROM properties)"
-                               )
-        else:
-            if db.isTableEmpty('properties'):
+            if not 'properties' in db.get_tables():
+                db.create_table('properties', ['voxel_z_over_x_ratio', 'time'], ['float', 'float'])
                 db.execute_command("INSERT INTO properties ('voxel_z_over_x_ratio', 'time') "
                                    "SELECT NULL, NULL "
                                    "WHERE NOT EXISTS (SELECT * FROM properties)"
                                    )
+            else:
+                if db.isTableEmpty('properties'):
+                    db.execute_command("INSERT INTO properties ('voxel_z_over_x_ratio', 'time') "
+                                       "SELECT NULL, NULL "
+                                       "WHERE NOT EXISTS (SELECT * FROM properties)"
+                                       )
 
-        db.close()
+            db.close()
 
     database = createMasterDB(lst, database_name='properties')
 
