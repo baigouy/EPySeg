@@ -1,5 +1,4 @@
 import os
-
 from epyseg.deeplearning import zoo # epyseg model zoo
 from epyseg.postprocess.filtermask import simpleFilter
 from epyseg.postprocess.refine_v2 import RefineMaskUsingSeeds
@@ -24,7 +23,6 @@ from segmentation_models.metrics import *
 from segmentation_models.losses import *
 from skimage import exposure
 from epyseg.tools.logger import TA_logger # logging
-from tensorflow.keras.callbacks import ReduceLROnPlateau
 import gc
 
 logger = TA_logger()
@@ -1188,6 +1186,7 @@ class EZDeepLearning:
                                                    keep_n_best=keep_n_best, progress_callback=progress_callback)
                 callbacks = [self.saver_cbk, self.stop_cbk]
                 if reduce_lr_on_plateau is not None and reduce_lr_on_plateau < 1:
+                    from tensorflow.python.keras.callbacks import ReduceLROnPlateau
                     logger.info('Reduce learning rate on plateau is enabled.')
                     monitor = "val_loss"
                     if validation_steps == 0:

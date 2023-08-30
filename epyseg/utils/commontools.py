@@ -41,8 +41,6 @@ def get_path_to_python_executable():
     return sys.executable
 
 
-import tensorflow as tf
-
 def get_tensorflow_version():
     """
     Returns the version of TensorFlow installed.
@@ -54,9 +52,8 @@ def get_tensorflow_version():
     #     >>> get_tensorflow_version()
     #     '2.6.5'
     """
+    import tensorflow as tf
     return tf.__version__
-
-import functools
 
 def execute_chained_functions(function_to_chain_iterable, parameter, reverse=False):
     """

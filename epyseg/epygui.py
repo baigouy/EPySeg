@@ -30,7 +30,7 @@ from epyseg.worker.threaded import Worker
 from epyseg.gui.img import image_input_settings
 from epyseg.tools.qthandler import XStream, QtHandler
 from epyseg.gui.pyqtmarkdown_replacement import ClickableTextEdit
-from epyseg.img import Img, normalization_methods
+from epyseg.img import normalization_methods
 from qtpy.QtWidgets import QPushButton, QWidget
 from epyseg.deeplearning.deepl import EZDeepLearning
 from epyseg.tools.logger import TA_logger # logging
