@@ -1,4 +1,4 @@
-import tensorflow.keras as keras
+import tensorflow.python.keras as keras
 
 class myStopCallback(keras.callbacks.Callback):
     """

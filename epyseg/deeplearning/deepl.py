@@ -2455,7 +2455,7 @@ class EZDeepLearning:
             logger.error('Please load/build a model first')
             return
         try:
-            import tensorflow.keras.backend as K
+            import tensorflow.python.keras.backend as K
             K.set_value(self.model.optimizer.learning_rate, learning_rate)
         except:
             traceback.print_exc()

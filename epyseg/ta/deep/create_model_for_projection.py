@@ -1,10 +1,9 @@
-from tensorflow.keras.models import Model
-from tensorflow.keras.layers import Lambda
-from tensorflow.keras.models import Sequential
+from tensorflow.python.keras.models import Model
+from tensorflow.python.keras.layers import Lambda
+from tensorflow.python.keras.models import Sequential
 from epyseg.deeplearning.deepl import *
-from tensorflow import keras
 import tensorflow as tf
-import tensorflow.keras.backend as K
+import tensorflow.python.keras.backend as K
 
 def create_surface_projection_denoise_and_height_map_combinatorial_model(surface_proj_model, denoiser_model, HEIGHT_MAP_MODE='probability', use_cpu=False, save_file_name=None, __VERBOSE=False):
     """
