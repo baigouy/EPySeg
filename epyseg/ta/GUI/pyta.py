@@ -749,6 +749,7 @@ class TissueAnalyzer(QtWidgets.QMainWindow):
         '''basic progress function
 
         '''
+        # print(str(current_progress) +" % done")
         print("%d%% done" % current_progress)
         self.pbar.setValue(current_progress)
 

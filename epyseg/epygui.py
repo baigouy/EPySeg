@@ -1,12 +1,5 @@
-# le webengine marche pas une fois sur deux donc vaudrait mieux faire autrement
-
-# from qtpy.QtWebEngineWidgets import QWebEngineView
-# ImportError: /usr/lib/x86_64-linux-gnu/libQt5Network.so.5: undefined symbol: _ZN15QIPAddressUtils8toStringER7QStringPh, version Qt_5 --> fix is here https://stackoverflow.com/questions/37876987/cannot-import-qtwebkitwidgets-in-qtpy
-# need set the version of QT to avoid issues too
-# or remove the help
 import os
 
-from epyseg.gui.pyqtmarkdown_replacement import ClickableTextEdit
 from epyseg.settings.global_settings import set_UI # set the UI to be used py qtpy
 set_UI()
 os.environ['SM_FRAMEWORK'] = 'tf.keras'  # set env var for changing the segmentation_model framework
@@ -36,7 +29,7 @@ from qtpy import QtWidgets, QtCore
 from epyseg.worker.threaded import Worker
 from epyseg.gui.img import image_input_settings
 from epyseg.tools.qthandler import XStream, QtHandler
-# from epyseg.gui.pyqtmarkdown import PyQT_markdown
+from epyseg.gui.pyqtmarkdown_replacement import ClickableTextEdit
 from epyseg.img import Img, normalization_methods
 from qtpy.QtWidgets import QPushButton, QWidget
 from epyseg.deeplearning.deepl import EZDeepLearning
@@ -59,7 +52,7 @@ ENABLE_MINI_GUI = False # no never allow this and remove all related code
 
 __MAJOR__ = 0
 __MINOR__ = 1
-__MICRO__ = 36
+__MICRO__ = 37
 __RELEASE__ = ''  # a #b  # https://www.python.org/dev/peps/pep-0440/#public-version-identifiers --> alpha beta, ...
 __VERSION__ = ''.join([str(__MAJOR__), '.', str(__MINOR__), '.',
                        str(__MICRO__)])  # if __MICRO__ != 0 else '', __RELEASE__]) # bug here fix some day

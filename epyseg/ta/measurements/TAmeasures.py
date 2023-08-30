@@ -158,7 +158,7 @@ def get_sum_and_avg_intensity(original_image, reg, idx=None, y_shift_to_transfor
     else:
         final_reg = reg
 
-    if isinstance(final_reg, regionprops.RegionProperties):
+    if isinstance(final_reg, RegionProperties):
         ys = final_reg.coords[:, 0]
         xs = final_reg.coords[:, 1]
     else:

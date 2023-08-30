@@ -36,7 +36,7 @@ class Overlay(QWidget):
             painter.setFont(f)
 
             flags = Qt.AlignTop | Qt.AlignLeft | Qt.TextSingleLine
-            painter.drawText(self.width() / 2 - txt_width, self.height() / 2 - self.fontMetrics().height(), txt_width,
+            painter.drawText(int(self.width() / 2 - txt_width), int(self.height() / 2 - self.fontMetrics().height()), txt_width,
                              txt_height, flags, message)
 
             painter.restore()
