@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from epyseg.img import Img, reassemble_tiles, linear_to_2D_tiles
 from epyseg.deeplearning.augmentation.generators.data import DataGenerator
 import numpy as np
-import tensorflow as tf
+import tensorflow as tf # shall I move this imprt to avoid issues
 import urllib.request
 import hashlib
 import re
