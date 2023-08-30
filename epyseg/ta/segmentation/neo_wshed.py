@@ -4,7 +4,8 @@ from scipy import ndimage as ndi
 import numpy as np
 import matplotlib.pyplot as plt
 from epyseg.img import Img
-from skimage import measure, img_as_ubyte
+from skimage import measure
+from skimage.util import invert, img_as_ubyte
 from skimage import filters
 from skimage.segmentation import watershed
 from skimage.util import invert
