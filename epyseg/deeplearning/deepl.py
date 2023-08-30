@@ -1344,7 +1344,7 @@ class EZDeepLearning:
                 if early_stop.stop == True:
                     return
                 if progress_callback is not None:
-                    progress_callback.emit((i / len(datagenerator.predict_inputs[0])) * 100)
+                    progress_callback.emit(int((i / len(datagenerator.predict_inputs[0])) * 100))
                 else:
                     print(str((i / len(datagenerator.predict_inputs[0])) * 100) + '%')
             except:
@@ -1604,7 +1604,7 @@ class EZDeepLearning:
 
 
         if progress_callback is not None and cur_progress is not None:
-            progress_callback.emit(cur_progress)
+            progress_callback.emit(int(cur_progress))
         # for i, (files, crop_parameters) in enumerate(predict_generator):
         #
         #     try:

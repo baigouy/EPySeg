@@ -110,7 +110,7 @@ def add_localID_to_trackID_correspondance_in_DB(lst, progress_callback=None):
                 if early_stop.stop == True:
                     return
                 if progress_callback is not None:
-                    progress_callback.emit((lll / len(lst)) * 100)
+                    progress_callback.emit(int((lll / len(lst)) * 100))
                 else:
                     print(str((lll / len(lst)) * 100) + '%')
             except:

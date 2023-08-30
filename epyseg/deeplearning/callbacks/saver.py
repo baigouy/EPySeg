@@ -114,7 +114,7 @@ class My_saver_callback(tf.keras.callbacks.Callback):
 
         try:
             if self.progress_callback is not None and self.epochs is not None:
-                self.progress_callback.emit((epoch / self.epochs) * 100)  # Update the progress callback (if available)
+                self.progress_callback.emit(int((epoch / self.epochs) * 100))  # Update the progress callback (if available)
             else:
                 logger.info(
                     str((epoch / self.epochs) * 100) + '%')  # Log the progress (if progress callback is not available)

@@ -1500,7 +1500,7 @@ def createMasterDB(lst, outputName=None, progress_callback=None, database_name=N
 
                     # Update progress if a callback function is provided
                     if progress_callback is not None:
-                        progress_callback.emit((l / len(database_list)) * 100)
+                        progress_callback.emit(int((l / len(database_list)) * 100))
                     else:
                         logger.info(str((l / len(database_list)) * 100) + '%')
                 except:

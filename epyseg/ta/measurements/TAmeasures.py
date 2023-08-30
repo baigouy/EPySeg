@@ -288,7 +288,7 @@ def TAMeasurements(file_or_list, __forced_orig=None, __forced_cells=None, __forc
                         pool.join()
                         return
                     if progress_callback is not None:
-                        progress_callback.emit((i / len(file_or_list)) * 100)
+                        progress_callback.emit(int((i / len(file_or_list)) * 100))
 
                 # not sure I should put the lines below...
                 # https://stackoverflow.com/questions/38271547/when-should-we-call-multiprocessing-pool-join --> maybe still a good idea to keep that
@@ -303,7 +303,7 @@ def TAMeasurements(file_or_list, __forced_orig=None, __forced_cells=None, __forc
                     if early_stop.stop:
                         return
                     if progress_callback is not None:
-                        progress_callback.emit((iii / len(file_or_list)) * 100)
+                        progress_callback.emit(int((iii / len(file_or_list)) * 100))
                     else:
                         print(str((iii / len(file_or_list)) * 100) + '%')
                 except:

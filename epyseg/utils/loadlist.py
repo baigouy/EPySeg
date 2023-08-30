@@ -466,9 +466,9 @@ def list_processor(lst, processing_fn, multithreading=True, progress_callback=No
                     try:
                         from qtpy.QtWidgets import QProgressBar
                         if isinstance(progress_callback, QProgressBar):
-                            progress_callback.setValue((i / len(lst)) * 100)
+                            progress_callback.setValue(int((i / len(lst)) * 100))
                         else:
-                            progress_callback.emit((i / len(lst)) * 100)
+                            progress_callback.emit(int((i / len(lst)) * 100))
                     except:
                         traceback.print_exc()
             pool.close()
@@ -482,9 +482,9 @@ def list_processor(lst, processing_fn, multithreading=True, progress_callback=No
                 try:
                     from qtpy.QtWidgets import QProgressBar
                     if isinstance(progress_callback, QProgressBar):
-                        progress_callback.setValue((i / len(lst)) * 100)
+                        progress_callback.setValue(int((i / len(lst)) * 100))
                     else:
-                        progress_callback.emit((i / len(lst)) * 100)
+                        progress_callback.emit(int((i / len(lst)) * 100))
                 except:
                     traceback.print_exc()
 

@@ -2042,7 +2042,7 @@ class TissueAnalyzer(QtWidgets.QMainWindow):
                     if early_stop.stop:
                         return
                     if progress_callback is not None:
-                        progress_callback.emit((iii / len(lst)) * 100)
+                        progress_callback.emit(int((iii / len(lst)) * 100))
                     else:
                         print(str((iii / len(lst)) * 100) + '%')
                 except:

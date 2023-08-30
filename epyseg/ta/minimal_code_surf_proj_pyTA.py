@@ -74,7 +74,7 @@ def surface_projection_pyta(deepTA, input_file, progress_callback=None, cur_prog
         return
 
     if progress_callback is not None and cur_progress is not None:
-        progress_callback.emit(cur_progress)
+        progress_callback.emit(int(cur_progress))
 
     Z_FRAMES_TO_ADD = None  # 5 #None #5 --> often None is better --> much better quality than the others --> but not always true!!! --> in fact need test all the images directly without adding extra frames in fact!!!
     # --> so my ensemble testing sucks
@@ -188,7 +188,7 @@ def surface_projection_pyta_bckup(deepTA, input_file, progress_callback=None, cu
         return
 
     if progress_callback is not None and cur_progress is not None:
-        progress_callback.emit(cur_progress)
+        progress_callback.emit(int(cur_progress))
 
     Z_FRAMES_TO_ADD = None  # 5 #None #5 --> often None is better --> much better quality than the others --> but not always true!!! --> in fact need test all the images directly without adding extra frames in fact!!!
     # --> so my ensemble testing sucks

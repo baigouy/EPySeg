@@ -51,7 +51,7 @@ class EPySegPostProcess():
         # print('analyzing', path, self.stop_now)
         # try:
         #     if self.progress_callback is not None:
-        #         self.progress_callback.emit((iii / len(list_of_files)) * 100)
+        #         self.progress_callback.emit(int((iii / len(list_of_files)) * 100))
         #     else:
         #         logger.info(str((iii / len(list_of_files)) * 100) + '%')
         # except:

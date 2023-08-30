@@ -102,7 +102,7 @@ def track_cells_dynamic_tissue(path, channel=None, PYRAMIDAL_DEPTH=3, MAX_ITER=1
             if early_stop.stop == True:
                 return
             if progress_callback is not None:
-                progress_callback.emit((l * 100) / len(images_to_analyze))
+                progress_callback.emit(int((l * 100) / len(images_to_analyze)))
             else:
                 print(str((l * 100) / len(images_to_analyze)) + '%')
         except:

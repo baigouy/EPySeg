@@ -583,7 +583,7 @@ def match_by_max_overlap_lst(lst, channel_of_interest=None, recursive_assignment
             if early_stop.stop:
                 return
             if progress_callback is not None:
-                progress_callback.emit((iii * 100) / len(zipped_list))
+                progress_callback.emit(int((iii * 100) / len(zipped_list)))
             else:
                 print(str((iii * 100) / len(zipped_list)) + '%')
         except:

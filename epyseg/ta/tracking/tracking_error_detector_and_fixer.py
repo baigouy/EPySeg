@@ -2249,7 +2249,7 @@ def help_user_correct_errors(files, channel=None, progress_callback=None):
             if early_stop.stop:
                 return
             if progress_callback is not None:
-                progress_callback.emit((iii / len(files)) * 100)
+                progress_callback.emit(int((iii / len(files)) * 100))
             else:
                 print(str((iii / len(files)) * 100) + '%')
         except:
