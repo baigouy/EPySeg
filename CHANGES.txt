@@ -1,3 +1,6 @@
+30/08/2023
+-fixed several other int/float issues in pyqt calls (pyqt all of a sudden became unfriendly when floats are passed in place of ints...)
+
 29/08/2023
 -started moving the soft to python 3.10.12 (default ubuntu and colab version)
 
