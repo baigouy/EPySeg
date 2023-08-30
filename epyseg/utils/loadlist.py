@@ -8,7 +8,6 @@ from epyseg.tools.early_stopper_class import early_stop
 from epyseg.tools.logger import TA_logger # logging
 import glob
 import shutil
-import os
 from natsort import natsorted
 
 from epyseg.utils.commontools import execute_chained_functions_and_save_as_tiff

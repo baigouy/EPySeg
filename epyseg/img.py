@@ -1,10 +1,10 @@
 # TODO allow add or remove ROIs --> create IJ compatible ROIs... --> in a way that is simpler than the crop I was proposing --> think about how to implement that
 # NB I have a bug with czi files that have channels --> need fix so that they appear as being channel last !!! --> TODO rapidly
-from epyseg.ta.tracking.tools import smart_name_parser
 from epyseg.tools.logger import TA_logger  # logging
 
 logger = TA_logger()  # logging_level=TA_logger.DEBUG
 
+from epyseg.ta.tracking.tools import smart_name_parser
 import random
 import os
 import read_lif  # read Leica .lif files (requires numexpr)

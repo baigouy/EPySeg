@@ -5,18 +5,19 @@ TODO
 """
 
 import numpy as np
-from skimage.draw import polygon,polygon_perimeter
+from skimage.draw import polygon, polygon_perimeter
 from skimage.measure import regionprops
 from skimage import measure
 from collections import Counter
-import os
 from natsort import natsorted
 from epyseg.utils.loadlist import loadlist
 from epyseg.ta.colors.colorgen import get_unique_random_color_int24
+import os
+
 from epyseg.tools.logger import TA_logger # logging
 
 logger = TA_logger()
-import os
+
 
 def get_TA_file(file_name_without_ext, TA_file):
     """
