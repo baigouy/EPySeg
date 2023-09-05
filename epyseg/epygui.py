@@ -52,7 +52,7 @@ ENABLE_MINI_GUI = False # no never allow this and remove all related code
 
 __MAJOR__ = 0
 __MINOR__ = 1
-__MICRO__ = 41
+__MICRO__ = 42
 __RELEASE__ = ''  # a #b  # https://www.python.org/dev/peps/pep-0440/#public-version-identifiers --> alpha beta, ...
 __VERSION__ = ''.join([str(__MAJOR__), '.', str(__MINOR__), '.',
                        str(__MICRO__)])  # if __MICRO__ != 0 else '', __RELEASE__]) # bug here fix some day
