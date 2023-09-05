@@ -1,8 +1,13 @@
+05/09/2023
+-fixed 2 bugs in the 'static tracking algorithm' (not found cells were ignored, which was causing some db issues)
+-fixed Preview showing gray version of image if channel was selected before
+
 30/08/2023
 -fixed several other int/float issues in pyqt calls (pyqt all of a sudden became unfriendly when floats are passed in place of ints...)
+-fixed erroneous keras imports (this is because keras used to be independent of tf and this is not the case anymore...)
 
 29/08/2023
--started moving the soft to python 3.10.12 (default ubuntu and colab version)
+-started moving the soft to python 3.10.12 (default ubuntu and default colab version)
 
 28/08/2023
 -replaced 'Help' qtwebengine with a series of html/web links. Qtwebengine was a major cause of crash; also there is no need to have this within the tool rather than online...

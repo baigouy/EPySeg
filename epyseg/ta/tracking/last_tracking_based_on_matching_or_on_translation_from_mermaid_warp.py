@@ -67,8 +67,6 @@ def match_by_max_overlap(name_t1, name_t0, channel_of_interest=None, assigned_ID
     # Load the warped and resized cell tracks for the second timepoint
     int_24_warped_track_t0 = RGB_to_int24(Img(os.path.join(os.path.splitext(name_t0)[0], 'tracked_cells_resized.tif')))
 
-    trans_dim_0 = trans_dim_1 = 0
-
     if warp_using_mermaid_if_map_is_available:
         try:
             from personal.mermaid.deep_warping_uing_mermaid_minimal import warp_image_directly_using_phi
@@ -133,6 +131,10 @@ def match_by_max_overlap(name_t1, name_t0, channel_of_interest=None, assigned_ID
         # Perform recursive assignment to further identify cells
         run_swapping_correction_recursively_to_further_identify_cells(track_t1, int_24_warped_track_t0, label_t1, rps_label_t1, assigned_IDs, filename1_without_ext, MAX_ITER=15)
     else:
+        # I need at least to make sure that all the black cells have been assigned an ID
+        track_t1 = assign_random_ID_to_missing_cells(track_t1, label_t1, regprps=rps_label_t1,
+                                                                assigned_ids=assigned_IDs)
+
         # Save the tracked cells for the first timepoint
         Img(int24_to_RGB(track_t1)).save(get_TA_file(filename1_without_ext, 'tracked_cells_resized.tif'), mode='raw')
 
@@ -511,6 +513,11 @@ def run_swapping_correction_recursively_to_further_identify_cells(tracks, tracke
         # Img(tracked_cells_t1).save(get_TA_file(filename0_without_ext, 'track_after_swap_correction.tif'), mode='raw')
         print('end loop', timer() - start_loop)
 
+    # make sure to fix missing not found cells
+    track_t_cur = assign_random_ID_to_missing_cells(track_t_cur, labels_t1, regprps=rps_t1_mask,
+                                                 assigned_ids=assigned_ids)
+
+
     print(get_TA_file(filename1_without_ext, 'tracked_cells_resized.tif'))
 
     # NB it still contains small swapping errors I don't get --> why
@@ -605,14 +612,18 @@ if __name__ == '__main__':
     import sys
 
     if True:
-        lst = loadlist('/E/Sample_images/sample_images_PA/trash_test_mem/mini_empty/list.lst')
+        # lst = loadlist('/E/Sample_images/sample_images_PA/trash_test_mem/mini_empty/list.lst')
+        lst = loadlist('/E/Sample_images/sample_images_PA/trash_test_mem/mini (copie)/*.png')
+
+        print(lst)
         # match_by_max_overlap_lst(lst, recursive_assignment=False, warp_using_mermaid_if_map_is_available=True) # --> 2.76 secs without recursion
         # match_by_max_overlap_lst(lst, recursive_assignment=True, warp_using_mermaid_if_map_is_available=True) # --> 21 secs with recursion vs 2.76 secs without recursion... --> *10
 
         # shall I assign or not lost cells
         # I should probably ask for prereg or not --> check
         # or do pre reg by default because fast and useful --> I would need the channel
-        match_by_max_overlap_lst(lst, channel_of_interest=1, recursive_assignment=True, warp_using_mermaid_if_map_is_available=False, pre_register=True) # good and does not load mermaid files yet
+        # match_by_max_overlap_lst(lst, channel_of_interest=1, recursive_assignment=True, warp_using_mermaid_if_map_is_available=False, pre_register=True) # good and does not load mermaid files yet
+        match_by_max_overlap_lst(lst, channel_of_interest=1, recursive_assignment=False, warp_using_mermaid_if_map_is_available=False, pre_register=True) # good and does not load mermaid files yet
         sys.exit(0)
 
     # if True:

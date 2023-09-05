@@ -211,10 +211,7 @@ def sort_dict_by_keys(dictionary):
     # Return the sorted dictionary
     return sorted_dict
 
-
-
 if __name__ == '__main__':
-
 
     if True:
         # Example dictionary

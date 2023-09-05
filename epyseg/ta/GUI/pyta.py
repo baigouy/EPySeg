@@ -859,10 +859,8 @@ class TissueAnalyzer(QtWidgets.QMainWindow):
 
             # could create a masterdb if needed --> need create it once for all
             # TODO I also need to populate the channels of the parent image --> TODO probably not so hard I guess
-
-            # qsdqsdsqqsdsdq
-
             self.list.freeze(True)
+            self.paint.channels.setCurrentIndex(0) # force merge channel to be selected in preview mode
             self.paint.freeze(True, level=2)
 
             if selected_items:

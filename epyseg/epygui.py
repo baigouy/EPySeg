@@ -1,5 +1,5 @@
 import os
-
+# add to the env variable of the py file (edit it before if needed) if cuda is not configured properly in the path varibale of the system:-->    ;LD_LIBRARY_PATH=/usr/local/cuda-11.8/lib64:/usr/local/cuda-12.2/lib64:/usr/local/cuda-11.2/lib64:/usr/local/cuda-10.1/lib64:/usr/local/cuda/lib64
 from epyseg.settings.global_settings import set_UI # set the UI to be used py qtpy
 set_UI()
 os.environ['SM_FRAMEWORK'] = 'tf.keras'  # set env var for changing the segmentation_model framework
@@ -80,8 +80,6 @@ class EPySeg(QWidget):
         super().__init__(parent)
 
         self.commonUI()
-
-
 
         # self.showdialog() # ça marche --> permet de choisir une interface minimaliste
         # image_input_settings.getDataAndParameters() # ça marche --> faire le minimal GUI like that --> much simpler
