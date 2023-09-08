@@ -203,6 +203,8 @@ class EZDeepLearning:
                'precision': precision, 'iou_score': iou_score,
                'recall': recall, 'kullback_leibler_divergence': 'kullback_leibler_divergence',
                'mean_absolute_error': 'mean_absolute_error',
+               'mae': 'mean_absolute_error',
+               'mse': 'mean_squared_error',
                'mean_absolute_percentage_error': 'mean_absolute_percentage_error',
                'mean_squared_error': 'mean_squared_error', 'msle': 'msle',
                'binary_accuracy': 'binary_accuracy', 'binary_crossentropy': 'binary_crossentropy',
@@ -216,9 +218,10 @@ class EZDeepLearning:
     # https://keras.io/losses/
     loss = {'mean_squared_error': 'mean_squared_error',
             'mean_absolute_error': 'mean_absolute_error',
-            'jaccard_loss': jaccard_loss, 'binary_crossentropy': 'binary_crossentropy', 'dice_loss': dice_loss,
+            'jaccard_loss': jaccard_loss, 'dice_loss': dice_loss,
             'binary_focal_loss': binary_focal_loss, 'categorical_focal_loss': categorical_focal_loss,
             'binary_crossentropy': binary_crossentropy, 'categorical_crossentropy': categorical_crossentropy,
+            'bce': binary_crossentropy, 'mae': 'mean_squared_error', 'mse':'mean_squared_error',
             'bce_dice_loss': bce_dice_loss, 'bce_jaccard_loss': bce_jaccard_loss, 'cce_dice_loss': cce_dice_loss,
             'cce_jaccard_loss': cce_jaccard_loss, 'binary_focal_dice_loss': binary_focal_dice_loss,
             'binary_focal_jaccard_loss': binary_focal_jaccard_loss,
@@ -619,6 +622,8 @@ class EZDeepLearning:
                           'recall': recall, 'jaccard_loss': jaccard_loss, 'dice_loss': dice_loss,
                           'binary_focal_loss': binary_focal_loss, 'categorical_focal_loss': categorical_focal_loss,
                           'binary_crossentropy': binary_crossentropy,
+                          'mae': 'mean_absolute_error',
+                          'mse':'mean_squared_error',
                           'categorical_crossentropy': categorical_crossentropy,
                           'bce_dice_loss': bce_dice_loss, 'bce_jaccard_loss': bce_jaccard_loss,
                           'cce_dice_loss': cce_dice_loss, 'cce_jaccard_loss': cce_jaccard_loss,
@@ -796,6 +801,18 @@ class EZDeepLearning:
             if isinstance(metric, str):
                 if metric in self.metrics:
                     metrics[idx] = self.metrics[metric]
+
+        try:
+            # TODO I should probably add more
+            # added a mapping to fix inconsistensies in tf; e.g. sadly tf does not allow 'bce' to be passed it must now be 'binary_crossentropy' so that makes my old code unusable and here is the fix
+            mapping = {
+                'mae': 'mean_absolute_error',
+                'mse': 'mean_squared_error',
+                'bce': 'binary_crossentropy'
+            }
+            metrics = [mapping[m] if m in mapping else m for m in metrics]
+        except:
+            pass
 
         self.model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
 
@@ -2470,6 +2487,14 @@ class EZDeepLearning:
 
 if __name__ == '__main__':
     deepTA = EZDeepLearning()
+
+    if True:
+        import sys
+        deepTA.load_or_build(model='/home/aigouy/Bureau/tst_surface_proj/linknet-vgg16-sigmoid-0.h5') # this loads perfectly --> so no need for additional changes
+        print(deepTA.model)
+        print(deepTA.model.summary())
+        sys.exit(0)
+
 
     if True:
         import sys
