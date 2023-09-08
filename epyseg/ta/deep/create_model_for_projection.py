@@ -1,9 +1,16 @@
-from tensorflow.python.keras.models import Model
-from tensorflow.python.keras.layers import Lambda
-from tensorflow.python.keras.models import Sequential
+# from tensorflow.python.keras.models import Model
+# from tensorflow.python.keras.layers import Lambda
+# from tensorflow.python.keras.models import Sequential
 from epyseg.deeplearning.deepl import *
 import tensorflow as tf
-import tensorflow.python.keras.backend as K
+# import tensorflow.python.keras.backend as K
+
+# somehow seg models require keras
+# nb I could replace from tensorflow.python.keras.models import Model
+# tf.keras.models.Model --> and this is the only proper way of doing it
+# from tensorflow import keras # this is also the only way of using this --> fix it everywhere once for good
+# shall I move all to torch some day --> yes maybe
+# so shall I install keras also by default ???
 
 def create_surface_projection_denoise_and_height_map_combinatorial_model(surface_proj_model, denoiser_model, HEIGHT_MAP_MODE='probability', use_cpu=False, save_file_name=None, __VERBOSE=False):
     """
@@ -29,6 +36,8 @@ def create_surface_projection_denoise_and_height_map_combinatorial_model(surface
 
     deepTA = EZDeepLearning(use_cpu=use_cpu)
 
+    # print(surface_proj_model)
+
     deepTA.load_or_build(model=surface_proj_model)
     custom_model = deepTA.model
 
@@ -45,7 +54,7 @@ def create_surface_projection_denoise_and_height_map_combinatorial_model(surface
 
     input_image_3D = tf.keras.Input(shape=(None, None, None, 1), name="Z-stack")
 
-    model_3D_projection = Sequential()
+    model_3D_projection = tf.keras.models.Sequential()
     model_3D_projection.add(custom_model)
     model_3D_projection.add(custom_model2)
 
@@ -57,21 +66,21 @@ def create_surface_projection_denoise_and_height_map_combinatorial_model(surface
         print('Height map')
 
     if HEIGHT_MAP_MODE == 'probability':
-        model_height_map = Model(custom_model.input, custom_model.layers[-3].output)
+        model_height_map = tf.keras.models.Model(custom_model.input, custom_model.layers[-3].output)
     else:
-        model_height_map = Model(custom_model.input, custom_model.layers[-2].output)
+        model_height_map = tf.keras.models.Model(custom_model.input, custom_model.layers[-2].output)
 
     model_3D_height_map = model_height_map(input_image_3D)
 
     if __VERBOSE:
         print('model_height_map', model_height_map.summary(line_length=250))
 
-    real_height_map = Lambda(lambda x: K.cast(K.argmax(x, axis=-4), dtype='float32'), name='height_map')(model_3D_height_map)
+    real_height_map = tf.keras.layers.Lambda(lambda x: tf.keras.backend.cast(tf.keras.backend.argmax(x, axis=-4), dtype='float32'), name='height_map')(model_3D_height_map)
 
     real_denoised_3D_image = model_3D_projection.layers[0].layers[-2]([input_image_3D, model_3D_height_map])
     surface_projection_before_running_2D_denoising_model = model_3D_projection.layers[0].layers[-1](real_denoised_3D_image)
     result_of_CARE_or_CARESEG_denoising_model = model_3D_projection.layers[1](surface_projection_before_running_2D_denoising_model)
-    first_channel_of_denoising_model_output = Lambda(lambda x: x[..., 0:1], name='keep_first_channel_only')(result_of_CARE_or_CARESEG_denoising_model)
+    first_channel_of_denoising_model_output = tf.keras.layers.Lambda(lambda x: x[..., 0:1], name='keep_first_channel_only')(result_of_CARE_or_CARESEG_denoising_model)
 
     model = tf.keras.Model(inputs=[input_image_3D], outputs=[first_channel_of_denoising_model_output, surface_projection_before_running_2D_denoising_model, real_height_map])
 
@@ -106,8 +115,8 @@ if __name__ == '__main__':
     model = create_surface_projection_denoise_and_height_map_combinatorial_model(surface_proj_model, denoiser_model)
     print(model.summary(line_length=250))
 
-    final_separated_denoiser_keep_one_channel = Sequential()
+    final_separated_denoiser_keep_one_channel = tf.keras.models.Sequential()
     final_separated_denoiser_keep_one_channel.add(model.layers[-3])
-    final_separated_denoiser_keep_one_channel.add(Lambda(lambda x: x[..., 0:1]))
+    final_separated_denoiser_keep_one_channel.add(tf.keras.layers.Lambda(lambda x: x[..., 0:1]))
 
     print('final denoiser only',final_separated_denoiser_keep_one_channel.summary(line_length=250))#perfect --> that is the 2D denoiser to which I should apply the

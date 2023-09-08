@@ -23,8 +23,9 @@ import numpy as np
 from epyseg.deeplearning.deepl import EZDeepLearning
 import os
 from epyseg.img import Img, has_metadata, normalization_methods
-from tensorflow.python.keras.layers import Lambda
-from tensorflow.python.keras.models import Sequential
+# from tensorflow.python.keras.layers import Lambda
+# from tensorflow.python.keras.models import Sequential
+import tensorflow as tf
 
 # img = Img('/E/Sample_images/sample_images_pyta/Image49.lsm')
 
@@ -107,9 +108,9 @@ def surface_projection_pyta(deepTA, input_file, progress_callback=None, cur_prog
         model = deepTA.model
         try:
             # very dirty hack to apply normalization to surface proj before running the denoiser again --> totally crap and sub optimal but kinda working --> try improve that some day!!!
-            tmp_model = Sequential()# get the sub model here
+            tmp_model = tf.keras.models.Sequential()# get the sub model here
             tmp_model.add(model.layers[-3])
-            tmp_model.add(Lambda(lambda x: x[..., 0:1]))
+            tmp_model.add(tf.keras.layers.Lambda(lambda x: x[..., 0:1]))
             deepTA.model = tmp_model
             for rrr in range(recursion_for_denoising):
                 result2 = predict_single_image(deepTA, surface_proj_file_path, Z_FRAMES_TO_ADD=Z_FRAMES_TO_ADD, input_channel_of_interest=None,

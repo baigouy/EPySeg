@@ -517,7 +517,6 @@ def run_swapping_correction_recursively_to_further_identify_cells(tracks, tracke
     track_t_cur = assign_random_ID_to_missing_cells(track_t_cur, labels_t1, regprps=rps_t1_mask,
                                                  assigned_ids=assigned_ids)
 
-
     print(get_TA_file(filename1_without_ext, 'tracked_cells_resized.tif'))
 
     # NB it still contains small swapping errors I don't get --> why
@@ -526,8 +525,6 @@ def run_swapping_correction_recursively_to_further_identify_cells(tracks, tracke
     # celui qui m'interesse c'est le 2
     # Img(int24_to_RGB(corrected_track)).save(get_TA_file(filename1_without_ext, 'tracked_cells_resized_v2.tif'),mode='raw')
     Img(int24_to_RGB(track_t_cur)).save(get_TA_file(filename1_without_ext, 'tracked_cells_resized.tif'),mode='raw')
-
-
 
     # with a recursion it's very good actually and really is optimized
 

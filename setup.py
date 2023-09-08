@@ -1,5 +1,6 @@
 import setuptools
-from epyseg.epygui import __AUTHOR__, __VERSION__, __EMAIL__
+# from epyseg.epygui import __AUTHOR__, __VERSION__, __EMAIL__
+from epyseg.version import __VERSION__,__EMAIL__,__AUTHOR__
 
 with open('README.md', 'r') as fh:
     long_description = fh.read()
@@ -13,7 +14,7 @@ setuptools.setup(
     long_description=long_description,
     long_description_content_type='text/markdown',
     url='https://github.com/baigouy/EPySeg',
-    package_data={'': ['*.md','*.json']}, # include all .md files and json models from the model zoo
+    package_data={'': ['*.md','*.json','deeplearning/zoo/*/*.*','deeplearning/zoo/*/*/*.*']}, # the two last entries allow to include third party models as pb that should be portable irrespective of the version of tf...
     license='BSD',
     include_package_data=True,
     packages=setuptools.find_packages(),
@@ -64,14 +65,18 @@ setuptools.setup(
         # "aicspylibczi>=3.0.5", # required for the above to read czi files !!!
         # "pylibczi", # deprecated --> replaced by the 2 above --> DO NOT USE
         # "pylibCZIrw" # --> a python wrapper for libCZI --> this is the Zeiss made stuff so -> SO COOL
-
         # "parameterized",#required for unit tests
         # "sympy" # TODO add this if I finally use it in EZF
         # six==1.15.0,
         # "cython",
         # "cooltools",
-        # "cooler"
+        # "cooler",
         #
+
+        # "keras",# nb it seems I need install keras because of segmentation models (deprecated calls), the only pb is that i need to install the matching version to tensorflow to avoid issues is there a way to do that -−> OR MAYBE DO A YAML AND FREEZE VERSIONS
+        # "liftover", # to be added soon
+        # "pygneometracks", # to be added soon
+        # "biopython", #  to be added soon
     ],
 
     # !python --version # to check python version in colab

@@ -1,3 +1,10 @@
+08/09/2023
+-fixed all tensorflow keras imports (hopefully last time I have to do that), keras is imported as such: from tensorflow import keras, layers are called using tf.keras.layers.Conv2D or alike
+-fixed errors due to JSON import of models created with previous versions of tensorflow and that could not be loaded anymore, apparently the most portable way of saving tf models across versions is through pb files (will allow save by default to this format now or dual format)
+
+07/09/2023
+-there is a bug in tf 2.13 when there are lambdas in the JSON file, the model can't be loaded and the offered safe_mode solution is not available yet. Best is to stick to tf 2.12.1 for now.
+
 05/09/2023
 -fixed 2 bugs in the 'static tracking algorithm' (not found cells were ignored, which was causing some db issues)
 -fixed Preview showing gray version of image if channel was selected before

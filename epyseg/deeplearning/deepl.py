@@ -95,40 +95,40 @@ class EZDeepLearning:
         #     'url': 'TODO',
         #     'input_dims': '3D',
         #     'md5': 'TODO',
-        #     'model': 'CARE.json', # here we put the model zoo name (if it is present in the model zoo then ignore the rest cause it would be useless)
+        #     'model': 'CARE', # here we put the model zoo name (if it is present in the model zoo then ignore the rest cause it would be useless)
         # },
         # 'CARE_SEG': {
         #     'url': 'TODO',
         #     'input_dims': '3D',
         #     'md5': 'TODO',
-        #     'model': 'CARE_SEG.json',
+        #     'model': 'CARE_SEG',
         #     # here we put the model zoo name (if it is present in the model zoo then ignore the rest cause it would be useless)
         # },
         # 'CARE_GUIDED': {
         #     'url': 'TODO',
         #     'md5': 'TODO',
-        #     'model': 'CARE_GUIDED.json',
+        #     'model': 'CARE_GUIDED',
         #     # here we put the model zoo name (if it is present in the model zoo then ignore the rest cause it would be useless)
         # },
         # 'CARE_PLUS_HEIGHT_MAP': {
         #     'url': 'TODO',
         #     'input_dims': '3D',
         #     'md5': 'TODO',
-        #     'model': '.json', #TODO
+        #     'model': '', #TODO
         #     # here we put the model zoo name (if it is present in the model zoo then ignore the rest cause it would be useless)
         # },
         # 'SURFACE_PROJECTION_NO_RESTORATION': {
         #     'url': 'TODO',
         #     'input_dims': '3D',
         #     'md5': 'TODO',
-        #     'model': '.json',  # TODO
+        #     'model': '',  # TODO
         #     # here we put the model zoo name (if it is present in the model zoo then ignore the rest cause it would be useless)
         # },
         # 'SURFACE_PROJECTION': { # SURFACE PROJECTION MODULE OF THE CARE MODEL
         #     'url': 'file:///home/aigouy/mon_prog/Python/epyseg_pkg/personal/pyTA/GUI/tsts/surface_projection_model_weights_1.h5', # keep to test can put a local path 'file:///home/aigouy/mon_prog/Python/epyseg_pkg/personal/pyTA/GUI/tsts/surface_projection_model_weights_1.h5'
         #     'input_dims': '3D',
         #     'md5': 'ef8b904da9d44e7196fd3efb832ec74a',
-        #     'model': 'surface_projection_model.json',  # TODO
+        #     'model': 'surface_projection_model',  # TODO
         #     # here we put the model zoo name (if it is present in the model zoo then ignore the rest cause it would be useless)
         # },
         # this seems to be the best compromise so far --> maybe set this by default and see which denoiser I will couple it to...
@@ -136,21 +136,24 @@ class EZDeepLearning:
             'url': 'https://gitlab.com/baigouy/models/raw/master/surface_projection_model_weights_0.h5', # keep to test can put a local path 'file:///home/aigouy/mon_prog/Python/epyseg_pkg/personal/pyTA/GUI/tsts/surface_projection_model_weights_0.h5'
             'input_dims': '3D',
             'md5': '6dd8692c2158390e492ed752ee363695',
-            'model': 'surface_projection_model.json',  # TODO
+            # 'model': 'surface_projection_model.json',  # TODO
+            'model': 'surface_projection_model',# hack to fix marshal error when using json because of version mismatch between tensorflow versions
             # here we put the model zoo name (if it is present in the model zoo then ignore the rest cause it would be useless)
         },
         'SURFACE_PROJECTION_3': { # SURFACE PROJECTION MODULE OF THE CARESEG MODEL --> yes it's only at the denoiser level that I made changes
             'url': 'https://gitlab.com/baigouy/models/raw/master/surface_projection_model_weights_2.h5', # keep to test can put a local path 'file:///home/aigouy/mon_prog/Python/epyseg_pkg/personal/pyTA/GUI/tsts/surface_projection_model_weights_2.h5'
             'input_dims': '3D',
             'md5': '61f1ce15005a7138b5c2a11bae9cc5ed',
-            'model': 'surface_projection_model.json',  # TODO# is that correct for CARESEG ???
+            # 'model': 'surface_projection_model.json',  # TODO# is that correct for CARESEG ???
+            'model': 'surface_projection_model', # hack to fix marshal error when using json because of version mismatch between tensorflow versions
             # here we put the model zoo name (if it is present in the model zoo then ignore the rest cause it would be useless)
         },
         'SURFACE_PROJECTION_4': { # SURFACE PROJECTION MODULE OF THE CARESEG MODEL --> yes it's only at the denoiser level that I made changes
             'url': 'https://gitlab.com/baigouy/models/raw/master/surface_projection_model_weights_3.h5', # keep to test can put a local path 'file:///home/aigouy/mon_prog/Python/epyseg_pkg/personal/pyTA/GUI/tsts/surface_projection_model_weights_3.h5'
             'input_dims': '3D',
             'md5': '5f778acb48e2895a490716a42fae4996',
-            'model': 'surface_projection_model.json',  # TODO# is that correct for CARESEG ???
+            # 'model': 'surface_projection_model.json',  # TODO# is that correct for CARESEG ???
+            'model': 'surface_projection_model',  # hack to fix marshal error when using json because of version mismatch between tensorflow versions
             # here we put the model zoo name (if it is present in the model zoo then ignore the rest cause it would be useless)
         },
         'SURFACE_PROJECTION_5': {
@@ -160,7 +163,8 @@ class EZDeepLearning:
             # keep to test can put a local path 'file:///home/aigouy/mon_prog/Python/epyseg_pkg/personal/pyTA/GUI/tsts/surface_projection_model_weights_3.h5'
             'input_dims': '3D',
             'md5': '3000266e665aa46f6c8eac83fe3e5649',
-            'model': 'surface_projection_model.json',  # TODO# is that correct for CARESEG ???
+            # 'model': 'surface_projection_model.json',  # TODO# is that correct for CARESEG ???
+            'model': 'surface_projection_model',  # hack to fix marshal error when using json because of version mismatch between tensorflow versions
             # here we put the model zoo name (if it is present in the model zoo then ignore the rest cause it would be useless)
         },
         'SURFACE_PROJECTION_6': {
@@ -170,7 +174,8 @@ class EZDeepLearning:
             # keep to test can put a local path 'file:///home/aigouy/mon_prog/Python/epyseg_pkg/personal/pyTA/GUI/tsts/surface_projection_model_weights_3.h5'
             'input_dims': '3D',
             'md5': '7d86782c52bf65221b6041c8b7e5ef21',
-            'model': 'surface_projection_model.json',  # TODO# is that correct for CARESEG ???
+            # 'model': 'surface_projection_model.json',  # TODO# is that correct for CARESEG ???
+            'model': 'surface_projection_model',  # hack to fix marshal error when using json because of version mismatch between tensorflow versions
             # here we put the model zoo name (if it is present in the model zoo then ignore the rest cause it would be useless)
         },
         # '2D_DENOISER': { # ORIGINAL DENOISER MODULE OF THE CARE MODEL
@@ -184,7 +189,8 @@ class EZDeepLearning:
             'url': 'https://gitlab.com/baigouy/models/raw/master/2D_denoiseg_model_weights_0.h5',# keep to test can put a local path 'file:///home/aigouy/mon_prog/Python/epyseg_pkg/personal/pyTA/GUI/tsts/2D_denoiseg_model_weights_0.h5'
             'input_dims': '2D',
             'md5': '1f39a8e9e450d1b9747fdd28c2f5a5eb',
-            'model': '2D_denoiseg_model.json',  # TODO
+            # 'model': '2D_denoiseg_model.json',  # TODO
+            'model': '2D_denoiseg_model',  # hack to fix marshal error when using json because of version mismatch between tensorflow versions
             # here we put the model zoo name (if it is present in the model zoo then ignore the rest cause it would be useless)
         },
 
@@ -1186,14 +1192,14 @@ class EZDeepLearning:
                                                    keep_n_best=keep_n_best, progress_callback=progress_callback)
                 callbacks = [self.saver_cbk, self.stop_cbk]
                 if reduce_lr_on_plateau is not None and reduce_lr_on_plateau < 1:
-                    from tensorflow.python.keras.callbacks import ReduceLROnPlateau
+                    # from tf.keras.callbacks import ReduceLROnPlateau
                     logger.info('Reduce learning rate on plateau is enabled.')
                     monitor = "val_loss"
                     if validation_steps == 0:
                         monitor = 'loss'
                     logger.info('Reduce learning rate is monitoring "' + monitor + '"')
 
-                    self.reduce_lr = ReduceLROnPlateau(monitor=monitor, factor=reduce_lr_on_plateau, patience=patience,
+                    self.reduce_lr = tf.keras.callbacks.ReduceLROnPlateau(monitor=monitor, factor=reduce_lr_on_plateau, patience=patience,
                                                        verbose=1, cooldown=1)
                     # https://stackoverflow.com/questions/51889378/how-to-use-keras-reducelronplateau
                     callbacks.append(self.reduce_lr)
@@ -2455,8 +2461,8 @@ class EZDeepLearning:
             logger.error('Please load/build a model first')
             return
         try:
-            import tensorflow.python.keras.backend as K
-            K.set_value(self.model.optimizer.learning_rate, learning_rate)
+            # import tensorflow.python.keras.backend as K
+            tf.keras.backend.set_value(self.model.optimizer.learning_rate, learning_rate)
         except:
             traceback.print_exc()
             logger.error('Could not change learning rate, sorry...')
@@ -2467,9 +2473,9 @@ if __name__ == '__main__':
 
     if True:
         import sys
-
-        deepTA.load_or_build(model='CARE_GUIDED.json')
-
+        deepTA.load_or_build(model='SURFACE_PROJECTION_6')
+        print(deepTA.model)
+        print(deepTA.model.summary())
         sys.exit(0)
 
 

@@ -126,8 +126,6 @@ if __name__ == "__main__":
         lst = loadlist('/E/Sample_images/sample_images_PA/trash_test_mem/mini_different_nb_of_channels/list.lst')
         add_localID_to_trackID_correspondance_in_DB(lst)
 
-
-
     if False:
         # test_local_to_global_correspondece = {1: 0xFF0000, 2: 0x00FF00, 3: 0x0000FF}
         db_file_for_test = '/E/Sample_images/sample_images_PA/trash_test_mem/mini_different_nb_of_channels/focused_Series012/pyTA.db'

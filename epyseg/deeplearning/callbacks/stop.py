@@ -1,6 +1,7 @@
-import tensorflow.python.keras as keras
+# from tensorflow import keras
+import tensorflow as tf
 
-class myStopCallback(keras.callbacks.Callback):
+class myStopCallback(tf.keras.callbacks.Callback):
     """
     Custom callback for stopping training based on a flag.
 

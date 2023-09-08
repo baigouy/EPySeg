@@ -2306,7 +2306,7 @@ def save_as_tiff(img, output_name, print_file_name=False, ijmetadata='copy', mod
                                                                    'dimensions'] is not None and img.has_c() else {})  # small hack to keep only non RGB images as composite and self.get_dimension('c')!=3
         else:
             try:
-                # somehow this code doesn't seem to work with old tiffile but works with new one
+                # somehow this code doesn't seem to work with old tifffile but works with new one
                 from tifffile.tifffile import imagej_metadata_tag
                 # fix for ijmetadata deprecation in recent tifffile
                 ijtags = imagej_metadata_tag(ijmeta, '>') if ijmeta is not None else {}
@@ -3896,7 +3896,7 @@ class Img(np.ndarray):  # subclass ndarray
                                                                            'dimensions'] is not None and self.has_c() else {})  # small hack to keep only non RGB images as composite and self.get_dimension('c')!=3
                 else:
                     try:
-                        # somehow this code doesn't seem to work with old tiffile but works with new one
+                        # somehow this code doesn't seem to work with old tifffile but works with new one
                         from tifffile.tifffile import imagej_metadata_tag
                         # fix for ijmetadata deprecation in recent tifffile
                         ijtags = imagej_metadata_tag(ijmeta, '>') if ijmeta is not None else {}

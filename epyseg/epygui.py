@@ -1,11 +1,14 @@
+from epyseg.version import __VERSION__,__EMAIL__,__AUTHOR__
 import os
 # add to the env variable of the py file (edit it before if needed) if cuda is not configured properly in the path varibale of the system:-->    ;LD_LIBRARY_PATH=/usr/local/cuda-11.8/lib64:/usr/local/cuda-12.2/lib64:/usr/local/cuda-11.2/lib64:/usr/local/cuda-10.1/lib64:/usr/local/cuda/lib64
 from epyseg.settings.global_settings import set_UI # set the UI to be used py qtpy
 set_UI()
 os.environ['SM_FRAMEWORK'] = 'tf.keras'  # set env var for changing the segmentation_model framework
+
 # uncomment the two lines below to force cpu
 # os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"   # see issue #152
 # os.environ["CUDA_VISIBLE_DEVICES"] = ""
+
 from epyseg.deeplearning.docs.doc2html import browse_tip, markdown_file_to_html
 from epyseg.gui.model import Ensemble_Models_Loader
 from epyseg.gui.mini.miniGUI_selection_dialog import minisel
@@ -50,16 +53,7 @@ if PYQT_VERSION_STR<'6':
 # TODO enable that soon TODO connect CARE now and enable that --> need better training for CARE though...
 ENABLE_MINI_GUI = False # no never allow this and remove all related code
 
-__MAJOR__ = 0
-__MINOR__ = 1
-__MICRO__ = 42
-__RELEASE__ = ''  # a #b  # https://www.python.org/dev/peps/pep-0440/#public-version-identifiers --> alpha beta, ...
-__VERSION__ = ''.join([str(__MAJOR__), '.', str(__MINOR__), '.',
-                       str(__MICRO__)])  # if __MICRO__ != 0 else '', __RELEASE__]) # bug here fix some day
-__AUTHOR__ = 'Benoit Aigouy'
 __NAME__ = 'EPySeg'
-__EMAIL__ = 'baigouy@gmail.com'
-
 
 class EPySeg(QWidget):
     '''a deep learning GUI
@@ -218,16 +212,13 @@ class EPySeg(QWidget):
 
         # FIX TO REMOVE BUGGY QWEBENGINE, SOMETIME HARD TO INSTALL AND USE...
         self.help = ClickableTextEdit(help_URLs = help_URLs) # PyQT_markdown()
-        #
         # Add tabs
         self.help_tabs.addTab(self.log_tab, 'Log')
         self.help_tabs.addTab(self.help_html_tab, 'Help')
 
-        #
         # creating log tab
         self.log_tab.layout = QVBoxLayout()
         self.log_tab.layout.setAlignment(Qt.AlignTop)
-        #
         self.log_tab.layout.addWidget(self.logger_console)
         # self.log_tab.layout.addWidget(self.instant_help)
         self.log_tab.layout.addWidget(self.pbar)
@@ -296,7 +287,7 @@ class EPySeg(QWidget):
         self.model_pretrain_on_epithelia = QRadioButton('Use a pre-trained model (2D epithelial segmentation)',
                                                         objectName='model_pretrain_on_epithelia')
 
-        # we add an help button
+        # help button
         self.help_button_models = QPushButton('?', None)
         bt_width = self.help_button_models.fontMetrics().boundingRect(self.help_button_models.text()).width() + 7
         self.help_button_models.setMaximumWidth(bt_width * 2)
