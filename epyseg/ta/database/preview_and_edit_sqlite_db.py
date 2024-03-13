@@ -384,7 +384,7 @@ if __name__ == "__main__":
 
     app = QApplication([])
 
-    lst = loadlist('/E/Sample_images/sample_images_PA/trash_test_mem/mini_different_nb_of_channels/list.lst')
+    lst = loadlist('/E/Sample_images/sample_images_PA/mini_different_nb_of_channels/list.lst')
     # _tmp_remove_props(lst)
 
     # db = get_properties_master_db(lst)

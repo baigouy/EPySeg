@@ -1,6 +1,8 @@
 # code cleaning not finished...
 
 import os
+import sys
+
 from epyseg.settings.global_settings import set_UI  # set the UI to be used py qtpy
 set_UI()
 from qtpy.QtCore import QPointF, QRectF, Qt
@@ -9,6 +11,21 @@ from qtpy.QtGui import QBrush, QPen, QColor, QTransform
 from epyseg.tools.logger import TA_logger
 
 logger = TA_logger()
+
+
+# TODO --> try to simplify that and finalize it once for good
+
+
+
+# rather use a dict as **kwargs to set opacity and alike --> that would allow me to handle much more flexibly my tools -−> this is not possible in fact possible but not very beautiful
+'''
+def __init__(self, *args, **kwargs):
+    # set default values for keyword arguments
+    color = kwargs.get('color', 0xFFFF00)
+    stroke = kwargs.get('stroke', 0.65)
+
+'''
+#
 
 
 class Rect2D(QRectF):
@@ -55,6 +72,8 @@ class Rect2D(QRectF):
         self.translation = QPointF()
         self.line_style = line_style
         self.theta = theta
+        self.incompressible_width=0
+        self.incompressible_height=0
 
     def set_rotation(self, theta):
         """
@@ -99,9 +118,6 @@ class Rect2D(QRectF):
 
         painter.save()
         painter.setOpacity(self.opacity)
-
-
-
 
         if self.color is not None:
             pen = QPen(QColor(self.color))
@@ -220,26 +236,6 @@ class Rect2D(QRectF):
         #     painter.fillRect(rect_to_plot, QColor(self.fill_color))
 
         painter.restore()
-    #
-    # def fill(self, painter, **kwargs):
-    #     return self.draw(painter, **kwargs)
-    #     if self.fill_color is None:
-    #         return
-    #     if draw:
-    #         painter.save()
-    #
-    #     painter.setOpacity(self.opacity)
-    #     if draw:
-    #         painter.drawRect(self)
-    #         painter.restore()
-    #
-    # def drawAndFill(self, painter,**kwargs):
-    #     return self.draw(painter,**kwargs)
-    #     painter.save()
-    #     self.draw(painter, draw=False)
-    #     self.fill(painter, draw=False)
-    #     painter.drawRect(self)
-    #     painter.restore()
 
     # TODO modify that to handle rotation etc...
     def boundingRect(self, scaled=True):
@@ -261,55 +257,27 @@ class Rect2D(QRectF):
 
     def add(self, *args):
         point = args[1]
-        self.setWidth(point.x()-self.x())
+        self.setWidth(point.x()-self.x()) # WHY IS THAT A - AND NOT A + ??? DID I DO A MISTAKE ??? −−> COULD BE  # BUT KEEP LIKE THAT JUST IN CASE
         self.setHeight(point.y()-self.y())
         self.isSet = True
 
-    def set_P1(self, *args):
-        if not args:
-            logger.error("no coordinate set...")
-            return
-        if len(args) == 1:
-            self.moveTo(args[0].x(), args[0].y())
-        else:
-            self.moveTo(QPointF(args[0], args[1]))
+    # def set_P1(self, *args):
+    #     if not args:
+    #         logger.error("no coordinate set...")
+    #         return
+    #     if len(args) == 1:
+    #         self.moveTo(args[0].x(), args[0].y())
+    #     else:
+    #         self.moveTo(QPointF(args[0], args[1]))
 
-    def get_P1(self):
-        return QPointF(self.x(), self.y())
+    # def get_P1(self):
+    #     return QPointF(self.x(), self.y())
 
     def set_to_scale(self, factor):
         self.scale = factor
 
     def set_to_translation(self, translation):
         self.translation = translation
-
-    #TODO rather use __computeNewMorphology --> as it is more likely to work and not damage the original shape in any way but need a functional scaling
-    # def erode(self, nb_erosion=1):
-    #     x = self.x()
-    #     y = self.y()
-    #     width = self.width()
-    #     height = self.height()
-    #     x += nb_erosion
-    #     y += nb_erosion
-    #
-    #     width -= nb_erosion * 2
-    #     height -= nb_erosion * 2
-    #     if (width < 1):
-    #         width = 1
-    #         # x = rec2d.getCenterX() - 0.5
-    #
-    #     if (height < 1):
-    #         height = 1;
-    #         # y = rec2d.getCenterY() - 0.5
-    #
-    #     self.setX(x)
-    #     self.setY(y)
-    #     self.setWidth(width)
-    #     self.setHeight(height)
-    #
-    # def dilate(self, nb_dilation=1):
-    #     self.erode(nb_erosion=-nb_dilation)
-
 
     # hack to make column hashable to be able to add it to a dict, see https://stackoverflow.com/questions/10994229/how-to-make-an-object-properly-hashable
     def __eq__(self, other):
@@ -322,16 +290,56 @@ class Rect2D(QRectF):
     def __hash__(self):
         return hash(str(self))
 
+    def getIncompressibleWidth(self):
+        return self.incompressible_width
+
+    def getIncompressibleHeight(self):
+        return self.incompressible_height
+
+    # can also be done like that
+    # def setTopLeft(self, x_or_rect, y=None):
+    #     if y is None:
+    def setTopLeft(self, *args):
+        if args:
+            if len(args)==1:
+                # assume a QpointF
+                super().moveTopLeft(args[0])
+            elif len(args)==2:
+                super().moveTopLeft(QPointF(args[0], args[1]))
+            else:
+                logger.error('invalid args for top left')
+
+
 if __name__ == '__main__':
     # ça marche --> voici deux examples de shapes
-    test = Rect2D(0, 0, 100, 100)
+    test = Rect2D(10, 0, 100, 100)
     print(test)
+    # print(test.get_P1())
 
-    rect = QRectF(0,0, 125,256)
+    test2 = Rect2D(QRectF(10, 0, 100, 100))
+    print('pt2', test2)
+
+    # then use my set_P1
+    print(test2.setTopLeft(10,20)) # setTopLeft really sucks because set top left crops the rect for unknown reason --> use moveTopLeft instead --> ça marche maintenant comme je pensais
+    print(test2)
+    sys.exit(0)
+
+    test.incompressible_width = 10
+    test.incompressible_height = 5
+    print(test.getIncompressibleWidth(),test.getIncompressibleHeight()) # --> that works --> this is a very easy way to get it then -−> this could also be borders around the image to fake it has the same size as another bigger image even if not --> can also be used by the tool that generates the stuff
+    # in the case of rows that should be the space between cols or rows and in the case of panels it is both
+
+    rect = QRectF(10, 0, 125, 256)
     print(rect.x())
     print(rect.y())
     print(rect.width())
     print(rect.height())
+
+    rect.setTopLeft(QPointF(10.,20.))
+
+    print('sum',rect.x()+rect.width(), type(rect.x()+rect.width())) # float
+
+    print(rect.topLeft()) # this is same as get_P1 --> maybe stick to that
 
     rect.translate(10,20) # ça marche
     print(rect)
@@ -350,8 +358,10 @@ if __name__ == '__main__':
     print(test.contains(QPointF(100, 100)))
     print(test.contains(QPointF(100, 100.1)))
 
-    point = QPointF(50, 50)
-    point.x()
+
+    # shall I do rotation
+
+
 
     # p1 = test.p1()
     # print(p1.x(), p1.y())

@@ -693,15 +693,15 @@ if __name__ == '__main__':
     #         self.save_mask()
 
     w = scrollable_EZFIG()  # ça marche --> permet de mettre des paint panels avec des proprietes particulieres --> assez facile en fait
-    # w.set_image('/E/Sample_images/sample_images_PA/trash_test_mem/mini (copie)/focused_Series012.png')
-    # w.set_mask('/E/Sample_images/sample_images_PA/trash_test_mem/mini (copie)/focused_Series012/handCorrection.png')
+    # w.set_image('/E/Sample_images/sample_images_PA/mini (copie)/focused_Series012.png')
+    # w.set_mask('/E/Sample_images/sample_images_PA/mini (copie)/focused_Series012/handCorrection.png')
     # w.set_image('/E/Sample_images/sample_images_PA/test_complete_wing_raphael/Optimized_projection_018.png')
     # w.set_mask('/E/Sample_images/sample_images_PA/test_complete_wing_raphael/neo_mask.tif')
     # w.set_image('/D/VirtualBox/book_chapter_image_segmentation_final_2021/new_figs/dataset_1/minimal_demo_sample_simplified_bckup_before_messing_with_two_seg_errors/1.tif')
     # w.set_mask('/D/VirtualBox/book_chapter_image_segmentation_final_2021/new_figs/dataset_1/minimal_demo_sample_simplified_bckup_before_messing_with_two_seg_errors/1/handCorrection.tif')
 
-    row1 = Row(Image2D('/E/Sample_images/sample_images_EZF/counter/00.png'),
-               Image2D('/E/Sample_images/sample_images_EZF/counter/01.png'))
+    row1 = Row(Image2D('/E/Sample_images/counter/00.png'),
+               Image2D('/E/Sample_images/counter/01.png'))
     row1.setX(0)
     row1.setY(0)
 

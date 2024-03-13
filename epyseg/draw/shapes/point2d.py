@@ -88,7 +88,8 @@ class Point2D(QPointF):
                 point_to_draw.setX(point_to_draw.x()+self.translation.x())
                 point_to_draw.setY(point_to_draw.y()+self.translation.y())
 
-            painter.drawEllipse(point_to_draw.x()-self.stroke/2., point_to_draw.y()-self.stroke/2, self.stroke, self.stroke)
+            # painter.drawEllipse(point_to_draw.x()-self.stroke/2., point_to_draw.y()-self.stroke/2, self.stroke, self.stroke)
+            painter.drawEllipse(int(point_to_draw.x()-self.stroke/2.), int(point_to_draw.y()-self.stroke/2), int(self.stroke), int(self.stroke))
             painter.restore()
 
     # def fill(self, painter, draw=True):
@@ -153,7 +154,7 @@ if __name__ == '__main__':
     test = Point2D(128, 128)
     # print(test.x(), test.y(), test.width(), test.height())
     print(test.contains(QPointF(128, 128)))
-    print(test.contains(QPointF(129, 129)))
+    print(test.contains(QPointF(129, 129))) # why True ??? --> maybe ok but think
     print(test.contains(QPointF(-1, -1)))
     print(test.contains(QPointF(0, 0)))
     print(test.contains(QPointF(100, 100)))

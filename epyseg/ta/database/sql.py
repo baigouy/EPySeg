@@ -1533,35 +1533,47 @@ def createMasterDB(lst, outputName=None, progress_callback=None, database_name=N
                             if force_update:
                                 # Drop 'cell_tracks' table and create a new one
                                 dbHandler.drop_table('cell_tracks')
-                                dbHandler.execute_command('CREATE TABLE cell_tracks AS SELECT local_id as cell_id, -1 as track_id FROM cells')
+                                dbHandler.execute_command('CREATE TABLE cell_tracks AS SELECT local_id as local_id, CAST(NULL AS INTEGER) AS track_id FROM cells_2D')
+
+                    masterDBTables = masterDB.get_tables()
 
                     # Iterate over each table in the database
                     for string in tables:
-                        if string == 'cell_tracks':
-                            # Skip the 'cell_tracks' table if force_track_cells_db_update is False
-                            if not force_track_cells_db_update:
-                                continue
-
-                        # Read column names and types from the table
-                        cols = dbHandler.get_column_names_and_types(string)
-
                         if database_name is not None:
-                            # Skip tables from other databases if a specific database name is provided
-                            if cols['database'][0] != database_name:
+                            if database_name.lower() != string.lower():
                                 continue
+                        if string not in masterDBTables:  # (!masterDBTables.contains(string)) {
+                            tableHeaderAndType = dbHandler.get_table_column_names_and_types(string)
+                            extra = {}
+                            extra[frame_nb] = 'INTEGER'
+                            extra[fileName] = 'TEXT'
 
-                        # Get column names and types from the masterDB table (if exists)
-                        cols_master = masterDB.get_column_names_and_types(string)
+                            for string1 in tableHeaderAndType.keys():
+                                extra[string1] = tableHeaderAndType[string1]
+                            masterDB.create_table(string, list(extra.keys()), list(extra.values()))
 
-                        # Check for column mismatches between the database and masterDB
-                        present_in_master_but_missing_in_cur = None
+                    masterDB.attach_table(db_l, 'tmp')  # --> so it is needed then # do I use that ????
+                    dbHandler.close()
+                    # in case there is a mismatch in the columns then do stuff to fix it
+
+                    for string in tables:
+                        if database_name is not None:
+                            if database_name.lower() != string.lower():
+                                continue
+                        DB_to_read = 'tmp.' + str(string)
+                        cols = masterDB.get_table_column_names_and_types(DB_to_read)
+                        cols_master = masterDB.get_table_column_names_and_types(string)
+
                         fixed_cols = set(_to_lower(cols.keys()))
                         fixed_cols.add(frame_nb)
                         fixed_cols.add(fileName)
 
                         fixed_master = set(_to_lower(cols_master.keys()))
-                        cols_master = {k.lower():v for k,v in cols_master.items()}
-                        cols = {k.lower():v for k,v in cols.items()}
+
+                        # make it case insensitive
+                        cols_master = {k.lower(): v for k, v in
+                                       cols_master.items()}  # TODO maybe replace by a case insensitive dict
+                        cols = {k.lower(): v for k, v in cols.items()}
 
                         if not fixed_cols == fixed_master:
                             present_in_master_but_missing_in_cur = fixed_master - fixed_cols
@@ -1570,13 +1582,13 @@ def createMasterDB(lst, outputName=None, progress_callback=None, database_name=N
                             if present_in_master_but_missing_in_cur:
                                 # Create a temporary table for adding missing columns
                                 masterDB.drop_table('pytaTMP')
-                                masterDB.execute_command('CREATE TABLE pytaTMP AS SELECT * from ' + str(db_l))
+                                masterDB.execute_command('CREATE TABLE pytaTMP AS SELECT * from ' + str(DB_to_read))
 
                                 for col in present_in_master_but_missing_in_cur:
                                     # Add missing columns to the temporary table
                                     masterDB.add_column('pytaTMP', col, col_type=cols_master[col])
 
-                                db_l = 'pytaTMP'
+                                DB_to_read = 'pytaTMP'
 
                             for col in present_in_cur_but_missing_in_master:
                                 # Add missing columns to the masterDB table
@@ -1586,8 +1598,9 @@ def createMasterDB(lst, outputName=None, progress_callback=None, database_name=N
 
                         # Insert data from the database table into the masterDB table
                         masterDB.execute_command(
-                            "INSERT INTO '" + str(string) + "' SELECT " + str(l) + " AS '" + str(frame_nb) + "', '" + str(
-                                name) + "' AS '" + str(fileName) + "', * FROM " + str(db_l))
+                            "INSERT INTO '" + str(string) + "' SELECT " + str(l) + " AS '" + str(
+                                frame_nb) + "', '" + str(
+                                name) + "' AS '" + str(fileName) + "', * FROM " + str(DB_to_read))
 
                         # Drop the temporary table
                         masterDB.drop_table('pytaTMP')
@@ -1613,8 +1626,6 @@ def createMasterDB(lst, outputName=None, progress_callback=None, database_name=N
         else:
             return masterDB
 
-
-import traceback
 
 def set_property(db_file, neo_data):
     """
@@ -1849,24 +1860,24 @@ if __name__ == '__main__':
 
 
     if True:
-        table_to_xlsx_with_sheets('/E/Sample_images/Sample_transcription_dot_detection/manue_manually_segmented_images/training_set/tests/full_real_analysis_tst1/Sarah/kniR-405_knrlR-488_kniD-565_kniD-633/Image 23_Stitch/FISH.db', '/E/Sample_images/Sample_transcription_dot_detection/manue_manually_segmented_images/training_set/tests/full_real_analysis_tst1/Sarah/kniR-405_knrlR-488_kniD-565_kniD-633/Image 23_Stitch/FISH.xlsx')
+        table_to_xlsx_with_sheets('/E/Sample_images/FISH/Sample_transcription_dot_detection/manue_manually_segmented_images/training_set/tests/full_real_analysis_tst1/Sarah/kniR-405_knrlR-488_kniD-565_kniD-633/Image 23_Stitch/FISH.db', '/E/Sample_images/FISH/Sample_transcription_dot_detection/manue_manually_segmented_images/training_set/tests/full_real_analysis_tst1/Sarah/kniR-405_knrlR-488_kniD-565_kniD-633/Image 23_Stitch/FISH.xlsx')
 
 
         sys.exit(0)
 
     if True:
 
-        # print(os.path.exists('/E/Sample_images/Sample_transcription_dot_detection/manue_manually_segmented_images/training_set/tests/full_real_analysis_tst1/Benoit R1 R6/R1 565 R6 633 f W5 NS3/FISHcopie.db'))
-        remove_dupes_from_table_and_overwrite_table('/E/Sample_images/Sample_transcription_dot_detection/manue_manually_segmented_images/training_set/tests/full_real_analysis_tst1/Benoit R1 R6/R1 565 R6 633 f W5 NS3/FISH (copie).db', 'human_curated_distances_3D')
-        remove_dupes_from_table_and_overwrite_table('/E/Sample_images/Sample_transcription_dot_detection/manue_manually_segmented_images/training_set/tests/full_real_analysis_tst1/Benoit R1 R6/R1 565 R6 633 f W5 NS3/FISH (copie).db', 'human_curated_distances_3D_chromatic_aberrations_corrected')
+        # print(os.path.exists('/E/Sample_images/FISH/Sample_transcription_dot_detection/manue_manually_segmented_images/training_set/tests/full_real_analysis_tst1/Benoit R1 R6/R1 565 R6 633 f W5 NS3/FISHcopie.db'))
+        remove_dupes_from_table_and_overwrite_table('/E/Sample_images/FISH/Sample_transcription_dot_detection/manue_manually_segmented_images/training_set/tests/full_real_analysis_tst1/Benoit R1 R6/R1 565 R6 633 f W5 NS3/FISH (copie).db', 'human_curated_distances_3D')
+        remove_dupes_from_table_and_overwrite_table('/E/Sample_images/FISH/Sample_transcription_dot_detection/manue_manually_segmented_images/training_set/tests/full_real_analysis_tst1/Benoit R1 R6/R1 565 R6 633 f W5 NS3/FISH (copie).db', 'human_curated_distances_3D_chromatic_aberrations_corrected')
 
 
         sys.exit(0)
 
     if False:
-        print(table_exists_in_db('/E/Sample_images/Sample_transcription_dot_detection/manue_manually_segmented_images/training_set/tests/full_real_analysis_tst1/tmp/R1 565 R6 633 f  S1/FISH.db', 'human_curated_distances_3D'))
+        print(table_exists_in_db('/E/Sample_images/FISH/Sample_transcription_dot_detection/manue_manually_segmented_images/training_set/tests/full_real_analysis_tst1/tmp/R1 565 R6 633 f  S1/FISH.db', 'human_curated_distances_3D'))
 
-        print(table_exists_in_db('/E/Sample_images/Sample_transcription_dot_detection/manue_manually_segmented_images/training_set/tests/full_real_analysis_tst1/tmp/R1 565 R6 633 f  S1/FISH.db', 'breaking_bad'))
+        print(table_exists_in_db('/E/Sample_images/FISH/Sample_transcription_dot_detection/manue_manually_segmented_images/training_set/tests/full_real_analysis_tst1/tmp/R1 565 R6 633 f  S1/FISH.db', 'breaking_bad'))
 
         sys.exit(0)
 
@@ -1878,7 +1889,7 @@ if __name__ == '__main__':
     # SELECT * FROM employees WHERE first_name NOT IN ('Sarah', 'Jessica'); # maybe useful too
 
     if False:
-        db = TAsql('/E/Sample_images/sample_images_PA/trash_test_mem/mini_different_nb_of_channels/focused_Series012/pyTA.db')
+        db = TAsql('/E/Sample_images/sample_images_PA/mini_different_nb_of_channels/focused_Series012/pyTA.db')
         # print(db.create_filtered_query('SELECT * from cells_2D', filtering_elements=[1,2,120],filter_name='local_ID'))
         print(db.create_filtered_query('SELECT * from cells_2D', filtering_elements_dict={'local_ID':[1,2,120]}))
         print(db.create_filtered_query('SELECT * from cells_2D', filtering_elements_dict={'local_ID':[1,2,120], 'cytoplasmic_area':[802]}))
@@ -1889,10 +1900,10 @@ if __name__ == '__main__':
     if False:
         new_properties = {'reg_x':16, 'reg_y':-32}
         set_property(
-            '/E/Sample_images/sample_images_PA/trash_test_mem/mini_different_nb_of_channels/focused_Series012/pyTA.db',
+            '/E/Sample_images/sample_images_PA/mini_different_nb_of_channels/focused_Series012/pyTA.db',
             new_properties)  # ça marche!!!
         print(get_property(
-            '/E/Sample_images/sample_images_PA/trash_test_mem/mini_different_nb_of_channels/focused_Series012/pyTA.db',
+            '/E/Sample_images/sample_images_PA/mini_different_nb_of_channels/focused_Series012/pyTA.db',
             'reg_x') + 1)  # ça marche!!!
         sys.exit(0)
 
@@ -1916,8 +1927,8 @@ if __name__ == '__main__':
     if False:
         # use these properties to compute the real 3D area values --> maybe also store pc data in this
 
-        print(get_property('/E/Sample_images/sample_images_PA/trash_test_mem/mini_different_nb_of_channels/focused_Series012/pyTA.db', 'time')+1) # ça marche!!!
-        print(get_property('/E/Sample_images/sample_images_PA/trash_test_mem/mini_different_nb_of_channels/focused_Series012/pyTA.db', 'voxel_z_over_x_ratio'))
+        print(get_property('/E/Sample_images/sample_images_PA/mini_different_nb_of_channels/focused_Series012/pyTA.db', 'time')+1) # ça marche!!!
+        print(get_property('/E/Sample_images/sample_images_PA/mini_different_nb_of_channels/focused_Series012/pyTA.db', 'voxel_z_over_x_ratio'))
         import sys
         sys.exit(0)
 
@@ -1926,7 +1937,7 @@ if __name__ == '__main__':
         # do a real mount maybe ???
 
         # all seems ok and in many aspects simpler than the java equivalent...
-        # sql_file = '/E/Sample_images/sample_images_PA/trash_test_mem/mini/test.db'
+        # sql_file = '/E/Sample_images/sample_images_PA/mini/test.db'
         # sql_file = '/run/user/1000/gvfs/smb-share:server=teamdfs2,share=teamprudhomme/EqpPrudHomme2/To be analyzed/221123 R1y R6y/R1 565 R6 633 f  S3/test.db' # test for sqlite on samba --> there is a bug on a samba drive --> how can I fix that
         sql_file = '/media/eqpPrudhomme/EqpPrudHomme2/To be analyzed/test.db' # FINALLY GOT IT TO WORK --> use the nobrl option in mount CIFS # test for sqlite on samba --> there is a bug on a samba drive --> how can I fix that # TO GET IT TO WORK I NEED THE 'NOBRL' command !!!
         table_name = 'test'
@@ -2050,15 +2061,15 @@ if __name__ == '__main__':
     # add correspondance local cell id and track ID to the database
     if True:
         # nb some images have different nb of cols --> does not fit...
-        # masterDB = createMasterDB(['/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series012.png','/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series014.png','/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series015.png','/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series016.png'])
+        # masterDB = createMasterDB(['/E/Sample_images/sample_images_PA/mini/focused_Series012.png','/E/Sample_images/sample_images_PA/mini/focused_Series014.png','/E/Sample_images/sample_images_PA/mini/focused_Series015.png','/E/Sample_images/sample_images_PA/mini/focused_Series016.png'])
         # masterDB = createMasterDB(
-        #     ['/E/Sample_images/sample_images_PA/trash_test_mem/mini_different_nb_of_channels/focused_Series012.png',
-        #      '/E/Sample_images/sample_images_PA/trash_test_mem/mini_different_nb_of_channels/focused_Series014.png',
-        #      '/E/Sample_images/sample_images_PA/trash_test_mem/mini_different_nb_of_channels/focused_Series015.png',
-        #      '/E/Sample_images/sample_images_PA/trash_test_mem/mini_different_nb_of_channels/focused_Series016.png',
-        #      '/E/Sample_images/sample_images_PA/trash_test_mem/mini_different_nb_of_channels/focused_Series019.tif'])
+        #     ['/E/Sample_images/sample_images_PA/mini_different_nb_of_channels/focused_Series012.png',
+        #      '/E/Sample_images/sample_images_PA/mini_different_nb_of_channels/focused_Series014.png',
+        #      '/E/Sample_images/sample_images_PA/mini_different_nb_of_channels/focused_Series015.png',
+        #      '/E/Sample_images/sample_images_PA/mini_different_nb_of_channels/focused_Series016.png',
+        #      '/E/Sample_images/sample_images_PA/mini_different_nb_of_channels/focused_Series019.tif'])
 
-        # masterDB = createMasterDB(loadlist('/E/Sample_images/sample_images_PA/trash_test_mem/mini_different_nb_of_channels/list.lst'))
+        # masterDB = createMasterDB(loadlist('/E/Sample_images/sample_images_PA/mini_different_nb_of_channels/list.lst'))
 
 
         outputName = None
@@ -2067,7 +2078,7 @@ if __name__ == '__main__':
 
 
         if masterDB is not None:
-            # masterDB = createMasterDB(['/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series012.png','/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series012.png','/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series012.png','/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series012.png'])
+            # masterDB = createMasterDB(['/E/Sample_images/sample_images_PA/mini/focused_Series012.png','/E/Sample_images/sample_images_PA/mini/focused_Series012.png','/E/Sample_images/sample_images_PA/mini/focused_Series012.png','/E/Sample_images/sample_images_PA/mini/focused_Series012.png'])
             print(masterDB.get_tables())  # why None
             # print(masterDB.run_SQL_command_and_get_results('SELECT * FROM cells_2D;')) # that seems to work
             # print(masterDB.get_min_max(table_name, 'area'))
@@ -2114,7 +2125,7 @@ if __name__ == '__main__':
             masterDB.close()
 
     if True:
-        sql_file = '/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series012/pyTA.db'
+        sql_file = '/E/Sample_images/sample_images_PA/mini/focused_Series012/pyTA.db'
 
         print(populate_table_content(sql_file))
 

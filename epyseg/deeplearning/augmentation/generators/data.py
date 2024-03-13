@@ -1642,7 +1642,7 @@ if __name__ == '__main__':
             # outputs='/E/Sample_images/sample_images_denoise_manue/210219/raw/predict', # 2D ouput otherwise change model shape... below !!!!
             # input_channel_of_interest=0,
             # comment the 2 next lines and restore the 3 above to get back to 3D
-            inputs='/E/Sample_images/sample_images_PA/trash_test_mem/mini/*.png',  # 3D input
+            inputs='/E/Sample_images/sample_images_PA/mini/*.png',  # 3D input
             input_channel_of_interest=1,
             # outputs='/E/Sample_images/sample_images_denoise_manue/210219/raw/predict',
             # 2D ouput otherwise change model shape... below !!!!
@@ -1676,11 +1676,11 @@ if __name__ == '__main__':
         )
     else:
         # KEEP THIS IS CODE TO RUN THE DATAGEN WITH IMAGES AS INPUT INSTEAD OF TEXT --> PLEASE ALWAYS MAKE SURE THEY HAVE THE RIGHT NB OF DIMS BECAUSE DIMS CAN'T BE ADDED TO THEM BY DEFAULT!!!
-        images = [img for img in loadlist('/E/Sample_images/sample_images_PA/trash_test_mem/mini/*.png')]
+        images = [img for img in loadlist('/E/Sample_images/sample_images_PA/mini/*.png')]
         # we make a stack of these images and since the input single images have three channels then the last will have three channels
         images = to_stack(images)
 
-        masks = [smart_name_parser(img,'TA')+'/handCorrection.tif' for img in loadlist('/E/Sample_images/sample_images_PA/trash_test_mem/mini/*.png')]
+        masks = [smart_name_parser(img,'TA')+'/handCorrection.tif' for img in loadlist('/E/Sample_images/sample_images_PA/mini/*.png')]
         masks = to_stack(masks)
         # here the stack misses channels because orig masks also miss channel --> so channel need be added
 
@@ -1748,7 +1748,7 @@ if __name__ == '__main__':
                 # outputs='/E/Sample_images/sample_images_denoise_manue/210219/raw/predict', # 2D ouput otherwise change model shape... below !!!!
                 # input_channel_of_interest=0,
                 # comment the 2 next lines and restore the 3 above to get back to 3D
-                inputs='/E/Sample_images/sample_images_PA/trash_test_mem/mini/*.png',  # 3D input
+                inputs='/E/Sample_images/sample_images_PA/mini/*.png',  # 3D input
                 input_channel_of_interest=1,
                 # outputs='/E/Sample_images/sample_images_denoise_manue/210219/raw/predict',
                 # 2D ouput otherwise change model shape... below !!!!

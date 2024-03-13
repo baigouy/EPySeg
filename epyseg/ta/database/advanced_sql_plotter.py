@@ -1,3 +1,26 @@
+# TODO ADD PLOT AS VARIOUS SHAPES --> TODO SUCH AS POINTS OR DOTS OR CIRCLE OR SQUARES OR RECTANGLES OR ALIKE !!!
+# TODO --> add this at some point ADD PLOT  AS POINT OR ANY SHAPE!!!!
+
+
+# for points I would need to have two columns and maybe a radius or something alike --> THINK OF THAT
+# maybe also extend that to 3D as I more and more need that !!!!
+
+
+
+
+
+
+
+
+
+
+# can I add plot as CIRCLE OR PLOT AS DOT ???? --> check what plot as vertices do...
+# NB I DO HAVE PLOT AS POINTS AND THAT SHOULD DO THE JOB !!!
+
+
+
+
+
 # not bad --> almost there --> see what is really missing and add it for the MS --> TODO
 
 
@@ -349,6 +372,10 @@ def _strip_from_command(command, things_to_strip):
     stripped = case_insensitive_replace.sub('', command).strip()
 
     return stripped
+
+
+
+
 
 # NB THERE IS A BUG THAT FORCES THE PLOT TWICE --> PROBABLY SOME ADJUSTMENT STUFF --> NEED CHANGE THIS
 def plot_as_any(parent_image, SQL_command, plot_type='cells', return_mask=False, invert_mask=True, db=None,current_frame=None, **kwargs):
@@ -877,19 +904,19 @@ def plot_as_image_old(plot_type='cells'):
     if plot_type == 'cells':
         # by default plot as cells
         logger.debug('plot as cells')
-        image_plot = Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series012/cells.tif').astype(
+        image_plot = Img('/E/Sample_images/sample_images_PA/mini/focused_Series012/cells.tif').astype(
             np.uint64)
 
     elif plot_type == 'bonds':
         logger.debug('plot as bonds')
-        image_plot = Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series012/bonds.tif').astype(
+        image_plot = Img('/E/Sample_images/sample_images_PA/mini/focused_Series012/bonds.tif').astype(
             np.uint64)
     elif plot_type == 'vertices':
         logger.debug('plot as vertices')
-        image_plot = Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series012/vertices.tif').astype(
+        image_plot = Img('/E/Sample_images/sample_images_PA/mini/focused_Series012/vertices.tif').astype(
             np.uint64)
     else:
-        logger.error('Plot type unknonw: \'' + str(plot_type) + '\'')
+        logger.error('Plot type unknown: \'' + str(plot_type) + '\'')
         return
 
     rps = regionprops(image_plot)
@@ -972,7 +999,7 @@ if __name__ == '__main__':
 
 
     if False:
-        file = '/E/Sample_images/sample_images_PA/trash_test_mem/mini_different_nb_of_channels/focused_Series012.png'
+        file = '/E/Sample_images/sample_images_PA/mini_different_nb_of_channels/focused_Series012.png'
         # file = '/E/Sample_images/sample_images_pyta/surface_projection/210219.lif_t000.tif'
         # SQL_command = "SELECT local_id_cells,P1_polarity_ch2, P2_polarity_ch2, '#FF0000' AS COLOR, '2' AS STROKE_SIZE, 0.06 AS SCALING_FACTOR FROM cells"   #for TA db
         # SQL_command = "SELECT local_id,nb_of_vertices_or_neighbours FROM cells_2D WHERE is_border == FALSE"  # a bit more complex just to see which method to choose --> very easy
@@ -995,7 +1022,7 @@ if __name__ == '__main__':
         plt.show()
 
     if False:
-        file = '/E/Sample_images/sample_images_PA/trash_test_mem/mini_different_nb_of_channels/focused_Series012.png'
+        file = '/E/Sample_images/sample_images_PA/mini_different_nb_of_channels/focused_Series012.png'
         file = '/E/Sample_images/sample_images_pyta/surface_projection/210219.lif_t000.tif'
         # SQL_command = "SELECT local_id_cells,P1_polarity_ch2, P2_polarity_ch2, '#FF0000' AS COLOR, '2' AS STROKE_SIZE, 0.06 AS SCALING_FACTOR FROM cells"   #for TA db
         # SQL_command = "SELECT local_id,nb_of_vertices_or_neighbours FROM cells_2D WHERE is_border == FALSE"  # a bit more complex just to see which method to choose --> very easy
@@ -1015,15 +1042,15 @@ if __name__ == '__main__':
 
     if True:
 
-        # file = '/E/Sample_images/sample_images_PA/trash_test_mem/mini_different_nb_of_channels/focused_Series014.png' # to see if the nematic bug is linked to too many channels --> maybe the case
+        # file = '/E/Sample_images/sample_images_PA/mini_different_nb_of_channels/focused_Series014.png' # to see if the nematic bug is linked to too many channels --> maybe the case
         # SQL_command = "SELECT local_id,Q1_polarity_ch0, Q2_polarity_ch0, '#FF0000' AS COLOR, '2' AS STROKE_SIZE, 0.06 AS SCALING_FACTOR FROM cells_2D WHERE is_border == FALSE"  # a bit more complex just to see which method to choose --> very easy
 
-        file = '/E/Sample_images/sample_images_PA/trash_test_mem/mini_different_nb_of_channels/focused_Series012.png'
+        file = '/E/Sample_images/sample_images_PA/mini_different_nb_of_channels/focused_Series012.png'
         # SQL_command = "SELECT local_id_cells,P1_polarity_ch2, P2_polarity_ch2, '#FF0000' AS COLOR, '2' AS STROKE_SIZE, 0.06 AS SCALING_FACTOR FROM cells"   #for TA db
         SQL_command = "SELECT local_id,Q1_polarity_ch1, Q2_polarity_ch1, '#FF0000' AS COLOR, 2 AS STROKE_SIZE, 0.1 AS SCALING_FACTOR FROM cells_2D WHERE is_border == FALSE"  # a bit more complex just to see which method to choose --> very easy
 
 
-        # file = '/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series012.png'
+        # file = '/E/Sample_images/sample_images_PA/mini/focused_Series012.png'
         # SQL_command = "PLOT AS CELLS SELECT local_id, area FROM cells_2D + LUT DNA + OPACITY 35% + DILATATION 1"
         # SQL_command = "PLOT AS NEMATICS SELECT center_x_cells,center_y_cells,P1_polarity_ch1, P2_polarity_ch1, '#FF0000' AS COLOR, '2' AS STROKE_SIZE, 0.06 AS SCALING_FACTOR FROM cells WHERE is_border=='false'"
         # SQL_command = "SELECT local_id, area FROM cells_2D"
@@ -1105,9 +1132,8 @@ if __name__ == '__main__':
 
             titleNCommands.put("(Global) color code cells belonging to clone #22 according to their amount of stretch (NB: virtual clone #22 must exist for the command to work)", "PLOT AS CELLS SELECT first_pixel_x_cells,first_pixel_y_cells, S0_stretch_cells FROM cells NATURAL JOIN tracked_clone_022 + LUT DNA MIN=GLOBAL_MIN MAX=GLOBAL_MAX + OPACITY 35% + DILATATION 1");
             titleNCommands.put("(Global) color code cells belonging to clone #0 according to their amount of stretch (NB: virtual clone #0 must exist for the command to work)", "PLOT AS CELLS SELECT first_pixel_x_cells,first_pixel_y_cells, S0_stretch_cells FROM cells NATURAL JOIN tracked_clone + LUT DNA MIN=GLOBAL_MIN MAX=GLOBAL_MAX + OPACITY 35% + DILATATION 1");
-
-
     '''
+
 
     if False:
         plot_SQL('PLOT     AS  CELLS SELECT * FROM CELLS;')
@@ -1116,26 +1142,17 @@ if __name__ == '__main__':
         plot_SQL('PLOT     AS TEST SELECT * FROM CELLS;')
         plot_SQL('PLOT AS        POLYGON SELECT * FROM CELLS;')
 
-        plot_SQL(
-            "PLOT AS CELLS SELECT first_pixel_x_cells,first_pixel_y_cells , area_cells FROM cells ORDER BY area_cells DESC LIMIT 10")  # --> see how I can do that
-        plot_SQL(
-            "PLOT AS CELLS SELECT first_pixel_x_cells,first_pixel_y_cells , area_cells FROM cells ORDER BY area_cells DESC LIMIT 10 + LUT DNA")  # --> see how I can do that
-        plot_SQL(
-            "PLOT AS CELLS SELECT first_pixel_x_cells,first_pixel_y_cells , area_cells, '#FF0000' AS COLOR FROM cells ORDER BY area_cells DESC LIMIT 10 + DILATATION 1 + OPACITY 35%")  # in fact each extra is starting with a + --> quite easy to get
+        plot_SQL("PLOT AS CELLS SELECT first_pixel_x_cells,first_pixel_y_cells , area_cells FROM cells ORDER BY area_cells DESC LIMIT 10")  # --> see how I can do that
+        plot_SQL("PLOT AS CELLS SELECT first_pixel_x_cells,first_pixel_y_cells , area_cells FROM cells ORDER BY area_cells DESC LIMIT 10 + LUT DNA")  # --> see how I can do that
+        plot_SQL("PLOT AS CELLS SELECT first_pixel_x_cells,first_pixel_y_cells , area_cells, '#FF0000' AS COLOR FROM cells ORDER BY area_cells DESC LIMIT 10 + DILATATION 1 + OPACITY 35%")  # in fact each extra is starting with a + --> quite easy to get
         # --> ignore pluses in extras
-        plot_SQL(
-            "PLOT AS CELLS SELECT first_pixel_x_cells,first_pixel_y_cells , area_cells FROM cells ORDER BY area_cells DESC LIMIT 10 + LUT DNA MIN=GLOBAL_MIN MAX=GLOBAL_MAX")  # --> maybe not that hard because the values if complex are connected to MIn and MAX --> if all are like that then I can parse all extras as keys and values and all is gonna be a piece of cake and easy to detect and report errors --> TODO
+        plot_SQL("PLOT AS CELLS SELECT first_pixel_x_cells,first_pixel_y_cells , area_cells FROM cells ORDER BY area_cells DESC LIMIT 10 + LUT DNA MIN=GLOBAL_MIN MAX=GLOBAL_MAX")  # --> maybe not that hard because the values if complex are connected to MIn and MAX --> if all are like that then I can parse all extras as keys and values and all is gonna be a piece of cake and easy to detect and report errors --> TODO
 
-        plot_SQL(
-            "PLOT AS CELLS SELECT first_pixel_x_cells,first_pixel_y_cells, S0_stretch_cells FROM cells + LUT DNA + OPACITY 35% + DILATATION 1")  # --> maybe not that hard because the values if complex are connected to MIn and MAX --> if all are like that then I can parse all extras as keys and values and all is gonna be a piece of cake and easy to detect and report errors --> TODO
-        plot_SQL(
-            "PLOT AS CELLS SELECT first_pixel_x_cells,first_pixel_y_cells, S0_stretch_cells FROM cells + LUT DNA + OPACITY 35% + DILATATION 1+BOUGA BOUU")  # --> maybe not that hard because the values if complex are connected to MIn and MAX --> if all are like that then I can parse all extras as keys and values and all is gonna be a piece of cake and easy to detect and report errors --> TODO
-        plot_SQL(
-            "PLOT AS CELLS SELECT first_pixel_x_cells,first_pixel_y_cells, S0_stretch_cells FROM cells + LUT DNA + OPACITY 35% + DILATATION 1+BOUGA")  # --> maybe not that hard because the values if complex are connected to MIn and MAX --> if all are like that then I can parse all extras as keys and values and all is gonna be a piece of cake and easy to detect and report errors --> TODO
-        plot_SQL(
-            "PLOT AS CELLS SELECT first_pixel_x_cells,first_pixel_y_cells, S0_stretch_cells FROM cells + LUT DNA + TRANSPARENCY 35% + DILATATION 1+BOUGA")  # --> maybe not that hard because the values if complex are connected to MIn and MAX --> if all are like that then I can parse all extras as keys and values and all is gonna be a piece of cake and easy to detect and report errors --> TODO
-        plot_SQL(
-            "PLOT AS CELLS SELECT first_pixel_x_cells, first_pixel_y_cells, nb_of_vertices_cut_off FROM cells + LUT 3:#00FFFF 4:#00FF00 5:#FFFF00 6:#AAAAAA 7:#0000FF 8:#FF0000 9:#FF0000")  # --> maybe not that hard because the values if complex are connected to MIn and MAX --> if all are like that then I can parse all extras as keys and values and all is gonna be a piece of cake and easy to detect and report errors --> TODO
+        plot_SQL("PLOT AS CELLS SELECT first_pixel_x_cells,first_pixel_y_cells, S0_stretch_cells FROM cells + LUT DNA + OPACITY 35% + DILATATION 1")  # --> maybe not that hard because the values if complex are connected to MIn and MAX --> if all are like that then I can parse all extras as keys and values and all is gonna be a piece of cake and easy to detect and report errors --> TODO
+        plot_SQL("PLOT AS CELLS SELECT first_pixel_x_cells,first_pixel_y_cells, S0_stretch_cells FROM cells + LUT DNA + OPACITY 35% + DILATATION 1+BOUGA BOUU")  # --> maybe not that hard because the values if complex are connected to MIn and MAX --> if all are like that then I can parse all extras as keys and values and all is gonna be a piece of cake and easy to detect and report errors --> TODO
+        plot_SQL("PLOT AS CELLS SELECT first_pixel_x_cells,first_pixel_y_cells, S0_stretch_cells FROM cells + LUT DNA + OPACITY 35% + DILATATION 1+BOUGA")  # --> maybe not that hard because the values if complex are connected to MIn and MAX --> if all are like that then I can parse all extras as keys and values and all is gonna be a piece of cake and easy to detect and report errors --> TODO
+        plot_SQL("PLOT AS CELLS SELECT first_pixel_x_cells,first_pixel_y_cells, S0_stretch_cells FROM cells + LUT DNA + TRANSPARENCY 35% + DILATATION 1+BOUGA")  # --> maybe not that hard because the values if complex are connected to MIn and MAX --> if all are like that then I can parse all extras as keys and values and all is gonna be a piece of cake and easy to detect and report errors --> TODO
+        plot_SQL("PLOT AS CELLS SELECT first_pixel_x_cells, first_pixel_y_cells, nb_of_vertices_cut_off FROM cells + LUT 3:#00FFFF 4:#00FF00 5:#FFFF00 6:#AAAAAA 7:#0000FF 8:#FF0000 9:#FF0000")  # --> maybe not that hard because the values if complex are connected to MIn and MAX --> if all are like that then I can parse all extras as keys and values and all is gonna be a piece of cake and easy to detect and report errors --> TODO
 
         # value and how to do that
 

@@ -1,5 +1,3 @@
-# almost all ok but need also
-
 # what should I now do --> implement the fusion visually with mini images --> keep the unique ID of the object and get its AR and get its --> that would be great and let the user decide
 # would need draw the hints over the image --> label cells with a unique ID --> see how I can do that
 # TODO implement a visual cropper with a rect that one can draw over the image --> should be easy to do and is also very useful...
@@ -220,7 +218,7 @@ import traceback
 import copy # used to clone class instances
 
 from qtpy import QtCore, QtGui, QtWidgets
-from qtpy.QtCore import QSize, QRect, QRectF, QPoint
+from qtpy.QtCore import QSize, QRect, QRectF, QPoint, QPointF
 from qtpy.QtGui import QPainter, QColor
 from qtpy.QtSvg import QSvgGenerator
 from qtpy.QtWidgets import QMenu
@@ -308,7 +306,7 @@ class MyWidget(QtWidgets.QWidget):
         move_to_front = contextMenu.addAction("Move To Front")
         # copy_ = contextMenu.addAction("Duplicate") # ça ne marche pas
         send_to_back = contextMenu.addAction("Send To Back")
-        action = contextMenu.exec_(self.mapToGlobal(event.pos()))
+        action = contextMenu.exec_(self.mapToGlobal(event.position()))
         if action == quitAct:
             self.close()
         if action == move_to_front:
@@ -482,7 +480,7 @@ class MyWidget(QtWidgets.QWidget):
             return
         bounds = self.updateBounds()
         # print(bounds)
-        size = QSize(bounds.width() * self.scale + 2, bounds.height() * self.scale + 2)
+        size = QSize(int(bounds.width() * self.scale + 2), int(bounds.height() * self.scale + 2))
         # print("-->",size)
         self.resize(size)
 
@@ -593,12 +591,10 @@ class MyWidget(QtWidgets.QWidget):
 
     def get_first_encounter_at_click(self, shape_to_screen, last_click):
         for shape in shape_to_screen:
-            if shape.boundingRect().contains(last_click):
-                return shape
+            if not isinstance(shape, QPointF): # a point has no bounding rect
+                if shape.boundingRect().contains(last_click.x(), last_click.y()):
+                        return shape
         return None
-
-
-
 
     # I somehow need check if the object contains the object --> because can be a problem for overlaping shapes --> see how to handle that
 
@@ -711,14 +707,17 @@ class MyWidget(QtWidgets.QWidget):
         self.dragging = False
         if event.button() == QtCore.Qt.LeftButton:
             self.drawing = True
-            self.lastPoint = event.pos()
-            self.lastPoint.setX(self.lastPoint.x() / self.scale)
-            self.lastPoint.setY(self.lastPoint.y() / self.scale)
+            self.lastPoint = event.position()
+            self.lastPoint.setX(int(self.lastPoint.x() / self.scale))
+            self.lastPoint.setY(int(self.lastPoint.y() / self.scale))
 
             # print('before', self.selected_shape)
             # check if a shape is selected and only move that
             for shape in reversed(self.shapes_to_draw):
-                if shape.contains(self.lastPoint):
+                point = QPointF(float(self.lastPoint.x()), float(self.lastPoint.y()))
+                # if shape.contains(int(self.lastPoint.x()), int(self.lastPoint.y())):
+                if shape.contains(point):
+                # if shape.contains(self.lastPoint):
                     # logger.debug('you clicked shape:' + str(shape))
                     if self.selected_shape is None or not self.is_ctrl_modifier():
                         # selection has not changed --> ignoring changes
@@ -820,19 +819,20 @@ class MyWidget(QtWidgets.QWidget):
             self.dragging = True
             if isinstance(self.selected_shape, list):
                 for element in self.selected_shape:
-                    trans = event.pos()
+                    trans = event.position()
                     trans.setX(trans.x() / self.scale)
                     trans.setY(trans.y() / self.scale)
                     element.translate(trans - self.lastPoint)
             else:
-                trans = event.pos()
+                trans = event.position()
                 trans.setX(trans.x() / self.scale)
                 trans.setY(trans.y() / self.scale)
-                self.selected_shape.translate(trans - self.lastPoint)
+                # self.selected_shape.translate(trans.x() - self.lastPoint.x(),trans.y() - self.lastPoint.y()) # dirty hack to handle the stuff !!!
+                self.selected_shape.translate(trans- self.lastPoint) # dirty hack to handle the stuff !!!
             # need update bounds of the panel
             # self.updateBounds()
             self.update_size()
-        self.lastPoint = event.pos()
+        self.lastPoint = event.position()
         self.lastPoint.setX(self.lastPoint.x() / self.scale)
         self.lastPoint.setY(self.lastPoint.y() / self.scale)
         self.update()
@@ -841,7 +841,12 @@ class MyWidget(QtWidgets.QWidget):
         # this makes sure the returned object is in the list
         # need remove both objects from the list and return one new object instead
         for shape in reversed(self.shapes_to_draw):
+            if isinstance(coords, QPoint):
+                coords = QPointF(float(coords.x()), float(coords.y()))
             if shape.contains(coords):
+            # if shape.contains(coords.x(),coords.y()):
+            # if shape.contains(float(coords.x()), float(coords.y())):
+            # if shape.contains(coords):
                 if ignore_cur_sel and (shape == self.selected_shape or (
                         isinstance(self.selected_shape, list) and shape in self.selected_shape)):
                     continue
@@ -860,7 +865,7 @@ class MyWidget(QtWidgets.QWidget):
             # get element dropped over --> the first
 
             if self.drawing:
-                coords = event.pos()
+                coords = event.position()
                 coords.setX(self.lastPoint.x() / self.scale)
                 coords.setY(self.lastPoint.y() / self.scale)
                 shape_dropped_over = self.get_shape_at_coord(coords, ignore_cur_sel=True)
@@ -1022,11 +1027,11 @@ if __name__ == '__main__':
         shapes_to_draw.append(Point2D(10, 10, color=0x000000, fill_color=0x00FFFF, stroke=3))
 
         shapes_to_draw.append(Rect2D(0, 0, 512, 512, color=0xFF00FF, stroke=6))
-        img0 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/00.png')
+        img0 = Image2D('/E/Sample_images/counter/00.png')
 
-        inset = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/01.png')
-        inset2 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/01.png')
-        inset3 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/01.png')
+        inset = Image2D('/E/Sample_images/counter/01.png')
+        inset2 = Image2D('/E/Sample_images/counter/01.png')
+        inset3 = Image2D('/E/Sample_images/counter/01.png')
         # inset.setToHeight(32)
         # check inset
 
@@ -1102,7 +1107,7 @@ if __name__ == '__main__':
         img0.annotation.append(Point2D(128, 128, color=0xFFFF00, stroke=6))
         # everything seems to work but do check
 
-        img1 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/01.png')
+        img1 = Image2D('/E/Sample_images/counter/01.png')
         # img1 = Image2D('D:/dataset1/unseen/focused_Series012.png')
         # img1.setLetter(TAText2D(text="<font face='Comic Sans Ms' size=16 color='blue' >this is a <br>test</font>"))
         # ça ça marche vraiment en fait --> use css to write my text instead of that
@@ -1123,7 +1128,7 @@ if __name__ == '__main__':
         # display:inline; float:left # to display as the same line .... --> does that work html to svg
         # https://stackoverflow.com/questions/10451445/two-div-blocks-on-same-line --> same line for two divs
 
-        img2 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/02.png')
+        img2 = Image2D('/E/Sample_images/counter/02.png')
 
         # crop is functional again but again a packing error
         img2.crop(left=60)
@@ -1135,12 +1140,12 @@ if __name__ == '__main__':
         # now seems ok --> see how to do that with figures/vector graphics ...
         # img2.crop(right=60)
         # img2.crop(bottom=60)
-        img3 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/03.png')
-        img4 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/04.png')
-        img5 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/05.png')
-        img6 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/06.png')
-        img7 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/07.png')
-        img8 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/08.png')
+        img3 = Image2D('/E/Sample_images/counter/03.png')
+        img4 = Image2D('/E/Sample_images/counter/04.png')
+        img5 = Image2D('/E/Sample_images/counter/05.png')
+        img6 = Image2D('/E/Sample_images/counter/06.png')
+        img7 = Image2D('/E/Sample_images/counter/07.png')
+        img8 = Image2D('/E/Sample_images/counter/08.png')
 
         # reference point is the original image and stroke should be constant irrespective of zoom --> most likely need the scaling factor too there
         # reference size is also the underlying original image --> TODO
@@ -1149,8 +1154,8 @@ if __name__ == '__main__':
         # need make the scale rese
         # img8.annotation.append(Ellipse2D(0, 50, 600, 200, stroke=3))
 
-        img9 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/09.png')
-        img10 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/10.png')
+        img9 = Image2D('/E/Sample_images/counter/09.png')
+        img10 = Image2D('/E/Sample_images/counter/10.png')
         # Data for plotting
         import numpy as np
         import matplotlib.pyplot as plt
@@ -1187,7 +1192,7 @@ if __name__ == '__main__':
 
         # self.shapes_to_draw.append(graph2d)
 
-        # img10 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/10.png')
+        # img10 = Image2D('/E/Sample_images/counter/10.png')
         # img2 = Image2D('D:/dataset1/unseen/100708_png06.png')
         # img3 = Image2D('D:/dataset1/unseen/100708_png06.png')
         # img4 = Image2D('D:/dataset1/unseen/100708_png06.png')

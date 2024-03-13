@@ -202,7 +202,7 @@ if __name__ == '__main__':
     hexagon.append(QPointF(10, 20)) # closing the hexagon --> the last and first point should be the same
     print(hexagon.isClosed())  #
 
-    image = QImage('./../data/handCorrection.png')
+    image = QImage('/E/Sample_images/sample_images_PA/mini/focused_Series012/handCorrection.png')
     painter = QPainter()
     painter.begin(image)
     # painter.setOpacity(0.3);
@@ -219,7 +219,7 @@ if __name__ == '__main__':
     # painter.eraseRect(r)
     # painter.restore()
 
-    image.save('./../trash/test_pyQT_draw.png', "PNG");
+    image.save('/E/trash/test_pyQT_draw.png', "PNG");
 
     #pas mal TODO faire une classe drawsmthg qui dessine n'importe quelle forme que l'on lui passe avec des parametres de couleur, transparence, ...
 

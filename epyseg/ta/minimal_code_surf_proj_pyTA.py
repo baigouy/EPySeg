@@ -39,16 +39,7 @@ from epyseg.ta.tracking.tools import smart_name_parser
 # nb in the augs I could also invert the Z axis in fact not because that would lose height
 from epyseg.ta.measurements.measurements3D.height_map_to_projection import surface_projection_from_height_map
 
-
-# TODO I need to test that!!!
-
-# TODO ADD CHANNEL SUPPORT HERE THEN DONE!!
-
-# need get the images processed and to add them to the next list
-
-# TODO --> put the recursion as a parameter and do a code to test all possible combinations to see if any would be better
-
-# can almost reach the best score of CARE with that --> very good in fact --> do flip my flies
+# can almost reach the best score of CARE with that --> very good in fact
 def surface_projection_pyta(deepTA, input_file, progress_callback=None, cur_progress=None, save_raw_image=False,
                             channel=None, recursion_for_denoising=1): # 4 ou 5 --> super good for CARE crappy images # --> 4 is good for CARE with super crappy images  one recursion is better for the other --> only makes sens to increase the nb of recursions if image is noisy otherwise ignore
     if isinstance(input_file, list):

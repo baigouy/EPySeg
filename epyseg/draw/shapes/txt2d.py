@@ -121,7 +121,7 @@ if __name__ == '__main__':
     # print(hexagon.translate(10, 20)) # why none ???
     # translate and so on can all be saved...
 
-    image = QImage('./../data/handCorrection.png')
+    image = QImage('/E/Sample_images/sample_images_PA/mini/focused_Series012/handCorrection.png')
     # image = QImage(QSize(400, 300), QImage.Format_RGB32)
     painter = QPainter()
     painter.begin(image)
@@ -167,8 +167,8 @@ if __name__ == '__main__':
     # painter.setCompositionMode(QtGui.QPainter.CompositionMode_Clear)
     # painter.eraseRect(r)
     # painter.restore()
-    print('saving', './../trash/test_pyQT_draw_text.png')
-    image.save('./../trash/test_pyQT_draw_text.png', "PNG")
+    print('saving', '/E/trash//test_pyQT_draw_text.png')
+    image.save('/E/trash/test_pyQT_draw_text.png', "PNG")
 
 
     # split text and find bounding rect of the stuff --> so that it is well positioned

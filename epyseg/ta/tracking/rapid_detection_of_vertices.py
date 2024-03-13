@@ -299,6 +299,42 @@ def detect_vertices_and_bonds(RGB24_or_lab, detect_bonds=False,
 
     return vertices
 
+# see also https://stackoverflow.com/questions/919612/mapping-two-integers-to-one-in-a-unique-and-deterministic-way
+def _sudzik_pairing(id1, id2, _sort_points=True):
+    """
+    Compute a pairing value for two integer IDs using Sudzik's pairing function.
+
+    Sudzik's pairing function combines two integers (IDs) into a unique value.
+    The function can optionally sort the input IDs before computing the pairing value.
+
+    Parameters:
+    - id1 (int): The first integer ID.
+    - id2 (int): The second integer ID.
+    - _sort_points (bool, optional): If True (default), the input IDs are sorted before pairing.
+
+    Returns:
+    int: The computed pairing value.
+
+    Example:
+    >>> _sudzik_pairing(3, 2)
+    11
+    >>> _sudzik_pairing(2, 3)
+    11
+    >>> _sudzik_pairing(128, 256)
+    65664
+    >>> _sudzik_pairing(256, 128) # I guess I want always the sorted version for my purpose
+    65664
+    >>> _sudzik_pairing(256, 128, _sort_points=False)
+    65920
+    >>> _sudzik_pairing(128, 256, _sort_points=False)
+    65664
+    """
+    if _sort_points and id1 > id2:
+        id2, id1 = id1, id2
+    return id1 * id1 + id1 + id2 if id1 >= id2 else id1 + id2 * id2
+
+# TODO --> extensively test all the cantor and sudzik parirings stuff and move them to color class (maybe always use sudzik, check with big numbers just to see)
+# TODO also add the other color based cantors because this may be very useful !!!
 
 def _cantor_pairing(id1, id2, _sort_points=True):
     """
@@ -315,6 +351,8 @@ def _cantor_pairing(id1, id2, _sort_points=True):
     Examples:
         >>> _cantor_pairing(3, 4)
         31
+        >>> _cantor_pairing(4, 3)
+        31
         >>> _cantor_pairing(10, 5)
         125
     """
@@ -324,6 +362,8 @@ def _cantor_pairing(id1, id2, _sort_points=True):
         x = id2
         y = id1
     return int(((x + y) * (x + y + 1) / 2) + y)
+
+
 
 def _detect_vertices_and_bonds_old_doing_useless_stuff(P, detect_bonds=False, boundary_colors=(0xFFFFFF, 0)):
     if boundary_colors:

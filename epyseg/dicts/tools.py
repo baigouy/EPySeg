@@ -211,6 +211,31 @@ def sort_dict_by_keys(dictionary):
     # Return the sorted dictionary
     return sorted_dict
 
+def sort_dict_by_values(input_dict, ascending=True):
+    """
+    Sort a dictionary by its values in ascending or descending order.
+
+    Args:
+        input_dict (dict): The input dictionary to be sorted.
+        ascending (bool, optional): If True, sort in ascending order; if False, sort in descending order.
+                                   Default is True (ascending).
+
+    Returns:
+        dict: A new dictionary with the same keys but sorted by values based on the specified order.
+
+    Examples:
+        >>> my_dict = {'apple': 3, 'banana': 1, 'cherry': 2}
+        >>> ascending_sorted_dict = sort_dict_by_values(my_dict, ascending=True)
+        >>> descending_sorted_dict = sort_dict_by_values(my_dict, ascending=False)
+        >>> print(ascending_sorted_dict)
+        {'banana': 1, 'cherry': 2, 'apple': 3}
+        >>> print(descending_sorted_dict)
+        {'apple': 3, 'cherry': 2, 'banana': 1}
+    """
+    sorted_dict = dict(sorted(input_dict.items(), key=lambda item: item[1], reverse=not ascending))
+    return sorted_dict
+
+
 if __name__ == '__main__':
 
     if True:

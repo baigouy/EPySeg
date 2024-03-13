@@ -609,8 +609,8 @@ if __name__ == '__main__':
     import sys
 
     if True:
-        # lst = loadlist('/E/Sample_images/sample_images_PA/trash_test_mem/mini_empty/list.lst')
-        lst = loadlist('/E/Sample_images/sample_images_PA/trash_test_mem/mini (copie)/*.png')
+        # lst = loadlist('/E/Sample_images/sample_images_PA/mini_empty/list.lst')
+        lst = loadlist('/E/Sample_images/sample_images_PA/mini (copie)/*.png')
 
         print(lst)
         # match_by_max_overlap_lst(lst, recursive_assignment=False, warp_using_mermaid_if_map_is_available=True) # --> 2.76 secs without recursion

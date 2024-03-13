@@ -41,17 +41,17 @@ class VectorialDrawPane:
             self.shapes.append(Point2D(128, 128, color=0xFF0000, stroke=6))
             self.shapes.append(Point2D(128, 128, color=0x00FF00, stroke=1))
             self.shapes.append(Point2D(10, 10, color=0x000000, stroke=6))
-            img0 = Image2D('./../data/counter/00.png')
-            img1 = Image2D('./../data/counter/01.png')
-            img2 = Image2D('./../data/counter/02.png')
-            img3 = Image2D('./../data/counter/03.png')
-            img4 = Image2D('./../data/counter/04.png')
-            img5 = Image2D('./../data/counter/05.png')
-            img6 = Image2D('./../data/counter/06.png')
-            img7 = Image2D('./../data/counter/07.png')
-            img8 = Image2D('./../data/counter/08.png')
-            img9 = Image2D('./../data/counter/09.png')
-            img10 = Image2D('./../data/counter/10.png')
+            img0 = Image2D('/E/Sample_images/counter/00.png')
+            img1 = Image2D('/E/Sample_images/counter/01.png')
+            img2 = Image2D('/E/Sample_images/counter/02.png')
+            img3 = Image2D('/E/Sample_images/counter/03.png')
+            img4 = Image2D('/E/Sample_images/counter/04.png')
+            img5 = Image2D('/E/Sample_images/counter/05.png')
+            img6 = Image2D('/E/Sample_images/counter/06.png')
+            img7 = Image2D('/E/Sample_images/counter/07.png')
+            img8 = Image2D('/E/Sample_images/counter/08.png')
+            img9 = Image2D('/E/Sample_images/counter/09.png')
+            img10 = Image2D('/E/Sample_images/counter/10.png')
 
             row = img1 + img2 + img10
 
@@ -133,8 +133,8 @@ class VectorialDrawPane:
     def mousePressEvent(self, event):
         if event.button() == QtCore.Qt.LeftButton:
             self.drawing = True
-            self.lastPoint = event.pos() / self.scale
-            self.firstPoint = event.pos() / self.scale
+            self.lastPoint = event.position() / self.scale
+            self.firstPoint = event.position() / self.scale
 
             shapeFound = False
             if self.currently_drawn_shape is None:
@@ -182,12 +182,12 @@ class VectorialDrawPane:
             if self.selected_shape and self.currently_drawn_shape is None:
                 logger.debug('moving' + str(self.selected_shape))
                 for shape in self.selected_shape:
-                    shape.translate(event.pos() / self.scale - self.lastPoint)
+                    shape.translate(event.position() / self.scale - self.lastPoint)
 
         if self.currently_drawn_shape is not None:
             self.currently_drawn_shape.add(self.firstPoint, self.lastPoint)
 
-        self.lastPoint = event.pos() / self.scale
+        self.lastPoint = event.position() / self.scale
 
     def mouseReleaseEvent(self, event):
         if event.button() == QtCore.Qt.LeftButton:

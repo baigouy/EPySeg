@@ -275,6 +275,8 @@ def preview( shapes_to_draw):
 
 if __name__ == '__main__':
 
+    # ça marche mais c'est super slow -> can i make it faster then ???
+
 
     if True:
         # test solving equation
@@ -419,15 +421,15 @@ if __name__ == '__main__':
             from epyseg.figure.column import Column
             from epyseg.figure.row import Row
             # from epyseg.draw.shapes.image2d import Image2D
-            img1 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/00.png')
-            img2 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/01.png')
-            img3 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/02.png')
-            img4 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/03.png')
-            img5 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/04.png')
-            img6 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/05.png')
-            img7 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/06.png')
-            img8 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/07.png')
-            img9 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/08.png')
+            img1 = Image2D('/E/Sample_images/counter/00.png')
+            img2 = Image2D('/E/Sample_images/counter/01.png')
+            img3 = Image2D('/E/Sample_images/counter/02.png')
+            img4 = Image2D('/E/Sample_images/counter/03.png')
+            img5 = Image2D('/E/Sample_images/counter/04.png')
+            img6 = Image2D('/E/Sample_images/counter/05.png')
+            img7 = Image2D('/E/Sample_images/counter/06.png')
+            img8 = Image2D('/E/Sample_images/counter/07.png')
+            img9 = Image2D('/E/Sample_images/counter/08.png')
 
 
             images = [img1, img2, img3, img4]
@@ -811,10 +813,13 @@ if __name__ == '__main__':
 
     # ça marche --> can even preview a single image --> good
     from epyseg.draw.shapes.image2d import Image2D
-    img = Image2D('/E/Sample_images/sample_images_EZF/counter/00.png')
+    img = Image2D('/E/Sample_images/counter/00.png')
     preview(img)
 
 
+
+
+    #
 
 
     # faire un autopanel maybe ???

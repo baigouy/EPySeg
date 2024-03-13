@@ -179,7 +179,7 @@ if __name__ == '__main__':
 
         CHECK_CONCAVE_CELLS_TRIANGULATION = True # maybe not really necessary for epithelial cells but really key for clones
 
-        cells = Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series012/tracked_cells_resized.png')
+        cells = Img('/E/Sample_images/sample_images_PA/mini/focused_Series012/tracked_cells_resized.png')
         cells = RGB_to_int24(cells)
         vertices = detect_vertices_and_bonds(cells)
         vertices = np.where(vertices == 255)
@@ -239,10 +239,10 @@ if __name__ == '__main__':
         heightmap = None # but for a real case this must be done
 
         # triangulate a clone
-        # clone = Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series012/tracked_clone.tif')
-        # clone = Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series012/tracked_clone_003.png')
-        # clone = Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series012/tracked_clone.png')
-        clone = Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series012/tracked_clone_001.png')
+        # clone = Img('/E/Sample_images/sample_images_PA/mini/focused_Series012/tracked_clone.tif')
+        # clone = Img('/E/Sample_images/sample_images_PA/mini/focused_Series012/tracked_clone_003.png')
+        # clone = Img('/E/Sample_images/sample_images_PA/mini/focused_Series012/tracked_clone.png')
+        clone = Img('/E/Sample_images/sample_images_PA/mini/focused_Series012/tracked_clone_001.png')
         # ça marche super --> mettre ce code de partout!!!
 
         clone_id, clone_contour = get_clone_contour(fused_clone=None, unprocessed_clone=clone,

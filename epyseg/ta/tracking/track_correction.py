@@ -166,7 +166,7 @@ if __name__ == "__main__":
     start_all = timer()
 
     # path = '/E/Sample_images/tracking_test'
-    path = '/E/Sample_images/sample_images_PA/trash_test_mem/mini10_fake_swaps/liste.lst'
+    path = '/E/Sample_images/sample_images_PA/mini10_fake_swaps/liste.lst'
     # path = '/E/Sample_images/test_tracking_with_shift' # quick test of the algo
     #
     # images_to_analyze = os.listdir(path)

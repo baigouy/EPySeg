@@ -3,6 +3,7 @@
 # logger
 import os
 from epyseg.settings.global_settings import set_UI # set the UI to be used py qtpy
+from deprecated import deprecated
 set_UI()
 from qtpy.QtCore import QRectF
 
@@ -178,6 +179,35 @@ def updateBoudingRect(*objects):
         return bounding_rect
 
 
+
+packing_modes = ['X','Y']
+
+# new version (cleaner or the packing code!!!)
+def pack(space=3, mode=packing_modes[0], *objects_to_pack): # a cleaned and better version of packX
+    if objects_to_pack is None or len(objects_to_pack) <= 1:
+        logger.warning("Nothing to align...")
+        return
+
+    reference = objects_to_pack[0]
+
+    if mode == packing_modes[1]:
+        last = reference.y()+reference.height() # NB I COULD REPLACE get_P1 with .topleft
+    else:
+        last = reference.x() + reference.width()
+
+    for img in objects_to_pack[1:]:
+            # img = objects_to_pack[i]
+            # if i != 0:
+            last += space
+            if mode == packing_modes[1]:
+                img.setTopLeft(img.x(), last) # here again it could be replaced by setTopLeft
+                last = img.y() + img.height()
+            else:
+                img.setTopLeft(last, img.y())  # here again it could be replaced by setTopLeft
+                last = img.x() + img.width()
+
+
+@deprecated(reason="This method is deprecated and will be removed in the future. Please use 'pack' instead.")
 def packX(space=3, reference=None, *objects_to_align_with_respect_to_ref):
     skip_first = False
     if objects_to_align_with_respect_to_ref is None or len(objects_to_align_with_respect_to_ref) == 0:
@@ -192,8 +222,8 @@ def packX(space=3, reference=None, *objects_to_align_with_respect_to_ref):
             skip_first = True
             # del objects_to_align_with_respect_to_ref[0]
 
-    last_x = reference.get_P1().x()+reference.width()
-    last_y = reference.get_P1().y()
+    last_x = reference.get_P1().x()+reference.width() # NB I COULD REPLACE get_P1 with .topleft
+    # last_y = reference.get_P1().y()
 
     for i in range(len(objects_to_align_with_respect_to_ref)):
             if i == 0 and skip_first:
@@ -205,7 +235,7 @@ def packX(space=3, reference=None, *objects_to_align_with_respect_to_ref):
 
 
             # print('before', last_x, img.boundingRect(), space)
-            img.set_P1(last_x, img.get_P1().y())
+            img.set_P1(last_x, img.get_P1().y()) # here again it could be replaced by setTopLeft
             # print(img.boundingRect(), last_x, img.get_P1().x())
             last_x = img.boundingRect().x() + img.boundingRect().width()
             # print('end', last_x)
@@ -219,7 +249,7 @@ ORIENTATION_BOTTOM_TO_TOP = 1
 
 # need do a code for two orientations --> from top to bottom and reverse --> can be useful to do...
 
-
+@deprecated(reason="This method is deprecated and will be removed in the future. Please use 'pack' instead.")
 def packYreverse(space=3, reference=None, *objects_to_align_with_respect_to_ref):
     skip_first = False
     if objects_to_align_with_respect_to_ref is None or len(objects_to_align_with_respect_to_ref) == 0:
@@ -254,6 +284,8 @@ def packYreverse(space=3, reference=None, *objects_to_align_with_respect_to_ref)
         last_y = img.boundingRect().y()
     # self.updateBoudingRect()
 
+
+@deprecated(reason="This method is deprecated and will be removed in the future. Please use 'pack' instead.")
 def packY(space=3, reference=None, *objects_to_align_with_respect_to_ref):
     skip_first = False
     if objects_to_align_with_respect_to_ref is None or len(objects_to_align_with_respect_to_ref) == 0:
@@ -291,7 +323,72 @@ def packY(space=3, reference=None, *objects_to_align_with_respect_to_ref):
     # align everything with respect to ref
     # get first point and align so that the all have the same x
 
+    # align everything with respect to ref
+    # get first point and align so that the all have the same x
 
+align_positions = ['Top', 'Bottom' ,'Left' , 'Right', 'CenterV', 'CenterH']
+
+# this is the new version of the align code that is not duplicated and so much better
+def align(position=None,*objects_to_align_with_respect_to_ref):
+    if objects_to_align_with_respect_to_ref is None or len(objects_to_align_with_respect_to_ref) <=1:
+        logger.warning("Nothing to align...")
+        return
+
+    reference = objects_to_align_with_respect_to_ref[0]
+    # TOD REPLACE BY A SWITCH --> somehow switch does not work with external variable --> maybe try still
+
+    if position == align_positions[0] or position==None:
+        last_y = reference.y()
+    elif position == align_positions[1]:
+        last_y = reference.y() + reference.height()
+    elif position == align_positions[2]:
+        last_x = reference.x()
+    elif position == align_positions[3]:
+        last_x = reference.x()+reference.width()
+    elif position == align_positions[4]:
+        last_y = reference.y() + reference.height() / 2.  # should be the end point of every stuff
+    elif position == align_positions[5]:
+        last_x = reference.x() + reference.width() / 2.
+    else:
+        pass
+    for img in objects_to_align_with_respect_to_ref[1:]:
+        if position == align_positions[0] or position==None:
+            img.setTopLeft(img.x(), last_y)
+        elif position == align_positions[1]:
+            pos_y = img.y() + img.height()
+            difference_y = last_y - pos_y
+            img.setTopLeft(img.x(), img.y() + difference_y)
+        elif position == align_positions[2]:
+            img.setTopLeft(last_x, img.y())
+        elif position == align_positions[3]:
+            pos_x = img.x() + img.width()
+            difference_x = last_x - pos_x
+            img.setTopLeft(img.x() + difference_x, img.y())
+        elif position == align_positions[4]:
+            pos_y = img.y() + img.height() / 2.
+            difference_y = last_y - pos_y
+            img.setTopLeft(img.x(), img.y() + difference_y)
+        elif position == align_positions[5]:
+            pos_x = img.x() + img.width() / 2.
+            difference_x = last_x - pos_x
+            img.setTopLeft(img.x() + difference_x, img.y())
+        else:
+            pass
+
+        # match position:
+        #     case align_positions[0]:
+        #         pass
+        #     case align_positions[1]:
+        #         pass
+        #     case pattern-3:
+        #         pass
+        #     case _:
+        #         pass
+
+
+
+
+@deprecated(reason="This method is deprecated and will be removed in the future. Please use 'align' instead.")
 def alignLeft(reference=None, *objects_to_align_with_respect_to_ref):
     skip_first = False
     if objects_to_align_with_respect_to_ref is None or len(objects_to_align_with_respect_to_ref) == 0:
@@ -324,10 +421,7 @@ def alignLeft(reference=None, *objects_to_align_with_respect_to_ref):
     # self.updateBoudingRect()
 
 
-    # align everything with respect to ref
-    # get first point and align so that the all have the same x
-
-
+@deprecated(reason="This method is deprecated and will be removed in the future. Please use 'align' instead.")
 def alignTop(reference=None, *objects_to_align_with_respect_to_ref):
     skip_first = False
     if objects_to_align_with_respect_to_ref is None or len(objects_to_align_with_respect_to_ref) == 0:
@@ -364,6 +458,7 @@ def alignTop(reference=None, *objects_to_align_with_respect_to_ref):
     # get first point and align so that the all have the same x
 
 
+@deprecated(reason="This method is deprecated and will be removed in the future. Please use 'align' instead.")
 def alignBottom(reference=None, *objects_to_align_with_respect_to_ref):
     skip_first = False
     if objects_to_align_with_respect_to_ref is None or len(objects_to_align_with_respect_to_ref) == 0:
@@ -403,6 +498,7 @@ def alignBottom(reference=None, *objects_to_align_with_respect_to_ref):
     # get first point and align so that the all have the same x
 
 
+@deprecated(reason="This method is deprecated and will be removed in the future. Please use 'align' instead.")
 # bug here now with the images
 def alignRight(reference=None, *objects_to_align_with_respect_to_ref):
     skip_first = False
@@ -442,6 +538,7 @@ def alignRight(reference=None, *objects_to_align_with_respect_to_ref):
     # get first point and align so that the all have the same x
 
 
+@deprecated(reason="This method is deprecated and will be removed in the future. Please use 'align' instead.")
 def alignCenterH(reference=None, *objects_to_align_with_respect_to_ref):
     skip_first = False
     if objects_to_align_with_respect_to_ref is None or len(objects_to_align_with_respect_to_ref) == 0:
@@ -479,6 +576,7 @@ def alignCenterH(reference=None, *objects_to_align_with_respect_to_ref):
     # align everything with respect to ref
     # get first point and align so that the all have the same x
 
+@deprecated(reason="This method is deprecated and will be removed in the future. Please use 'align' instead.")
 def alignCenterV(reference=None, *objects_to_align_with_respect_to_ref):
     skip_first = False
     if objects_to_align_with_respect_to_ref is None or len(objects_to_align_with_respect_to_ref) == 0:
@@ -512,43 +610,3 @@ def alignCenterV(reference=None, *objects_to_align_with_respect_to_ref):
         # last_x = img.boundingRect().x() + img.boundingRect().width()
         # last_y = img.boundingRect().y() + img.boundingRect().height()
     # self.updateBoudingRect()
-
-
-    # align everything with respect to ref
-    # get first point and align so that the all have the same x
-#
-# def alignRight(reference=None, *objects_to_align_with_respect_to_ref):
-#     skip_first = False
-#     if objects_to_align_with_respect_to_ref is None or len(objects_to_align_with_respect_to_ref) == 0:
-#         logger.warning("Nothing to align...")
-#         return
-#     if reference is None:
-#         if len(objects_to_align_with_respect_to_ref) < 2:
-#             logger.warning("Reference is None, can't align anything...")
-#             return
-#         else:
-#             reference = objects_to_align_with_respect_to_ref[0]
-#             skip_first = True
-#             # del objects_to_align_with_respect_to_ref[0]
-#
-#     last_x = reference.get_P1().x()
-#     # last_y = reference.get_P1().y()
-#
-#     for i in range(len(objects_to_align_with_respect_to_ref)):
-#         if i==0 and skip_first:
-#             continue
-#         img = objects_to_align_with_respect_to_ref[i]
-#
-#         img.set_P1(last_x, img.get_P1().y())
-#         # get all the bounding boxes and pack them with desired space in between
-#         # get first point and last point in x
-#         # x = img.boundingRect().x()
-#         # y = img.boundingRect().y()
-#         # last_x = img.boundingRect().x() + img.boundingRect().width()
-#         # last_y = img.boundingRect().y() + img.boundingRect().height()
-#     # self.updateBoudingRect()
-#
-#
-#     # align everything with respect to ref
-#     # get first point and align so that the all have the same x
-

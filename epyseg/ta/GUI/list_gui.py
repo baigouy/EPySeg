@@ -25,13 +25,14 @@ __DEBUG__ = True
 IMAGES_2D = ['.tif', '.tiff', '.jpg', '.jpeg', '.png', '.tga', '.bmp']
 STACKS = ['.tif', '.tiff', '.lif', '.czi', '.lif', '.lsm']
 LISTS = ['.lst', '.txt']
+FASTA = ['.fa','.fna','.fasta']
 PYTA_DEFAULT = IMAGES_2D + LISTS
 
 
 class ListGUI(QWidget):
 
     # TODO define supported formats --> TODO
-    def __init__(self, parent=None, file_to_load=None, supported_files=None):
+    def __init__(self, parent=None, file_to_load=None, supported_files=None, custom_label='Please Drag and Drop files below:', default_double_click_behaviour='full_no_ext', enable_folder_DND=True):
         super().__init__(parent)
         self.list = QListWidget(self)  # a list that contains files to read or play with
         self.list.setSelectionMode(QAbstractItemView.ExtendedSelection)
@@ -39,8 +40,11 @@ class ListGUI(QWidget):
 
         self.list.itemDoubleClicked.connect(self.open_corresponding_folder)
 
+        self.enable_folder_DND = enable_folder_DND
+        self.default_double_click_behaviour = default_double_click_behaviour
+
         layout = QVBoxLayout()
-        lab = QLabel('Please Drag and Drop files below:')
+        lab = QLabel(custom_label)
         layout.addWidget(lab)
         layout.addWidget(self.list)
 
@@ -51,7 +55,6 @@ class ListGUI(QWidget):
 
         # status_bar = QStatusBar()
         # layout.addWidget(status_bar)
-
         self.list_commands()
 
         if file_to_load is not None:
@@ -72,7 +75,7 @@ class ListGUI(QWidget):
 
     def open_corresponding_folder(self, double_clicked_item):
         try:
-            self.open_folder(smart_name_parser(double_clicked_item.toolTip(), ordered_output=['full_no_ext'])[0])
+            self.open_folder(smart_name_parser(double_clicked_item.toolTip(), ordered_output=[self.default_double_click_behaviour])[0]) #'full_no_ext'
         except:
             # no big deal if it fails
             pass
@@ -267,7 +270,6 @@ class ListGUI(QWidget):
             urls = []
             for url in event.mimeData().urls():
                 urls.append(url.toLocalFile())
-
             # add all dropped items to the list
             for url in urls:
                 # item = QListWidgetItem(os.path.basename(url), self.list)
@@ -305,7 +307,14 @@ class ListGUI(QWidget):
         else:
             print('Non supported, cannot be added to list', files)
 
+    def list_files_in_directory(self, directory_path):
+        files = [os.path.join(directory_path,f) for f in os.listdir(directory_path) if os.path.isfile(os.path.join(directory_path, f))]
+        # print(files)
+        return files
+
     def add_file_to_list_if_supported(self, file):
+
+        # print('checking if supported', file)
         if self.is_file_supported(file) and os.path.isfile(file):
             ext = smart_name_parser(file, ordered_output=['ext'])[0].lower()
             if ext in LISTS:
@@ -313,6 +322,11 @@ class ListGUI(QWidget):
                 return self.add_to_list(TA_list_of_files, check_if_supported=True)
             else:
                 self.add_file_to_list_no_check(file)
+        elif self.enable_folder_DND and os.path.isdir(file):
+            files = self.list_files_in_directory(file)
+            for file in files:
+                self.add_file_to_list_if_supported(file)
+
 
     def get_full_list(self):
         # return the complete list of files

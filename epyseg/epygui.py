@@ -43,7 +43,7 @@ DEBUG = False  # set to True if GUI crashes
 logger = TA_logger()
 
 from qtpy.QtCore import PYQT_VERSION_STR
-if PYQT_VERSION_STR<'6':
+if PYQT_VERSION_STR < '6':
     # get code ready for pyqt6 where hi dpi is enabled by default
     try:
         QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)  # high DPI fix
@@ -2022,9 +2022,10 @@ class EPySeg(QWidget):
             predict_parameters = self.get_predict_parameters()
 
         try:
-            logger.debug('predict_parameters' + str(predict_parameters))
+            logger.info('predict_parameters:\n' + str(predict_parameters))
         except:
             pass
+
 
         # if predict parameters is None
         if predict_parameters['inputs'] == None or predict_parameters['inputs'] == [None]:

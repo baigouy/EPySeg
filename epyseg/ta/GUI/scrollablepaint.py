@@ -964,8 +964,8 @@ if __name__ == '__main__':
 
         w = scrollable_paint(
             custom_paint_panel=overriding_apply())  # ça marche --> permet de mettre des paint panels avec des proprietes particulieres --> assez facile en fait
-        # w.set_image('/E/Sample_images/sample_images_PA/trash_test_mem/mini (copie)/focused_Series012.png')
-        # w.set_mask('/E/Sample_images/sample_images_PA/trash_test_mem/mini (copie)/focused_Series012/handCorrection.png')
+        # w.set_image('/E/Sample_images/sample_images_PA/mini (copie)/focused_Series012.png')
+        # w.set_mask('/E/Sample_images/sample_images_PA/mini (copie)/focused_Series012/handCorrection.png')
         # w.set_image('/E/Sample_images/sample_images_PA/test_complete_wing_raphael/Optimized_projection_018.png')
         # w.set_mask('/E/Sample_images/sample_images_PA/test_complete_wing_raphael/neo_mask.tif')
 
@@ -1109,8 +1109,8 @@ if __name__ == '__main__':
 
         w = scrollable_paint(
             custom_paint_panel=test)  # ça marche --> permet de mettre des paint panels avec des proprietes particulieres --> assez facile en fait
-        # w.set_image('/E/Sample_images/sample_images_PA/trash_test_mem/mini (copie)/focused_Series012.png')
-        # w.set_mask('/E/Sample_images/sample_images_PA/trash_test_mem/mini (copie)/focused_Series012/handCorrection.png')
+        # w.set_image('/E/Sample_images/sample_images_PA/mini (copie)/focused_Series012.png')
+        # w.set_mask('/E/Sample_images/sample_images_PA/mini (copie)/focused_Series012/handCorrection.png')
         # w.set_image('/E/Sample_images/sample_images_PA/test_complete_wing_raphael/Optimized_projection_018.png')
         # w.set_mask('/E/Sample_images/sample_images_PA/test_complete_wing_raphael/neo_mask.tif')
 

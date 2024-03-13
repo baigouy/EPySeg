@@ -51,12 +51,12 @@ def get_voxel_size(db_path):
         # Examples:
         #     If the 'voxel_size' table in the 'example.db' database file contains the values (1.0, 2.0, 3.0), then:
         #
-        #     >>> get_voxel_size('/E/Sample_images/Sample_transcription_dot_detection/manue_manually_segmented_images/training_set/tests/full_real_analysis_tst1/Coloc X2 2048/230314 Coloc X2 ZH-2A m 2048_2023_03_14__17_43_51(1)/FISH.db')
+        #     >>> get_voxel_size('/E/Sample_images/FISH/Sample_transcription_dot_detection/manue_manually_segmented_images/training_set/tests/full_real_analysis_tst1/Coloc X2 2048/230314 Coloc X2 ZH-2A m 2048_2023_03_14__17_43_51(1)/FISH.db')
         #     [1.0, 2.0, 3.0]
         #
         #     If the 'voxel_size' table does not exist in the database file:
         #
-        #     >>> get_voxel_size('/E/Sample_images/Sample_transcription_dot_detection/manue_manually_segmented_images/training_set/tests/full_real_analysis_tst1/Coloc X2 2048/230314 Coloc X2 ZH-2A m 2048_2023_03_14__17_43_51(1)/FISH.db')
+        #     >>> get_voxel_size('/E/Sample_images/FISH/Sample_transcription_dot_detection/manue_manually_segmented_images/training_set/tests/full_real_analysis_tst1/Coloc X2 2048/230314 Coloc X2 ZH-2A m 2048_2023_03_14__17_43_51(1)/FISH.db')
         #     None
         #
         #     If the database file does not exist:
@@ -821,13 +821,13 @@ def palette2DB(table_name, palette):
 if __name__ == '__main__':
 
     if True:
-        set_voxel_size('/E/Sample_images/Sample_transcription_dot_detection/manue_manually_segmented_images/training_set/tests/full_real_analysis_tst1/Coloc X2 2048/230314 Coloc X2 ZH-2A m 2048_2023_03_14__17_43_51(1)/FISH.db', (14,15,16))
+        set_voxel_size('/E/Sample_images/FISH/Sample_transcription_dot_detection/manue_manually_segmented_images/training_set/tests/full_real_analysis_tst1/Coloc X2 2048/230314 Coloc X2 ZH-2A m 2048_2023_03_14__17_43_51(1)/FISH.db', (14,15,16))
         import sys
         sys.exit(0)
 
     if True:
         voxel_size =get_voxel_size(
-            '/E/Sample_images/Sample_transcription_dot_detection/manue_manually_segmented_images/training_set/tests/full_real_analysis_tst1/Coloc X2 2048/230314 Coloc X2 ZH-2A m 2048_2023_03_14__17_43_51(1)/FISH.db')
+            '/E/Sample_images/FISH/Sample_transcription_dot_detection/manue_manually_segmented_images/training_set/tests/full_real_analysis_tst1/Coloc X2 2048/230314 Coloc X2 ZH-2A m 2048_2023_03_14__17_43_51(1)/FISH.db')
         print(voxel_size)
         print(voxel_size[0]*2)
 

@@ -123,9 +123,9 @@ if __name__ == '__main__':
         from epyseg.ta.tracking.tools import smart_name_parser
         from epyseg.utils.loadlist import list_processor, loadlist
 
-        img_path = '/E/Sample_images/adult_wings/N01_YwrGal4_males_wing0_projected.png'
+        img_path = '/E/Sample_images/wings/adult_wings/N01_YwrGal4_males_wing0_projected.png'
         save = partial(save_as_tiff, output_name=smart_name_parser(
-            '/E/Sample_images/adult_wings/N01_YwrGal4_males_wing0_projected_inverted.tif', 'full_no_ext') + '.tif')
+            '/E/Sample_images/wings/adult_wings/N01_YwrGal4_males_wing0_projected_inverted.tif', 'full_no_ext') + '.tif')
 
         chained_functions = [Img, invert, elastic_deform, save]
         print('chained functions', chained_functions)
@@ -140,7 +140,7 @@ if __name__ == '__main__':
 
 
         # see if I can MT that
-        lst = loadlist('/E/Sample_images/sample_images_PA/trash_test_mem/mini_empty/list.lst')
+        lst = loadlist('/E/Sample_images/sample_images_PA/mini_empty/list.lst')
         def output_file_name(input_file_name):
             return smart_name_parser(
                 input_file_name, 'full_no_ext') + 'inverted2.tif'

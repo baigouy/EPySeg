@@ -410,7 +410,7 @@ if __name__ == "__main__":
         sys.exit(0)
 
     if True:
-        handcorrection = Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series012/handCorrection.tif')
+        handcorrection = Img('/E/Sample_images/sample_images_PA/mini/focused_Series012/handCorrection.tif')
         handcorrection = label(handcorrection, connectivity=1, background=255)
         rps = regionprops(handcorrection) # , extra_properties=[compute_stretch_nematic_regionprops_extra] --> marche pas car il m'envoir juste un mask et ça ne m'interesse pas...
 

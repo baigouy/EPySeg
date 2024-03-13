@@ -28,10 +28,12 @@ setuptools.setup(
     install_requires=[
         # "tensorflow>=2.0.0",  # to allow for mac OS X conda support #shall I put 2.3 now
         # "tensorflow-gpu>=2.0.0;platform_system!='Darwin'",
-        "tensorflow>=2.3.1", # pb 2.3.1 is not supported in python 3.8 and there is a pb accessing the layers --> I need a fix but maybe ok for now # I have a modulewrapper bug with tf 2.7.1 --> so until I understand it I will rely on that version TODO should I add ;platform_system=='Darwin' ? --> try it # to allow for mac OS X conda support #shall I put 2.3 now # current collab version is 2.8
+        # "tensorflow>=2.3.1", # pb 2.3.1 is not supported in python 3.8 and there is a pb accessing the layers --> I need a fix but maybe ok for now # I have a modulewrapper bug with tf 2.7.1 --> so until I understand it I will rely on that version TODO should I add ;platform_system=='Darwin' ? --> try it # to allow for mac OS X conda support #shall I put 2.3 now # current collab version is 2.8
+        "tensorflow<2.16.0", # somehow tf 2.16 has a pb!!! # pb 2.3.1 is not supported in python 3.8 and there is a pb accessing the layers --> I need a fix but maybe ok for now # I have a modulewrapper bug with tf 2.7.1 --> so until I understand it I will rely on that version TODO should I add ;platform_system=='Darwin' ? --> try it # to allow for mac OS X conda support #shall I put 2.3 now # current collab version is 2.8
+        # "tensorflow==2.15.0", # somehow tf 2.16 has a pb!!! # pb 2.3.1 is not supported in python 3.8 and there is a pb accessing the layers --> I need a fix but maybe ok for now # I have a modulewrapper bug with tf 2.7.1 --> so until I understand it I will rely on that version TODO should I add ;platform_system=='Darwin' ? --> try it # to allow for mac OS X conda support #shall I put 2.3 now # current collab version is 2.8
         # "tensorflow-gpu>=2.3.1;platform_system!='Darwin'", # tensorflow-gpu==2.3.1 # do I still need to exclude macOS??? --> pb is old macs maybe # apparently this line is useless now and there is no point in having it because tensorflow uses the gpu by default if it's there and properly congigured !
         "segmentation-models==1.0.1",
-        # "tensorflow-gpu>=2.0.0", # not required ? # make sure it does not install on OS X to prevent crash if does not exist
+        # "tensorflow-gpu>=2.0.0", # not required ? # make sure it does not install on OS X to prevent crash if does not exist # tf-gpu seems deprecated anyways...
         "czifile",
         # "h5py", # should be installed with tensorflow gpu so do I need it ??? # probably better to remove it to avoid intsalling erroneous versions that are incompatible with tensorflow... similarly do I really need to have numpy it will be installed with tf anyways??? --> just try
         "Markdown",
@@ -61,6 +63,7 @@ setuptools.setup(
         "prettytable", # for SQL preview in pyTA
         "pyperclip", # for pyta lists
         "QtPy>=2.1.0", # from now on this is how I would handle the pyqt/pyside integration
+        "deprecated",
         # "aicsimageio", # new library t oread czi files (or any file maybe ????)--> replace my entire Img library ???
         # "aicspylibczi>=3.0.5", # required for the above to read czi files !!!
         # "pylibczi", # deprecated --> replaced by the 2 above --> DO NOT USE

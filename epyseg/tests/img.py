@@ -12,14 +12,14 @@ import numpy as np
 class TestImgs(unittest.TestCase):
 
     def test_open_local_img(self):
-        tmp = Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series012.png')
+        tmp = Img('/E/Sample_images/sample_images_PA/mini/focused_Series012.png')
         self.assertIsInstance(tmp, Img)
         self.assertIsInstance(tmp, np.ndarray)
         self.assertEqual(tmp.get_dimensions_as_string(),'hwc')
         # self.assertEqual(tmp.get_dimensions_as_string(),'dhwc')
 
     def test_open_image_series(self):
-        img = Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini_asym/*.png')
+        img = Img('/E/Sample_images/sample_images_PA/mini_asym/*.png')
         self.assertEqual(img.shape, (6, 312, 512, 3)) # h=312
 
     def test_invert(self):

@@ -294,8 +294,8 @@ if __name__ == '__main__':
         plt.show()
     # test default wshed
     if False:
-        # img = Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series012.png')[...,1]
-        # img = Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series012.png')
+        # img = Img('/E/Sample_images/sample_images_PA/mini/focused_Series012.png')[...,1]
+        # img = Img('/E/Sample_images/sample_images_PA/mini/focused_Series012.png')
         img = Img('/E/Sample_images/sample_images_PA/test_complete_wing_raphael/Optimized_projection_018.png')[
             ..., 1]  # 27.9 secs --> maybe not so bad secs per image --> slow
         start = timer()

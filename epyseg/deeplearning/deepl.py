@@ -5,6 +5,7 @@ from epyseg.postprocess.refine_v2 import RefineMaskUsingSeeds
 from epyseg.tools.early_stopper_class import early_stop
 
 os.environ['SM_FRAMEWORK'] = 'tf.keras'  # set env var for changing the segmentation_model framework
+os.environ['TF_GPU_ALLOCATOR'] = 'cuda_malloc_async' # apparently this helps with more recent versions of tf  --> give it a try
 import traceback
 import matplotlib.pyplot as plt
 from epyseg.img import Img, reassemble_tiles, linear_to_2D_tiles
@@ -929,7 +930,7 @@ class EZDeepLearning:
         shapes = []
         inputs = self._get_inputs()
         for input in inputs:
-            shape = input.shape.as_list()
+            shape = list(input.shape) #.as_list() # bug fix tf 2.16
             if remove_batch_size_from_shape:
                 shape = shape[1:]
             shapes.append(tuple(shape))
@@ -953,7 +954,7 @@ class EZDeepLearning:
         outputs = self._get_outputs()
 
         for output in outputs:
-            shape = output.shape.as_list()
+            shape = list(output.shape) # .as_list() # bug fix tf 2.16
             if remove_batch_size_from_shape:
                 shape = shape[1:]
             shapes.append(tuple(shape))
@@ -1037,7 +1038,8 @@ class EZDeepLearning:
                               tile_height_overlap=32,
                               input_normalization={'method': 'Rescaling (min-max normalization)', 'range': [0, 1],
                                                    'individual_channels': True},
-                              clip_by_frequency=0.05, **kwargs):
+                              clip_by_frequency=0.05,
+                              **kwargs):
 
         '''retruns a predict generator used by models for their predictions
 
@@ -2429,7 +2431,10 @@ class EZDeepLearning:
         if self.model is None:
             logger.error("Model not loaded, can't check its compilation status...")
             return False
-        return self.model.optimizer is not None
+        try: # bug fix for tf 2.16 when the model has no optimizer
+            return self.model.optimizer is not None
+        except:
+            return False
 
     def get_loaded_model_params(self):
         '''prints model optimizer and its parameters

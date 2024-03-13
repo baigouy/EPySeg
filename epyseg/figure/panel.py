@@ -504,11 +504,11 @@ class Panel(Rect2D):
 if __name__ == '__main__':
     from epyseg.draw.shapes.image2d import Image2D  # KEEP Really required to avoid circular imports
 
-    img0 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/00.png')
+    img0 = Image2D('/E/Sample_images/counter/00.png')
     # img0.setLetter(TAText2D(
     #     text='<p style="text-align:left;color: yellow">This text is left aligned <span style="float:right;font-style: italic;font-size: 8pt;"> This text is right aligned </span><span style="float:right;font-size: 4pt;color:red"> This text is another text </span></p>'))
 
-    img1 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/01.png')
+    img1 = Image2D('/E/Sample_images/counter/01.png')
     # img1 = Image2D('D:/dataset1/unseen/focused_Series012.png')
     # img1.setLetter(TAText2D(text="<font face='Comic Sans Ms' size=16 color='blue' >this is a <br>test</font>"))
     # ça ça marche vraiment en fait --> use css to write my text instead of that
@@ -528,17 +528,17 @@ if __name__ == '__main__':
     # display:inline; float:left # to display as the same line .... --> does that work html to svg
     # https://stackoverflow.com/questions/10451445/two-div-blocks-on-same-line --> same line for two divs
 
-    img2 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/02.png')
-    img3 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/03.png')
-    img4 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/04.png')
-    img5 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/05.png')
-    img6 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/06.png')
-    img7 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/07.png')
-    img8 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/08.png')
-    img9 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/09.png')
-    img10 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/10.png')
+    img2 = Image2D('/E/Sample_images/counter/02.png')
+    img3 = Image2D('/E/Sample_images/counter/03.png')
+    img4 = Image2D('/E/Sample_images/counter/04.png')
+    img5 = Image2D('/E/Sample_images/counter/05.png')
+    img6 = Image2D('/E/Sample_images/counter/06.png')
+    img7 = Image2D('/E/Sample_images/counter/07.png')
+    img8 = Image2D('/E/Sample_images/counter/08.png')
+    img9 = Image2D('/E/Sample_images/counter/09.png')
+    img10 = Image2D('/E/Sample_images/counter/10.png')
 
-    # img10 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/10.png')
+    # img10 = Image2D('/E/Sample_images/counter/10.png')
     # img2 = Image2D('D:/dataset1/unseen/100708_png06.png')
     # img3 = Image2D('D:/dataset1/unseen/100708_png06.png')
     # img4 = Image2D('D:/dataset1/unseen/100708_png06.png')
@@ -596,10 +596,10 @@ if __name__ == '__main__':
 
     panel2.setToWidth(128)
 
-    # img1 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/00.png')
-    # img2 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/01.png')
-    # img3 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/02.png')
-    # img4 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/03.png')
+    # img1 = Image2D('/E/Sample_images/counter/00.png')
+    # img2 = Image2D('/E/Sample_images/counter/01.png')
+    # img3 = Image2D('/E/Sample_images/counter/02.png')
+    # img4 = Image2D('/E/Sample_images/counter/03.png')
 
     # panel = Panel(img1, img2)
     print('last', panel2.boundingRect(), panel2.boundingRect().height())
@@ -657,8 +657,8 @@ if __name__ == '__main__':
 
     # si je divide une row alors ça ajoute une colonne à la figure --> return 2 rows in a figure
 
-    img5 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/04.png')
-    img6 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/05.png')
+    img5 = Image2D('/E/Sample_images/counter/04.png')
+    img6 = Image2D('/E/Sample_images/counter/05.png')
 
     fig = img5 / img6  # --> could create a panel vertical containing two stuff
 
@@ -678,10 +678,10 @@ if __name__ == '__main__':
     # print(final_fig.rows)
     # print(len(final_fig.rows))
 
-    img8 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/06.png')
-    img9 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/07.png')
-    img10 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/08.png')
-    img11 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/09.png')
+    img8 = Image2D('/E/Sample_images/counter/06.png')
+    img9 = Image2D('/E/Sample_images/counter/07.png')
+    img10 = Image2D('/E/Sample_images/counter/08.png')
+    img11 = Image2D('/E/Sample_images/counter/09.png')
 
     # fig = (img8 + img9) / (img10 + img11)
     # print(fig)

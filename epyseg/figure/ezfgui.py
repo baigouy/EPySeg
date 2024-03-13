@@ -644,10 +644,10 @@ if __name__ == '__main__':
         shapes_to_draw.append(Point2D(128, 128, color=0x00FF00, stroke=0.65))
         shapes_to_draw.append(Point2D(10, 10, color=0x000000, fill_color=0x00FFFF, stroke=3))
         shapes_to_draw.append(Rect2D(0, 0, 512, 512, color=0xFF00FF, stroke=6))
-        img0 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/00.png')
-        inset = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/01.png')
-        inset2 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/01.png')
-        inset3 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/01.png')
+        img0 = Image2D('/E/Sample_images/counter/00.png')
+        inset = Image2D('/E/Sample_images/counter/01.png')
+        inset2 = Image2D('/E/Sample_images/counter/01.png')
+        inset3 = Image2D('/E/Sample_images/counter/01.png')
         scale_bar = ScaleBar(30, '<font color="#FF00FF">10µm</font>')
         scale_bar.set_P1(0, 0)
         img0.add_object(scale_bar, Image2D.TOP_LEFT)
@@ -661,7 +661,7 @@ if __name__ == '__main__':
         img0.annotation.append(Line2D(33, 33, 88, 88, stroke=3, color=0x0000FF))
         img0.annotation.append(Freehand2D(10, 10, 20, 10, 20, 30, 288, 30, color=0xFFFF00, stroke=3))
         img0.annotation.append(Point2D(128, 128, color=0xFFFF00, stroke=6))
-        img1 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/01.png')
+        img1 = Image2D('/E/Sample_images/counter/01.png')
         test_text = '''
         </style></head><body style=" font-family:'Comic Sans MS'; font-size:22pt; font-weight:400; font-style:normal;">
         <p style="color:#00ff00;"><span style=" color:#ff0000;">toto</span><br />tu<span style=" vertical-align:super;">tu</span></p>
@@ -671,21 +671,21 @@ if __name__ == '__main__':
         # span div et p donnent la meme chose par contre c'est sur deux lignes
         # display:inline; float:left # to display as the same line .... --> does that work html to svg
         # https://stackoverflow.com/questions/10451445/two-div-blocks-on-same-line --> same line for two divs
-        img2 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/02.png')
+        img2 = Image2D('/E/Sample_images/counter/02.png')
         # crop is functional again but again a packing error
         img2.crop(left=60)
         img2.crop(right=30)
         img2.crop(bottom=90)
         img2.crop(top=60)
-        img3 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/03.png')
-        img4 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/04.png')
-        img5 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/05.png')
-        img6 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/06.png')
-        img7 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/07.png')
-        img8 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/08.png')
+        img3 = Image2D('/E/Sample_images/counter/03.png')
+        img4 = Image2D('/E/Sample_images/counter/04.png')
+        img5 = Image2D('/E/Sample_images/counter/05.png')
+        img6 = Image2D('/E/Sample_images/counter/06.png')
+        img7 = Image2D('/E/Sample_images/counter/07.png')
+        img8 = Image2D('/E/Sample_images/counter/08.png')
         img8.annotation.append(Rect2D(60, 60, 100, 100, stroke=20, color=0xFF00FF))
-        img9 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/09.png')
-        img10 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/10.png')
+        img9 = Image2D('/E/Sample_images/counter/09.png')
+        img10 = Image2D('/E/Sample_images/counter/10.png')
         import numpy as np
         import matplotlib.pyplot as plt
         t = np.arange(0.0, 2.0, 0.01)

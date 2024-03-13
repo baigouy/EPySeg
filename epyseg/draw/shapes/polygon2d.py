@@ -67,7 +67,11 @@ class Polygon2D(QPolygonF):
         return points
 
     def contains(self, *args):
-        return self.containsPoint(*args, 0)
+        if len(args)!=1:
+            point = QPointF(float(args[0]),float(args[1]))
+            return self.containsPoint(point, Qt.OddEvenFill)
+        else:
+            return self.containsPoint(args[0], Qt.OddEvenFill)
 
     def draw(self, painter, draw=True):
         if self.color is None and self.fill_color is None:
@@ -235,7 +239,7 @@ if __name__ == '__main__':
     # print(hexagon.translate(10, 20)) # why none ???
     # translate and so on can all be saved...
 
-    image = QImage('./../data/handCorrection.png')
+    image = QImage('/E/Sample_images/sample_images_PA/mini/focused_Series012/handCorrection.png')
     painter = QPainter()
     painter.begin(image)
     # painter.setOpacity(0.3);
@@ -252,7 +256,7 @@ if __name__ == '__main__':
     # painter.eraseRect(r)
     # painter.restore()
 
-    image.save('./../trash/test_pyQT_draw.png', "PNG");
+    image.save('/E/trash/test_pyQT_draw.png', "PNG");
 
     #pas mal TODO faire une classe drawsmthg qui dessine n'importe quelle forme que l'on lui passe avec des parametres de couleur, transparence, ...
 

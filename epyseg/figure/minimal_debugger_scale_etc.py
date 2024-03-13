@@ -2,6 +2,12 @@
 # shall I assume all rects are rects or shall I allow rotation
 # still need assume everything is packed
 # --> think about that ???
+
+
+# the selection is not good
+# can one use words for that
+
+
 from epyseg.draw.shapes.image2d import Image2D
 from epyseg.figure.alignment import packX
 from epyseg.figure.column import Column
@@ -10,16 +16,16 @@ from epyseg.figure.row import Row
 from timeit import default_timer as timer
 
 
-img1 = Image2D('/E/Sample_images/sample_images_EZF/counter/00.png')
-img2 = Image2D('/E/Sample_images/sample_images_EZF/counter/01.png')
-img3 = Image2D('/E/Sample_images/sample_images_EZF/counter/02.png')
-img4 = Image2D('/E/Sample_images/sample_images_EZF/counter/03.png')
-img5 = Image2D('/E/Sample_images/sample_images_EZF/counter/04.png')
-img6 = Image2D('/E/Sample_images/sample_images_EZF/counter/05.png')
-img7 = Image2D('/E/Sample_images/sample_images_EZF/counter/06.png')
-img8 = Image2D('/E/Sample_images/sample_images_EZF/counter/07.png')
-img9 = Image2D('/E/Sample_images/sample_images_EZF/counter/08.png')
-img10 = Image2D('/E/Sample_images/sample_images_EZF/counter/09.png')
+img1 = Image2D('/E/Sample_images/counter/00.png')
+img2 = Image2D('/E/Sample_images/counter/01.png')
+img3 = Image2D('/E/Sample_images/counter/02.png')
+img4 = Image2D('/E/Sample_images/counter/03.png')
+img5 = Image2D('/E/Sample_images/counter/04.png')
+img6 = Image2D('/E/Sample_images/counter/05.png')
+img7 = Image2D('/E/Sample_images/counter/06.png')
+img8 = Image2D('/E/Sample_images/counter/07.png')
+img9 = Image2D('/E/Sample_images/counter/08.png')
+img10 = Image2D('/E/Sample_images/counter/09.png')
 
 if False:
     row1 = Row(img1, img2)

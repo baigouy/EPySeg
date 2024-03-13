@@ -17,7 +17,7 @@ class ClickableTextEdit(QTextEdit):
 
     def mousePressEvent(self, event):
         super().mousePressEvent(event)
-        cursor = self.cursorForPosition(event.pos())
+        cursor = self.cursorForPosition(event.position().toPoint())
         cursor.select(QTextCursor.WordUnderCursor)
 
         selected_text = None

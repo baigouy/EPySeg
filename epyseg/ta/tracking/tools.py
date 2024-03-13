@@ -570,9 +570,9 @@ if __name__ == '__main__':
                                 appenders='tata.tif'))  
 
         print('smart_name_parser', smart_name_parser(
-            '/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series012.png'))  # ['/E/Sample_images/sample_images_PA/trash_test_mem/mini', '', 'focused_Series012', '/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series012', 'focused_Series012', '/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series012']
+            '/E/Sample_images/sample_images_PA/mini/focused_Series012.png'))  # ['/E/Sample_images/sample_images_PA/mini', '', 'focused_Series012', '/E/Sample_images/sample_images_PA/mini/focused_Series012', 'focused_Series012', '/E/Sample_images/sample_images_PA/mini/focused_Series012']
         print('smart_name_parser', smart_name_parser(
-            '/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series012'))  # ['/E/Sample_images/sample_images_PA/trash_test_mem/mini', '', 'focused_Series012', '/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series012', 'focused_Series012', '/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series012']
+            '/E/Sample_images/sample_images_PA/mini/focused_Series012'))  # ['/E/Sample_images/sample_images_PA/mini', '', 'focused_Series012', '/E/Sample_images/sample_images_PA/mini/focused_Series012', 'focused_Series012', '/E/Sample_images/sample_images_PA/mini/focused_Series012']
         print('smart_name_parser', smart_name_parser(
             'focused_Series012.png'))  # smart_name_parser ['', '.png', 'focused_Series012.png', 'focused_Series012', 'focused_Series012', 'focused_Series012.png']
         print('smart_name_parser',
@@ -585,12 +585,12 @@ if __name__ == '__main__':
         print('smart_name_parser', smart_name_parser('', replace_empty_by_none=True))
         print('smart_name_parser', smart_name_parser(None))
         print('smart_name_parser',
-              smart_name_parser('/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series012.png',
+              smart_name_parser('/E/Sample_images/sample_images_PA/mini/focused_Series012.png',
                                 ordered_output=[
                                     'tracked_cells_resized.png']))  # retruns a TA name --> it is really cool!!!
-        tracked_cells_resized, TA_path = smart_name_parser('/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series012.png', ordered_output=['full_no_ext', 'tracked_cells_resized.png'])
+        tracked_cells_resized, TA_path = smart_name_parser('/E/Sample_images/sample_images_PA/mini/focused_Series012.png', ordered_output=['full_no_ext', 'tracked_cells_resized.png'])
         print('TADA', tracked_cells_resized, TA_path)
-        tracked_cells_resized, TA_path = smart_name_parser('/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series012.png', ordered_output=['TA', 'tracked_cells_resized.png'])
+        tracked_cells_resized, TA_path = smart_name_parser('/E/Sample_images/sample_images_PA/mini/focused_Series012.png', ordered_output=['TA', 'tracked_cells_resized.png'])
         print('TADA2', tracked_cells_resized, TA_path)
         import sys
         sys.exit(0)
@@ -598,7 +598,7 @@ if __name__ == '__main__':
     if True:
         # test of getting n consecutive images
         # also see how to handle None --> TODO
-        img_list = loadlist('/E/Sample_images/sample_images_PA/trash_test_mem/mini/list.lst')
+        img_list = loadlist('/E/Sample_images/sample_images_PA/mini/list.lst')
         print(img_list)
 
         desired_images = get_n_input_files_and_output_folders(img_list, 1, -1, 1) # get one image before and after

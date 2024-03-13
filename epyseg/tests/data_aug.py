@@ -10,7 +10,7 @@ import numpy as np
 
 class TestDataAug(unittest.TestCase):
 
-    # tmp = Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series012.png')
+    # tmp = Img('/E/Sample_images/sample_images_PA/mini/focused_Series012.png')
     # self.assertIsInstance(tmp, Img)
     # self.assertIsInstance(tmp, np.ndarray)
     # self.assertEqual(tmp.get_dimensions_as_string(),'hwc')

@@ -9,6 +9,11 @@ from epyseg.tools.logger import TA_logger
 
 logger = TA_logger()
 
+# Do I need square if I have already the rect2D
+# make it that the code is just a series of instructions so that it is rebuilt on the fly and always works -−> no serialization --> no pb
+
+
+
 class Square2D(Rect2D):
 
     def __init__(self, *args, color=0xFFFF00, fill_color=None, opacity=1., stroke=0.65, line_style=None, theta=0, **kwargs):

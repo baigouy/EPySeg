@@ -15,7 +15,48 @@ from epyseg.utils.commontools import execute_chained_functions_and_save_as_tiff
 logger = TA_logger()
 
 
-def create_list(input_folder, save=False, output_name=None, extensions=['*.tif', '*.tiff', '*.jpg', '*.jpeg', '*.png', '*.bmp', '*.tga', '*.lif'], sort_type='natsort'):
+def list_files_in_child_dirs(parent_directory, depth=1):
+    """
+    Recursively list files in child directories up to a specified depth.
+
+    Args:
+        parent_directory (str): The path to the parent directory to start the search.
+        depth (int): The maximum depth to search for child directories. Defaults to 1.
+
+    Returns:
+        list: A list of file paths found within the specified depth.
+
+    Example:
+        Given the directory structure:
+        parent_dir/
+        ├── child_dir1/
+        │   ├── file1.txt
+        │   └── file2.txt
+        ├── child_dir2/
+        │   ├── file3.txt
+        └── child_dir3/
+            └── file4.txt
+
+        To list files in child directories up to a depth of 1:
+        # >>> list_files_in_child_dirs("parent_dir", depth=1)
+        # Output: ['parent_dir/child_dir1/file1.txt', 'parent_dir/child_dir1/file2.txt', 'parent_dir/child_dir2/file3.txt']
+    """
+    tif_files = []
+    parent_directory, ext = parent_directory.split('*')
+
+    def recursive_list(directory, current_depth):
+        if current_depth >= depth:
+            return
+        for child_dir in os.listdir(directory):
+            child_dir_path = os.path.join(directory, child_dir)
+            if os.path.isdir(child_dir_path):
+                tif_files.extend(glob.glob(os.path.join(child_dir_path, f'*{ext}')))
+                recursive_list(child_dir_path, current_depth + 1)
+
+    recursive_list(parent_directory, current_depth=0)
+    return tif_files
+
+def create_list(input_folder, save=False, output_name=None, extensions=['*.tif', '*.tiff', '*.jpg', '*.jpeg', '*.png', '*.bmp', '*.tga', '*.lif'], sort_type='natsort', recursive=False):
     """
     Creates a list of file paths in the specified input folder based on the given extensions.
 
@@ -57,7 +98,16 @@ def create_list(input_folder, save=False, output_name=None, extensions=['*.tif',
                 ext = '*' + ext  # Prepend '*' to the extension if it doesn't have one
             lst += glob.glob(path + ext)
     else:
-        lst += glob.glob(path)  # Append all file paths in the path to the list
+        if not recursive:
+            lst += glob.glob(path)  # Append all file paths in the path to the list
+        else:
+            if isinstance(recursive, int):
+                lst = list_files_in_child_dirs(path, depth=recursive)
+            else:
+                # Recursively search for .tif files in the folder and its subdirectories
+                path, ext = path.split('*')
+                for root, _,_ in os.walk(path):
+                    lst.extend(glob.glob(os.path.join(root, '*'+ext)))
 
     if sort_type == 'natsort':
         lst = natsorted(lst)  # Apply natural sorting to the list of file paths
@@ -97,7 +147,7 @@ def get_resume_list(input_list, resume_value):
 
 
 def loadlist(txtfile, always_prefer_local_directory_if_file_exists=True, filter_existing_files_only=False,
-             smart_local_folder_detection=True, skip_hashtag_commented_lines=True, skip_empty_lines=True):
+             smart_local_folder_detection=True, skip_hashtag_commented_lines=True, skip_empty_lines=True, recursive=False):
     """
     Loads a list from a text file with optional filtering and processing options.
 
@@ -122,7 +172,7 @@ def loadlist(txtfile, always_prefer_local_directory_if_file_exists=True, filter_
         if not '*' in txtfile and not os.path.isdir(txtfile):
             return None
         else:
-            lst = create_list(txtfile, save=False)  # Create a list using create_list() if txtfile is a directory or contains wildcard characters ('*')
+            lst = create_list(txtfile, save=False, recursive=recursive)  # Create a list using create_list() if txtfile is a directory or contains wildcard characters ('*')
     else:
         with open(txtfile) as f:
             if not skip_hashtag_commented_lines:
@@ -290,7 +340,7 @@ def smart_TA_list(main_list, name_to_search_first, alternative_name_if_name_to_s
         # If it's a file or the alternative name exists, keep the line as it is.
         # Otherwise, replace the line with the alternative name.
 
-    return
+    return lst
 
 def save_list_to_file(lst, filename, col_separator='\t'):
     """
@@ -426,7 +476,7 @@ def list_processor(lst, processing_fn, multithreading=True, progress_callback=No
         None
 
     # Examples:
-    #     >>>lst = loadlist('/E/Sample_images/sample_images_PA/trash_test_mem/mini_empty/list.lst')
+    #     >>>lst = loadlist('/E/Sample_images/sample_images_PA/mini_empty/list.lst')
     #     >>>def output_file_name(input_file_name):
     #     ...    return smart_name_parser(input_file_name, 'full_no_ext') + 'inverted2.tif'
     #     >>>chained_functions = [Img, invert, elastic_deform]
@@ -657,22 +707,22 @@ if __name__ == '__main__':
 
     # TODO transform this into tests (just create some tmp files)
     print(loadlist('/E/Sample_images/sample_images_denoise_manue/200722_armGFP_suz_ON_47hAPF/predict/predict_model_nb_4/list.lst'))
-    print(loadlist('/E/Sample_images/sample_images_PA/trash_test_mem/mini/list.lst'))
-    print(loadlist('/E/Sample_images/sample_images_PA/trash_test_mem/mini/list.lst', always_prefer_local_directory_if_file_exists=False))
-    print(loadlist('/E/Sample_images/sample_images_PA/trash_test_mem/mini/list.lst', always_prefer_local_directory_if_file_exists=False, filter_existing_files_only=True))
-    print(loadlist('/E/Sample_images/sample_images_PA/trash_test_mem/mini/list.lst', always_prefer_local_directory_if_file_exists=True, filter_existing_files_only=True))
-    print(loadlist('/E/Sample_images/sample_images_PA/trash_test_mem/mini/list_smart.lst', always_prefer_local_directory_if_file_exists=True, smart_local_folder_detection=False))
-    print(loadlist('/E/Sample_images/sample_images_PA/trash_test_mem/mini/list_smart.lst',                  always_prefer_local_directory_if_file_exists=True))
-    print(loadlist('/E/Sample_images/sample_images_PA/trash_test_mem/mini/list_smart.lst')) # this is the default behavior and I do really love it
-    print(loadlist('/E/Sample_images/sample_images_PA/trash_test_mem/mini/list_smart.lst', always_prefer_local_directory_if_file_exists=True, smart_local_folder_detection=False, filter_existing_files_only=True))
+    print(loadlist('/E/Sample_images/sample_images_PA/mini/list.lst'))
+    print(loadlist('/E/Sample_images/sample_images_PA/mini/list.lst', always_prefer_local_directory_if_file_exists=False))
+    print(loadlist('/E/Sample_images/sample_images_PA/mini/list.lst', always_prefer_local_directory_if_file_exists=False, filter_existing_files_only=True))
+    print(loadlist('/E/Sample_images/sample_images_PA/mini/list.lst', always_prefer_local_directory_if_file_exists=True, filter_existing_files_only=True))
+    print(loadlist('/E/Sample_images/sample_images_PA/mini/list_smart.lst', always_prefer_local_directory_if_file_exists=True, smart_local_folder_detection=False))
+    print(loadlist('/E/Sample_images/sample_images_PA/mini/list_smart.lst',                  always_prefer_local_directory_if_file_exists=True))
+    print(loadlist('/E/Sample_images/sample_images_PA/mini/list_smart.lst')) # this is the default behavior and I do really love it
+    print(loadlist('/E/Sample_images/sample_images_PA/mini/list_smart.lst', always_prefer_local_directory_if_file_exists=True, smart_local_folder_detection=False, filter_existing_files_only=True))
 
-    tmp_lst = loadlist('/E/Sample_images/sample_images_PA/trash_test_mem/mini/list.lst', always_prefer_local_directory_if_file_exists=True, filter_existing_files_only=True)
+    tmp_lst = loadlist('/E/Sample_images/sample_images_PA/mini/list.lst', always_prefer_local_directory_if_file_exists=True, filter_existing_files_only=True)
     print(smart_TA_list(tmp_lst, 'tutu.tif'))
     print(smart_TA_list(tmp_lst, 'handCorrection.tif', alternative_name_if_name_to_search_first_does_not_exist=None))
     print(smart_TA_list(tmp_lst, 'handCorrection.tif', alternative_name_if_name_to_search_first_does_not_exist='handCorrection.png'))
     # I think that works as I want
     print(smart_TA_list(tmp_lst, 'handCorrection2.png', alternative_name_if_name_to_search_first_does_not_exist='handCorrection.png'))
 
-    save_list_to_file(smart_TA_list(tmp_lst, 'handCorrection.tif', alternative_name_if_name_to_search_first_does_not_exist='handCorrection.png'), '/E/Sample_images/sample_images_PA/trash_test_mem/mini/list_masks.lst')
+    save_list_to_file(smart_TA_list(tmp_lst, 'handCorrection.tif', alternative_name_if_name_to_search_first_does_not_exist='handCorrection.png'), '/E/Sample_images/sample_images_PA/mini/list_masks.lst')
 
     print('final list',create_list('/E/Sample_images/sample_images_denoiseg/train/raw/', save=True))

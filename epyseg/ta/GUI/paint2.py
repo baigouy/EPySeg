@@ -1,4 +1,4 @@
-# TODO mauybe hide green pointer if mouse is out of the image --> dangerous
+# TODO maybe hide green pointer if mouse is out of the image --> dangerous
 # NB this will ultimately become the one and only paint widget in the app --> all others or most of them should disappear and be replaced by that
 # TODO need add the save but only for the mask edit item!!!
 import os
@@ -56,7 +56,7 @@ class Createpaintwidget(QWidget):
         self.eraseColor = QtGui.QColor(QtCore.Qt.black)
         self.eraseColor_visualizer = QtGui.QColor(QtCore.Qt.green)
         self.cursorColor = QtGui.QColor(QtCore.Qt.green)
-        self.lastPoint = QtCore.QPoint()
+        self.lastPoint = QtCore.QPointF()
         self.change = False
         self.propagate_mouse_move = False
         # KEEP IMPORTANT required to track mouse even when not clicked
@@ -998,7 +998,7 @@ class Createpaintwidget(QWidget):
 
         if event.buttons() == QtCore.Qt.LeftButton or event.buttons() == QtCore.Qt.RightButton:
             self.drawing = True
-            zoom_corrected_pos = event.pos() / self.scale
+            zoom_corrected_pos = event.position() / self.scale
             self.lastPoint = zoom_corrected_pos
             self.drawOnImage(event)
         else:
@@ -1015,7 +1015,7 @@ class Createpaintwidget(QWidget):
 
         # print('in mouse move', self.hasMouseTracking(), self.drawing, self.vdp.active)
         if self.statusBar:
-            zoom_corrected_pos = event.pos() / self.scale
+            zoom_corrected_pos = event.position() / self.scale
             self.statusBar.showMessage('x=' + str(zoom_corrected_pos.x()) + ' y=' + str(
                 zoom_corrected_pos.y()))
         if self.vdp.active:
@@ -1047,7 +1047,7 @@ class Createpaintwidget(QWidget):
         # bug fix for image drawing when image is none
         if self.imageDraw is None:
             return
-        zoom_corrected_pos = event.pos() / self.scale
+        zoom_corrected_pos = event.position() / self.scale
         if self.drawing and (event.buttons() == QtCore.Qt.LeftButton or event.buttons() == QtCore.Qt.RightButton):
             # now drawing or erasing over the image
             self._draw_on_image(self.imageDraw, event, zoom_corrected_pos)
@@ -1060,9 +1060,9 @@ class Createpaintwidget(QWidget):
         painter = QtGui.QPainter(self.cursor)
         try:
             # We erase previous pointer
-            r = QtCore.QRect(QtCore.QPoint(), self._clear_size * QtCore.QSize() * self.brushSize)
+            r = QtCore.QRect(QtCore.QPoint(), self._clear_size * QtCore.QSize() * self.brushSize) # WHY DO I START FROM 0, 0 (empty point I should have taken old coord of self.lastPoint!!! MEGA TODO
             painter.save()
-            r.moveCenter(self.lastPoint)
+            r.moveCenter(self.lastPoint.toPoint())
             painter.setCompositionMode(QtGui.QPainter.CompositionMode_Clear)
             painter.eraseRect(r)
             painter.restore()
@@ -1127,7 +1127,7 @@ class Createpaintwidget(QWidget):
         newAct = cmenu.addAction("New")
         opnAct = cmenu.addAction("Open")
         quitAct = cmenu.addAction("Quit")
-        action = cmenu.exec_(self.mapToGlobal(event.pos()))
+        action = cmenu.exec_(self.mapToGlobal(event.position()))
         if action == quitAct:
             sys.exit(0)
 
@@ -1140,7 +1140,7 @@ class Createpaintwidget(QWidget):
         # TODO maybe add controls to be sure we are in drawing mode with a pen ???
         # double click fill or delete
         if not self.vdp.active:
-            zoom_corrected_pos = event.pos() / self.scale
+            zoom_corrected_pos = event.position() / self.scale
             if event.buttons() == QtCore.Qt.LeftButton:
                 # double click fill
                 if self.dialog_fill_erase('fill'):
@@ -1296,11 +1296,12 @@ if __name__ == '__main__':
 
     # w = Createpaintwidget(enable_shortcuts=True)
     w = overriding_apply(enable_shortcuts=True)
-    w.set_image('/E/Sample_images/sample_images_PA/trash_test_mem/mini (copie)/focused_Series012.png')
-    # w.set_image('/E/Sample_images/fluorescent_wings_spots_charroux/909dsRed/0.tif')
-    # w.set_image('/E/Sample_images/fluorescent_wings_spots_charroux/contoles_test_X1VK06/0.tif')
-    # w.set_mask('/E/Sample_images/sample_images_PA/trash_test_mem/mini (copie)/focused_Series012/handCorrection.png')
-    # w.set_image(Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini (copie)/focused_Series012.png'))
+    # w.set_image('/E/Sample_images/sample_images_PA/mini (copie)/focused_Series012.png')
+    w.set_image('/E/Sample_images/sample_images_PA/mini/focused_Series012.png')
+    # w.set_image('/E/Sample_images/wings/fluorescent_wings_spots_charroux/909dsRed/0.tif')
+    # w.set_image('/E/Sample_images/wings/fluorescent_wings_spots_charroux/contoles_test_X1VK06/0.tif')
+    # w.set_mask('/E/Sample_images/sample_images_PA/mini (copie)/focused_Series012/handCorrection.png')
+    # w.set_image(Img('/E/Sample_images/sample_images_PA/mini (copie)/focused_Series012.png'))
 
     # print(tst.max())
     # tst = tst[..., np.newaxis]
@@ -1308,9 +1309,9 @@ if __name__ == '__main__':
 
 
 
-    # tst = Img('/E/Sample_images/fluorescent_wings_spots_charroux/909dsRed/0.tif')
-    # tst = Img('/E/Sample_images/fluorescent_wings_spots_charroux/contoles_test_X1VK06/0.tif')
-    # tst = Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini (copie)/focused_Series012.png')
+    # tst = Img('/E/Sample_images/wings/fluorescent_wings_spots_charroux/909dsRed/0.tif')
+    # tst = Img('/E/Sample_images/wings/fluorescent_wings_spots_charroux/contoles_test_X1VK06/0.tif')
+    # tst = Img('/E/Sample_images/sample_images_PA/mini (copie)/focused_Series012.png')
     # tst = normalization(tst, method='Rescaling (min-max normalization)', range=[0,1], individual_channels=len(tst.shape)>2, clip=True)
     # tst = normalization(tst, method='Rescaling (min-max normalization)', range=[0,1], individual_channels=len(tst.shape)>2, clip=True)
     # tst = normalization(tst, method='Standardization', range=[0,1], individual_channels=True, clip=True)
@@ -1318,7 +1319,7 @@ if __name__ == '__main__':
     # tst = np.squeeze(tst)
 
     # tst = auto_threshold(tst)
-    # save_as_tiff(tst, output_name='/E/Sample_images/sample_images_PA/trash_test_mem/mini (copie)/tst_norm.tif')
+    # save_as_tiff(tst, output_name='/E/Sample_images/sample_images_PA/mini (copie)/tst_norm.tif')
 
     # do I have a standar
     # tst = normalization(tst, method='standardization', range=[0,1], individual_channels=True)

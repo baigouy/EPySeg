@@ -36,7 +36,7 @@ class Createpaintwidget(QWidget):
         self.drawColor = QtGui.QColor(QtCore.Qt.red) # blue green cyan
         self.eraseColor = QtGui.QColor(QtCore.Qt.black)
         self.cursorColor = QtGui.QColor(QtCore.Qt.green)
-        self.lastPoint = QtCore.QPoint()
+        self.lastPoint = QtCore.QPointF()
         self.change = False
         # KEEP IMPORTANT required to track mouse even when not clicked
         self.setMouseTracking(True)  # KEEP IMPORTANT
@@ -75,7 +75,7 @@ class Createpaintwidget(QWidget):
 
         if event.buttons() == QtCore.Qt.LeftButton or event.buttons() == QtCore.Qt.RightButton:
             self.drawing = True
-            zoom_corrected_pos = event.pos() / self.scale
+            zoom_corrected_pos = event.position() / self.scale
             self.lastPoint = zoom_corrected_pos
             self.drawOnImage(event)
 
@@ -84,7 +84,7 @@ class Createpaintwidget(QWidget):
             return
         # print('in mouse move', self.hasMouseTracking(), self.drawing, self.vdp.active)
         if self.statusBar:
-            zoom_corrected_pos = event.pos() / self.scale
+            zoom_corrected_pos = event.position() / self.scale
             self.statusBar.showMessage('x=' + str(zoom_corrected_pos.x()) + ' y=' + str(
                 zoom_corrected_pos.y()))
         if self.vdp.active:
@@ -95,7 +95,7 @@ class Createpaintwidget(QWidget):
         self.drawOnImage(event)
 
     def drawOnImage(self, event):
-        zoom_corrected_pos = event.pos() / self.scale
+        zoom_corrected_pos = event.position() / self.scale
         if self.drawing and (event.buttons() == QtCore.Qt.LeftButton or event.buttons() == QtCore.Qt.RightButton):
             # now drawing or erasing over the image
             painter = QtGui.QPainter(self.imageDraw)
@@ -117,7 +117,7 @@ class Createpaintwidget(QWidget):
         # We erase previous pointer
         r = QtCore.QRect(QtCore.QPoint(), self._clear_size * QtCore.QSize() * self.brushSize)
         painter.save()
-        r.moveCenter(self.lastPoint)
+        r.moveCenter(self.lastPoint.toPoint())
         painter.setCompositionMode(QtGui.QPainter.CompositionMode_Clear)
         painter.eraseRect(r)
         painter.restore()
@@ -154,7 +154,7 @@ class Createpaintwidget(QWidget):
         newAct = cmenu.addAction("New")
         opnAct = cmenu.addAction("Open")
         quitAct = cmenu.addAction("Quit")
-        action = cmenu.exec_(self.mapToGlobal(event.pos()))
+        action = cmenu.exec_(self.mapToGlobal(event.position()))
         if action == quitAct:
             sys.exit(0)
 

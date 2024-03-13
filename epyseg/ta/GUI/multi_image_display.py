@@ -913,19 +913,19 @@ if __name__ == '__main__':
         # find a way to propagate mouse events from one to all
         # ok = ImgDisplayWindow.display(draw_mode='pen', nb_cols=5, images=[
         #     Img('/E/Sample_images/sample_images_PA/egg_chambers/120404_division_EcadKI.lif - Series006_RGB_manual_proj.png'),
-        #     Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini10_fake_swaps/focused_Series012.png'),
+        #     Img('/E/Sample_images/sample_images_PA/mini10_fake_swaps/focused_Series012.png'),
         #     Img('/E/Sample_images/sample_images_PA/egg_chambers/120404_division_EcadKI.lif - Series006_RGB_manual_proj.png'),
-        #     Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini10_fake_swaps/focused_Series012.png'), None])
+        #     Img('/E/Sample_images/sample_images_PA/mini10_fake_swaps/focused_Series012.png'), None])
 
-        lst = ['/E/Sample_images/sample_images_PA/trash_test_mem/mini_different_nb_of_channels/focused_Series012.png', '/E/Sample_images/sample_images_PA/trash_test_mem/mini_different_nb_of_channels/focused_Series014.png', '/E/Sample_images/sample_images_PA/trash_test_mem/mini_different_nb_of_channels/focused_Series016.png']
+        lst = ['/E/Sample_images/sample_images_PA/mini_different_nb_of_channels/focused_Series012.png', '/E/Sample_images/sample_images_PA/mini_different_nb_of_channels/focused_Series014.png', '/E/Sample_images/sample_images_PA/mini_different_nb_of_channels/focused_Series016.png']
 
         augment, ok = ImgDisplayWindow.display(draw_mode='pen', nb_rows=3, nb_cols=3, images=[
-            [Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini_different_nb_of_channels/focused_Series012.png'),Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini_different_nb_of_channels/focused_Series012/handCorrection.tif')],
-            Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini_different_nb_of_channels/focused_Series014.png'),
-            Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini_different_nb_of_channels/focused_Series016.png'),
-            Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini_different_nb_of_channels/focused_Series012/tracked_cells_resized.tif'),
-            Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini_different_nb_of_channels/focused_Series014/tracked_cells_resized.tif'),
-            Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini_different_nb_of_channels/focused_Series016/tracked_cells_resized.tif'), None],
+            [Img('/E/Sample_images/sample_images_PA/mini_different_nb_of_channels/focused_Series012.png'),Img('/E/Sample_images/sample_images_PA/mini_different_nb_of_channels/focused_Series012/handCorrection.tif')],
+            Img('/E/Sample_images/sample_images_PA/mini_different_nb_of_channels/focused_Series014.png'),
+            Img('/E/Sample_images/sample_images_PA/mini_different_nb_of_channels/focused_Series016.png'),
+            Img('/E/Sample_images/sample_images_PA/mini_different_nb_of_channels/focused_Series012/tracked_cells_resized.tif'),
+            Img('/E/Sample_images/sample_images_PA/mini_different_nb_of_channels/focused_Series014/tracked_cells_resized.tif'),
+            Img('/E/Sample_images/sample_images_PA/mini_different_nb_of_channels/focused_Series016/tracked_cells_resized.tif'), None],
                                       labels=['test1', 'test2', 'test3', None], lst=lst, cur_frame_idx=1)
         print(augment, ok)
         sys.exit(0)
@@ -967,12 +967,12 @@ if __name__ == '__main__':
         ex.fit_to_width_or_height()
         ex.fit_to_width_or_height()
 
-        # img = Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini10_fake_swaps/focused_Series012.png')
+        # img = Img('/E/Sample_images/sample_images_PA/mini10_fake_swaps/focused_Series012.png')
         ex.set_image(img)
         ex.clear()
 
         ex.set_image(img, nb=0)
-        img = Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini10_fake_swaps/focused_Series012.png')
+        img = Img('/E/Sample_images/sample_images_PA/mini10_fake_swaps/focused_Series012.png')
         ex.set_image(img, nb=3)
 
         ex.scale_image_all(0.3)

@@ -4,29 +4,31 @@
 
 # Install
 
-1. Install [python 3.7](https://www.python.org/downloads/) or [Anaconda 3.7](https://www.anaconda.com/distribution/) (if not already present on your system)
+1. Install [Miniconda](https://docs.anaconda.com/free/miniconda/index.html) (if not already present on your system)
 
-2. In a command prompt type: 
+2. Then in a command prompt type: 
 
-    ```
-    pip install --user --upgrade epyseg
-    ```
-    or
-    ```
-    pip3 install --user --upgrade epyseg
-    ```
-    NB:
-    - To open a **command prompt** on **Windows** press **'Windows'+R** then type **'cmd'**
-    - To open a **command prompt** on **MacOS** press **'Command'+Space** then type in **'Terminal'**
+```
+conda create -y -n TA python==3.10.12
+conda activate TA
+pip install -U pip
+pip install -U epyseg
+python -m epyseg
+```
 
-3. To open the graphical user interface, type the following in a command:
-    ```
-    python -m epyseg
-    ```
-    or
-    ```
-    python3 -m epyseg
-    ``` 
+**NB**:
+- To open a **command prompt** on **Windows** press **'Windows'+R** then type **'cmd'**
+- To open a **command prompt** on **MacOS** press **'Command'+Space** then type in **'Terminal'**
+
+
+# Run
+
+To open the graphical user interface, type the following in a command:
+
+ ```
+conda activate TA
+python -m epyseg
+ ```
    
 # Third party libraries
 
@@ -42,6 +44,7 @@ Below is a list of the 3<sup>rd</sup> party libraries used by EPySeg and/or pyTA
 | **numpy**               | Array/Image computing                                                                                                | https://pypi.org/project/numpy/               | BSD                |
 | **Pillow**              | Reads 'basic' images (.bmp, .png, .pnm, ...)                                                                         | https://pypi.org/project/Pillow/              | HPND               |
 | **PyQt5**               | Graphical user interface (GUI)                                                                                       | https://pypi.org/project/PyQt5/               | GPL v3             |
+| **PyQt6**               | Graphical user interface (GUI)                                                                                       | https://pypi.org/project/PyQt6/               | GPL v3             |
 | **read-lif**            | Reads Leica .lif files                                                                                               | https://pypi.org/project/read-lif/            | GPL v3             |
 | **scikit-image**        | Image processing                                                                                                     | https://pypi.org/project/scikit-image/        | BSD (Modified BSD) |
 | **scipy**               | Great library to work with numpy arrays                                                                              | https://pypi.org/project/scipy/               | BSD                | 

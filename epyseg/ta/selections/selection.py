@@ -297,7 +297,7 @@ if __name__ == '__main__':
 
     if False:
         # test how to append selection to a clone database
-        path_to_image = '/E/Sample_images/sample_images_PA/trash_test_mem/mini_empty/focused_Series012.png'
+        path_to_image = '/E/Sample_images/sample_images_PA/mini_empty/focused_Series012.png'
         selected_cells = [200, 201, 302]  # cells 1-3 have been selected
         handCorrection = Img(smart_name_parser(path_to_image, ordered_output='handCorrection.tif'))
         if len(handCorrection.shape) == 3:
@@ -313,7 +313,7 @@ if __name__ == '__main__':
     # ça marche vraiment bien en fait j'adore!!!
     if True:
         # load database from image and get the corresponding cell image or db depending on what is desired --> TODO
-        path_to_image = '/E/Sample_images/sample_images_PA/trash_test_mem/mini_empty/focused_Series012.png'
+        path_to_image = '/E/Sample_images/sample_images_PA/mini_empty/focused_Series012.png'
         handCorrection = Img(smart_name_parser(path_to_image, ordered_output='handCorrection.tif'))
         if len(handCorrection.shape) == 3:
             handCorrection = handCorrection[..., 0]

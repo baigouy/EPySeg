@@ -592,7 +592,7 @@ if __name__ == '__main__':
     print(test.get_P1().x())
 
     # bug qd on definit une image comme param
-    # test = Image2D('./../data/counter/06.png')
+    # test = Image2D('/E/Sample_images/counter/06.png')
     # test = Graph2D('D:/dataset1/unseen/100708_png06.png')
     print(test.boundingRect())  # --> it is ok there so why not below # not callable --> why -->
     print(test.get_P1())  # ça marche donc où est le bug
@@ -605,4 +605,6 @@ if __name__ == '__main__':
     # --> ok
     # how can I think the scale to that ???
 
-    test2 = VectorGraphics2D('/E/Sample_images/sample_images_svg/cartman.svg', x=12, y=0, width=100, height=100)
+    test2 = VectorGraphics2D('/E/Sample_images/EZF_SF_scientifig_EZFig/sample_images_svg/cartman.svg', x=12, y=0, width=100, height=100)
+
+    print(test2)

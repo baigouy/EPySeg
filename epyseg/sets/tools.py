@@ -87,6 +87,10 @@ def union_no_dupes(*sets):
         output_set = output_set.union(st)
     return output_set
 
+def common(*sts):
+    first = set(sts[0])
+    common_elements = first.intersection(*sts[1:])
+    return common_elements
 
 if __name__ == '__main__':
     set1 = {1, 2, 3}
@@ -95,5 +99,11 @@ if __name__ == '__main__':
     print(intersection(set1, set2))  # Output: {2, 3}
     print(union_no_dupes(set1, set2))  # Output: {1, 2, 3, 4}
     print(differences(set1, set2))  # Output: {1, 4}
-    print(difference(set1, set2
-))
+    print(difference(set1, set2))
+
+    set3 = {1,2}
+    print('common', common(set1, set2, set3))
+
+
+
+

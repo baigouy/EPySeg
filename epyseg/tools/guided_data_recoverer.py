@@ -62,7 +62,7 @@ def graded_intensity_modification(orig, parameters, is_mask):
         The modified image.
 
     # Examples:
-    #     >>> orig = Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series012.png')[...,1]
+    #     >>> orig = Img('/E/Sample_images/sample_images_PA/mini/focused_Series012.png')[...,1]
     #     >>> out = graded_intensity_modification(orig, None, False)
     #     >>> plt.imshow(out)
     #     >>> plt.show()
@@ -72,7 +72,6 @@ def graded_intensity_modification(orig, parameters, is_mask):
         # Apply 2D gradient and create random intensity graded perturbation
         out = apply_2D_gradient(orig, create_random_intensity_graded_perturbation(orig, off_centered=True))
     return [], out
-
 
 
 if __name__ == '__main__':
@@ -91,7 +90,7 @@ if __name__ == '__main__':
     seed = datetime.now()
     random.seed(seed)
 
-    orig = Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series012.png')[...,1]
+    orig = Img('/E/Sample_images/sample_images_PA/mini/focused_Series012.png')[...,1]
     out = GuidedDataRecoverer(graded_intensity_modification(orig, None,False),-1)
     plt.imshow(out)
     plt.show()
@@ -102,7 +101,7 @@ if __name__ == '__main__':
     # whatever happens the nb of random calls should be the same --> could add a fake option that calls random the exact same nb of times --> TODO
     # if I have that parameters become useless --> ok most likely
 
-    orig = Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series012.png')[..., 1]
+    orig = Img('/E/Sample_images/sample_images_PA/mini/focused_Series012.png')[..., 1]
     out = GuidedDataRecoverer(graded_intensity_modification(orig, None, False), -1)
     plt.imshow(out)
     plt.show()

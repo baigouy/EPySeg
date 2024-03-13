@@ -1440,8 +1440,8 @@ def auto_scale(img, individual_channels=True, min_px_count_in_percent=0.005):
     # If the input image has multiple channels and individual_channels is True, normalize each channel separately
     if len(img.shape) > 2 and individual_channels:
         # Convert the parent image to float if it is not already
-        if img.dtype != np.float:
-            img = img.astype(np.float)
+        if img.dtype != float:
+            img = img.astype(float)
         for ch in range(img.shape[-1]):
             img[..., ch] = auto_scale(img[..., ch])
     else:
@@ -2713,6 +2713,26 @@ def blend(bg, fg, alpha=0.3, mask_or_forbidden_colors=None):
     blended[bg != 0] = bg[bg != 0]
 
     return blended
+
+
+def blend_single_channel_images_n_mask_for_matplotlib(img, wing_mask, default_blend_channel_for_mask=0, alpha=0.3):
+    # Quick n dirty code to blend an image and display it in matplotlib !!! just for display purpose
+    # it assumes both the mask and img are single channel stuff
+
+    tmp = np.zeros_like(img, shape=(*img.shape, 3))
+    tmp[..., 0] = img
+    tmp[..., 1] = img
+    tmp[..., 2] = img
+
+
+    wing_mask2 = np.zeros_like(wing_mask, shape=(*img.shape, 3), dtype=float)
+    wing_mask2[..., default_blend_channel_for_mask] = wing_mask
+    wing_mask2[wing_mask2 != 0] = tmp.max()
+
+    bld = blend(tmp, wing_mask2, alpha=alpha, mask_or_forbidden_colors=0x000000)
+    bld = bld / bld.max()
+    return bld
+
 
 # try apply a lut to that and then blend the RGB image --> much smarter in the end
 def blend_stack_channels_color_mode(img, luts=None):
@@ -4704,6 +4724,7 @@ if __name__ == '__main__':
     if True:
         img = Img('/E/Sample_images/sample_images_FIJI/AuPbSn40.jpg')
         pop(img)
+        pop(img[10:100, 10:100])
         sys.exit(0)
 
     if False:
@@ -4716,7 +4737,7 @@ if __name__ == '__main__':
 
     if True:
         # ok TODO --> do a master cleaning some day
-        img = Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini_asym/*.png')
+        img = Img('/E/Sample_images/sample_images_PA/mini_asym/*.png')
         print(img.shape)
         import sys
 
@@ -4738,7 +4759,7 @@ if __name__ == '__main__':
     if False:
         # open image url
         # img = Img('https://samples.fiji.sc/new-lenna.jpg')
-        # img = Img('file:///E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series012.png')
+        # img = Img('file:///E/Sample_images/sample_images_PA/mini/focused_Series012.png')
         img = Img('file:///home/aigouy/Bureau/12_9.tif')
         print(img.metadata)
         print(img.shape)

@@ -1677,10 +1677,10 @@ if __name__ == '__main__':
 
     # in the
     # next
-    # {'inputs': ['/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series016.png'],
+    # {'inputs': ['/E/Sample_images/sample_images_PA/mini/focused_Series016.png'],
     #  'input_channel_reduction_rule': 'copy the COI to all available channels',
     #  'input_channel_augmentation_rule': 'copy the COI to all channels', 'input_channel_of_interest': 1,
-    #  'predict_output_folder': '/E/Sample_images/sample_images_PA/trash_test_mem/mini/predict/',
+    #  'predict_output_folder': '/E/Sample_images/sample_images_PA/mini/predict/',
     #  'hq_predictions': 'mean',
     #  'hq_pred_options': 'Use all augs (pixel preserving + deteriorating) (Recommended for segmentation)'}
 

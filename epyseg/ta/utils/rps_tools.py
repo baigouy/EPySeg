@@ -598,7 +598,86 @@ def compute_perimeter(perimeter_pixels):
     length = compute_distance_between_consecutive_points(perimeter_pixels).sum()
     return length
 
+def associate_rps_to_rps_using_centroid_distance(primary_rps, rps_to_be_associated, no_repick=False):
+    # MEGA TODO needs be greatly be improved but the idea is there and it's much faster than computing the overlap score
+    from personal.coccinelle_ladybug.HashableRegionProps import HashableRegionProps
+    from epyseg.ta.measurements.TAmeasures import distance_between_points
+    output={}
+    # detected_arena = []
+    for primary_region in primary_rps:
+        # primary_region = (HashableRegionProps) primary_region
+        output[ (HashableRegionProps)(primary_region)]=[]
+        for region in rps_to_be_associated:
+            # if compute_coords_overlap_between_0_and_1(region.coords, primary_region.coords)!=0:
+            #     output[(HashableRegionProps)(primary_region)].append(region)
+            if distance_between_points(primary_region.centroid, region.centroid)<6:
+                    # detected_arena.append(region)
+                    output[(HashableRegionProps)(primary_region)].append(region)
+                    if no_repick:
+                        break
+        # if no_repick:
+        #     rps_to_be_associated = [region for region in rps_to_be_associated if region not in detected_arena]
+    return output
 
+def associate_rps_to_rps_tmp(primary_rps, rps_to_be_associated, no_repick=False):
+    # THIS CODE IS ALSO NOT GREAT BECAUSE I SHOULD BREAK WHEN I FIND OVERLAP IF NO REPICK
+    # in fact I should maximize the overlap to do this better
+    from personal.coccinelle_ladybug.HashableRegionProps import HashableRegionProps
+    from personal.geom.tools import compute_coords_overlap_between_0_and_1
+    output={}
+    # detected_arena = []
+    for primary_region in primary_rps:
+        # primary_region = (HashableRegionProps) primary_region
+        output[ (HashableRegionProps)(primary_region)]=[]
+        for region in rps_to_be_associated:
+            if compute_coords_overlap_between_0_and_1(region.coords, primary_region.coords)!=0: # REALLY NOT GREAT I SHOULD TAKE THE MOST OVERLAPPING REGION
+                output[(HashableRegionProps)(primary_region)].append(region)
+                if no_repick:
+                    break
+                # if no_repick:
+                #     detected_arena.append(region)
+        # if no_repick:
+        #     rps_to_be_associated = [region for region in rps_to_be_associated if region not in detected_arena]
+    return output
+
+
+def associate_rps_to_rps(primary_rps, rps_to_be_associated, no_repick=False): # THE COOL THING ABOUT THIS CODE IS THAT IT CAN ASSOCAITE SEVERAL SMALL RPS TO A BIG ONE --> WHICH IS USEFUL FOR ARENA MATCHING
+    # THIS CODE IS ALSO NOT GREAT BECAUSE I SHOULD BREAK WHEN I FIND OVERLAP IF NO REPICK
+    # in fact I should maximize the overlap to do this better
+    from personal.coccinelle_ladybug.HashableRegionProps import HashableRegionProps
+    from personal.geom.tools import compute_coords_overlap_between_0_and_1
+    output={}
+    detected_arena = []
+    for primary_region in primary_rps:
+        # primary_region = (HashableRegionProps) primary_region
+        output[ (HashableRegionProps)(primary_region)]=[]
+        for region in rps_to_be_associated:
+            if compute_coords_overlap_between_0_and_1(region.coords, primary_region.coords)!=0: # REALLY NOT GREAT I SHOULD TAKE THE MOST OVERLAPPING REGION
+                output[(HashableRegionProps)(primary_region)].append(region)
+                if no_repick:
+                    detected_arena.append(region)
+        if no_repick:
+            rps_to_be_associated = [region for region in rps_to_be_associated if region not in detected_arena]
+    return output
+
+
+
+def associate_rps_to_rps2(primary_rps, rps_to_be_associated, no_repick=False):
+    from personal.coccinelle_ladybug.HashableRegionProps import HashableRegionProps
+    from personal.geom.tools import compute_coords_overlap_between_0_and_1
+    output={}
+    detected_arena = []
+    for primary_region in primary_rps:
+        # primary_region = (HashableRegionProps) primary_region
+        output[ primary_region]=[]
+        for region in rps_to_be_associated:
+            if compute_coords_overlap_between_0_and_1(region.coords, primary_region)!=0:
+                output[primary_region].append(region)
+                if no_repick:
+                    detected_arena.append(region)
+        if no_repick:
+            rps_to_be_associated = [region for region in rps_to_be_associated if region not in detected_arena]
+    return output
 
 def sort_rps_by_feature_using_its_name(rps, feature_name, feature_element=None, return_index=False):
     '''
@@ -612,6 +691,24 @@ def sort_rps_by_feature_using_its_name(rps, feature_name, feature_element=None, 
         return [region for idx, region in sorted_list]
 
 
+def get_combined_bbox(regions):
+    # Initialize variables for the combined bounding box
+    min_row = float('inf')
+    min_col = float('inf')
+    max_row = 0
+    max_col = 0
+
+    # Iterate over the regions to find the combined bounding box
+    for region in regions:
+        minr, minc, maxr, maxc = region.bbox
+        min_row = min(min_row, minr)
+        min_col = min(min_col, minc)
+        max_row = max(max_row, maxr)
+        max_col = max(max_col, maxc)
+
+    # Return the combined bounding box as a tuple
+    combined_bbox = (min_row, min_col, max_row, max_col)
+    return combined_bbox
 
 def get_rps_features_by_name(rps, feature_name, feature_element=None):
     """
@@ -711,7 +808,7 @@ def cluster_regionprops_by_feature(rps, feature_for_clustering, feature_element=
 
     # print('K',K)
     for k in K:
-        kmeans = KMeans(n_clusters=k, random_state=0).fit(X)
+        kmeans = KMeans(n_clusters=k, random_state=0, n_init='auto').fit(X) # quick fix change in KMeans
         labels = kmeans.labels_
         # if len(labels)==X.shape[0]:
         #     best_k = 1
@@ -727,7 +824,7 @@ def cluster_regionprops_by_feature(rps, feature_for_clustering, feature_element=
 
     if best_k != 1:
         # Cluster the rows based on the y-coordinates of the centroids
-        kmeans = KMeans(n_clusters=best_k, random_state=0).fit(X)
+        kmeans = KMeans(n_clusters=best_k, random_state=0,n_init='auto').fit(X)
         labels = kmeans.labels_
     else:
         labels = [0 for _ in objects]
@@ -898,6 +995,20 @@ def find_pavlidis_optimal_start(pixel_coordinates):
 
     print('Error: Optimal pavlidis not found. Returning None')
     return None, 0
+
+
+def order_regions_by_y_axis(region1, region2):
+    # Assuming region1 and region2 are instances of regionprops
+
+    # Calculate y-axis centroids
+    centroid_y1 = region1.centroid[0]
+    centroid_y2 = region2.centroid[0]
+
+    # Compare based on y-axis centroid
+    if centroid_y1 < centroid_y2:
+        return region1, region2
+    else:
+        return region2, region1
 
 
 if __name__ == '__main__':

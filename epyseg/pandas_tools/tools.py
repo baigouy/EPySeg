@@ -1,4 +1,10 @@
 # Pandas related tools/methods
+
+# in vs code only ctrl + F5 works for running and having the path
+# DEV NOTE TWO LINES BELOW KEEP FIX FOR RUNNING IN VS CODE §!!!!!!!!! --> very dirty though
+#import sys
+#sys.path.append('/home/aigouy/mon_prog/Python/epyseg_pkg/')
+
 import matplotlib.pyplot as plt
 import sqlite3
 import pandas as pd
@@ -6,7 +12,69 @@ import numpy as np
 from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans
 
-from epyseg.img import Img
+from epyseg.files.tools import open_file_with_default_handler
+
+
+def add_cumulative_sum(df):
+    """
+    Modify a DataFrame so that each row contains the cumulative sum of all rows above it.
+
+    Args:
+        df (pd.DataFrame): The input DataFrame.
+
+    Returns:
+        pd.DataFrame: The modified DataFrame with cumulative sums.
+
+    Examples:
+        >>> data = {'A': [1, 2, 3, 4]}
+        >>> df = pd.DataFrame(data)
+        >>> df_cumulative = add_cumulative_sum(df)
+        >>> print(df_cumulative)
+            A
+        0   1
+        1   3
+        2   6
+        3  10
+    """
+    # Use the cumsum() function along the rows (axis=0) to calculate cumulative sums
+    df_cumulative = df.cumsum(axis=0)
+
+    return df_cumulative
+
+
+def remove_columns_with_string(df, substring):
+    """
+    Remove all columns from a DataFrame that contain a specified substring in their name.
+
+    Args:
+        df (pd.DataFrame): The input DataFrame.
+        substring (str): The substring to search for in column names.
+
+    Returns:
+        pd.DataFrame: The DataFrame with columns containing the substring removed.
+
+    Examples:
+        >>> data = {'fruit_flies_count': [10, 20, 30], 'apple_count': [5, 15, 25]}
+        >>> df = pd.DataFrame(data)
+        >>> df_filtered = remove_columns_with_string(df, 'flies')
+        >>> print(df_filtered)
+           apple_count
+        0            5
+        1           15
+        2           25
+    """
+    # Get a list of column names to keep (those that do not contain the specified substring)
+    columns_to_keep = [col for col in df.columns if substring not in col]
+
+    # Create a new DataFrame with the selected columns
+    df_filtered = df[columns_to_keep]
+
+    return df_filtered
+
+def append_row_to_df(df, row_content):
+    df.loc[len(df)] = row_content
+    return df # do I even need to return the df
+
 
 
 def numpy_array_to_pandas_df(my_array, header=None):
@@ -18,20 +86,37 @@ def numpy_array_to_pandas_df(my_array, header=None):
         header_names (list, optional): A list of header names for the pandas df. If not provided, no header will be added.
     """
     # Convert the numpy array to a pandas DataFrame
-    df = pd.DataFrame(my_array)
+    df = pd.DataFrame(my_array,columns=header)
 
     # Add headers if provided
-    if header is not None:
+    # if header is not None:
         # if not isinstance(header, np.ndarray):
         #     header = np.asarray(header)
-        df.columns = header
+        # df.columns = header
 
     # Save the DataFrame to a CSV file
     # df.to_csv(file_path, index=False)
 
     return df
 
+def create_empty_table_like(df):
+    # Create an empty DataFrame with the same column names
+    empty_df = pd.DataFrame(columns=df.columns)
+    return empty_df
 
+
+def add_column(df, new_column_name):
+    # Add a new empty column named 'NewEmptyColumn'
+    df[new_column_name] = pd.Series()
+    return df
+
+def create_empty_df(header):
+    return numpy_array_to_pandas_df(None,header=header)
+
+def insert_column_at_position(df, index_position, new_column_name ):
+    # Insert the new column at the specified index position
+    df.insert(index_position, new_column_name, value=None)
+    return df
 
 def prepend_column(df, col_name, col_values):
     """
@@ -103,6 +188,13 @@ def get_combined_factors(df, columns):
     # Return the list of unique values
     return factors
 
+def strip_column(df, col_name_or_idx):
+    if isinstance(col_name_or_idx, str):
+        df[col_name_or_idx] = df[col_name_or_idx].str.strip()
+    else:
+        # Strip leading and trailing whitespace from the specified column
+        df.iloc[:, col_name_or_idx] = df.iloc[:, col_name_or_idx].str.strip()
+    return df
 
 
 def diff_dataframes(df1, df2):
@@ -134,7 +226,59 @@ def diff_dataframes(df1, df2):
     # Return the resulting DataFrame with differing rows
     return diff
 
+def open_as_df(file_path, sep='\t', header=None):
+    # Read the file into a DataFrame with a header
+    df = pd.read_csv(file_path, delimiter=sep, header=header)
+    return df
 
+
+def filter_out_rows(df1, other_dfs):
+    """
+    Filter out rows from a DataFrame that are contained in one or more other DataFrames.
+
+    Parameters:
+    - df1 (pandas.DataFrame): The main DataFrame from which rows will be filtered.
+    - other_dfs (list of pandas.DataFrame): A list of other DataFrames to check for containment.
+
+    Returns:
+    - pandas.DataFrame: A DataFrame containing only the rows from df1 that are not contained in any of the other DataFrames.
+
+    Example:
+    >>> import pandas as pd
+    >>> data1 = {'ID': [1, 2, 3, 4, 5, 6], 'Value': ['A', 'B', 'C', 'D', 'E', 'G']}
+    >>> df1 = pd.DataFrame(data1)
+    >>> data2 = {'ID': [2, 4], 'Value': ['B', 'D']}
+    >>> df2 = pd.DataFrame(data2)
+    >>> data3 = {'ID': [1, 3, 5], 'Value': ['A', 'C', 'E']}
+    >>> df3 = pd.DataFrame(data3)
+    >>> other_dfs = [df2, df3]
+    >>> filtered_df = filter_out_rows(df1, other_dfs)
+    >>> print(filtered_df)
+       ID Value
+    0   6     G
+    """
+    # Initialize the filtered DataFrame with df1
+    filtered_df = df1
+
+    if not isinstance(other_dfs, list):
+        other_dfs = [other_dfs]
+
+    # Loop through each DataFrame in other_dfs
+    for other_df in other_dfs:
+        # Use the isin() method to check if rows in df1 are contained in the current other DataFrame
+        mask = df1.isin(other_df.to_dict(orient='list')).all(axis=1)
+
+        # Filter out the rows based on the mask
+        filtered_df = filtered_df[~mask]
+
+    # Reset the index of the filtered DataFrame
+    filtered_df.reset_index(drop=True, inplace=True)
+
+    return filtered_df
+
+
+def rename_column(df, index, new_name):
+    return df.rename(columns={df.columns[index]: new_name})
 
 def combine_dataframes(dataframes):
     """
@@ -318,7 +462,7 @@ def kmeans_clustering(df, n_clusters, exclude_non_numeric_columns=True, verbose=
         X = df.values  # convert DataFrame to a numpy array
 
     # create a KMeans object and fit it to the data
-    kmeans = KMeans(n_clusters=n_clusters, random_state=42)
+    kmeans = KMeans(n_clusters=n_clusters, random_state=42,n_init='auto')
     df['cluster'] = kmeans.fit_predict(X)
 
     if True:
@@ -433,7 +577,7 @@ def pca_analysis2(df, n_clusters=2):
     component_matrix = pd.DataFrame(pca.components_, columns=clean_df.columns, index=['PC1', 'PC2'])
 
     # instantiate the KMeans model with the specified number of clusters
-    kmeans = KMeans(n_clusters=n_clusters)
+    kmeans = KMeans(n_clusters=n_clusters,n_init='auto')
 
     # fit the model to the transformed data and predict the cluster labels
     kmeans.fit(transformed)
@@ -503,8 +647,71 @@ def to_clipboard(df, index=False, header=True):
     """
     return df.to_clipboard(index=index, header=header)
 
+def set_df_starting_index(df, start_index):
+    df.index = range(start_index, start_index + len(df))
+    return df
+
+def nullify_df_indices(df):
+    df.index = None
+    return df
+
+def copy_df_and_fill_withvalue(df, value):
+    # Create a copy of the DataFrame
+    df_copy = df.copy()
+    df_copy = df_copy.replace(df_copy.values, value)
+    return df_copy
+
+def check_and_remove_duplicate_indices(df):
+    # Check if indices are unique
+    if df.index.duplicated().any():
+        # Remove duplicates and keep the first instance
+        df = df[~df.index.duplicated(keep='first')]
+
+    return df
+
+def merge_df_and_keep_indices(*dfs, remove_na=True):
+    # result_df = pd.merge(df1, df2, left_index=True, right_index=True, how='outer')
+    # Merge the single-column DataFrames into a single DataFrame with n columns
+    result_df = pd.concat(dfs, axis=1, join='outer')
+    if remove_na:
+        result_df.fillna('', inplace=True)
+    return result_df
 
 if __name__ == '__main__':
+
+    if False:
+        import pandas as pd
+
+        # Example DataFrames with different indices
+        # Your n single-column DataFrames with different indices
+        df1 = pd.DataFrame({'Column1': ['A', 'T', 'G']}, index=[1, 2, 3])
+        df2 = pd.DataFrame({'Column2': ['C', 50, 60]}, index=[4, 5, 6])
+        df3 = pd.DataFrame({'Column3': [70, 80, 90]}, index=[12, 8, 8])
+
+        # Merge the single-column DataFrames into a single DataFrame with n columns
+        # result_df = pd.concat([df1, df2, df3], axis=1, join='outer')
+
+        # print(result_df)
+        # Merge DataFrames on indices
+        # merged_df = pd.merge(df1, df2, left_index=True, right_index=True, how='outer')
+        merged_df = merge_df_and_keep_indices(df1, df2, df3)
+
+
+
+        # Display the merged DataFrame
+        print(merged_df)
+
+        import sys
+        sys.exit(0)
+
+    if True:
+        print(create_empty_df(['test1','test2', 'tutu']))
+
+        import sys
+        sys.exit(0)
+
+
+    from epyseg.img import Img
     if True:
         files = ['/media/teamPrudhomme/EqpPrudhomme2/Benoit_pr_Benjamin/coccinelles/latest images_20230614/raw images/effet_sexe_29.db', '/media/teamPrudhomme/EqpPrudhomme2/Benoit_pr_Benjamin/coccinelles/latest images_20230614/raw images/effet_sexe_18.db', '/media/teamPrudhomme/EqpPrudhomme2/Benoit_pr_Benjamin/coccinelles/ANALYZE_LATER/25°N4N45F_25°N4N42M_25°R16F_25°R17M_29°R26inds-26-05-2023_014/ladybug_seg.db']
         corresponding_image = [None, None, '/media/teamPrudhomme/EqpPrudhomme2/Benoit_pr_Benjamin/coccinelles/ANALYZE_LATER/25°N4N45F_25°N4N42M_25°R16F_25°R17M_29°R26inds-26-05-2023_014.tif']

@@ -41,7 +41,7 @@ from epyseg.draw.shapes.scalebar import ScaleBar
 from epyseg.draw.shapes.txt2d import TAText2D
 from epyseg.figure.fig_tools import preview
 # from epyseg.figure import fig_tools
-from epyseg.img import Img, toQimage
+from epyseg.img import Img, toQimage, RGB_to_BGR
 from qtpy.QtCore import QRectF, QPointF, QSize, QRect
 # from sympy import nsolve, exp, Symbol
 # logger
@@ -768,7 +768,9 @@ class Image2D(Rect2D):
             # NB THE FOLLOWING LINES CREATE A WEIRD ERROR WITH WEIRD PIXELS DRAWN some sort of lines NO CLUE WHY
 
             img_bounds = self.boundingRect()
-            image = QtGui.QImage(QSize(img_bounds.width() * scaling_factor_dpi, img_bounds.height()* scaling_factor_dpi),  QtGui.QImage.Format_RGBA8888)  # minor change to support alpha # QtGui.QImage.Format_RGB32)
+            # image = QtGui.QImage(QSize(img_bounds.width() * scaling_factor_dpi, img_bounds.height()* scaling_factor_dpi),  QtGui.QImage.Format_RGBA8888)  # minor change to support alpha # QtGui.QImage.Format_RGB32)
+            image = QtGui.QImage(QSize(int(img_bounds.width() * scaling_factor_dpi), int(img_bounds.height()* scaling_factor_dpi)),  QtGui.QImage.Format_RGBA8888)  # minor change to support alpha # QtGui.QImage.Format_RGB32)
+            # image = QtGui.QImage(QSize(int(img_bounds.scale(scaling_factor_dpi))),  QtGui.QImage.Format_RGBA8888)  # minor change to support alpha # QtGui.QImage.Format_RGB32)
             # print('size at dpi',QSize(img_bounds.width() * scaling_factor_dpi, img_bounds.height()* scaling_factor_dpi))
             # QSize(self.cm_to_inch(0.02646 * img_bounds.width())
             # self.cm_to_inch(0.02646 * img_bounds.height())
@@ -808,12 +810,38 @@ class Image2D(Rect2D):
         width = qimage.width()
         height = qimage.height()
         image_pointer = qimage.bits() # creates a deep copy --> this is what I want
-        image_pointer.setsize(qimage.byteCount())
+        # image_pointer.setsize(qimage.byteCount())
+        try:
+            image_pointer.setsize(qimage.sizeInBytes()) # qt6 version of the stuff
+        except:
+            image_pointer.setsize(qimage.byteCount())
         # arr = np.array(image_pointer,copy=True).reshape(height, width, 4)
         arr = np.array(image_pointer).reshape(height, width, 4)
         arr = arr[..., 0:3]
         arr = RGB_to_BGR(arr)  # that seems to do the job
         return arr
+    # def convert_qimage_to_numpy(self,qimage):
+    #     """Convert a QImage object to a NumPy array.
+    #
+    #     Args:
+    #         qimage (QImage): The QImage object to convert.
+    #
+    #     Returns:
+    #         numpy.ndarray: The NumPy array representation of the QImage.
+    #     """
+    #     # get the image dimensions
+    #     height, width, channels = qimage.height(), qimage.width(), qimage.format().channelCount()
+    #
+    #     # create a buffer object from the image data
+    #     buffer = qimage.constBits()
+    #     buffer.setsize(
+    #         buffer.nbytes)  # set the size of the buffer to the number of bytes required to store the image data
+    #
+    #     # create a NumPy array from the buffer object
+    #     array = np.frombuffer(buffer, dtype=np.uint8).reshape((height, width, channels))
+    #
+    #     # return the NumPy array
+    #     return array
 
     # simple equation for an image
     # or maybe ask for starting expression
@@ -855,6 +883,12 @@ class Image2D(Rect2D):
         return self
 
 if __name__ == '__main__':
+
+    # VERY GOOD --> I HAVE FINALLY FIXED IT
+
+
+
+
     # ça marche --> voici deux examples de shapes
     test = Image2D(x=12, y=0, width=100, height=100)  # could also be used to create empty image with
 
@@ -863,8 +897,8 @@ if __name__ == '__main__':
     print(test.get_P1().x())
 
     # bug qd on definit une image comme param
-    # test = Image2D('./../data/counter/06.png')
-    test = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/01.png')
+    # test = Image2D('/E/Sample_images/counter/06.png')
+    test = Image2D('/E/Sample_images/counter/01.png')
     print(test.boundingRect())  # --> it is ok there so why not below # not callable --> why -->
     print(test.get_P1())  # ça marche donc où est le bug
     print(test.get_P1().y())  # ça marche donc où est le bug
@@ -891,9 +925,9 @@ if __name__ == '__main__':
     # img = test.draw() # if no painter --> create one as not to lose any data and or allow to save as vectorial
 
 
-    img = test.save('/E/Sample_images/sample_images_PA/trash_test_mem/mini_vide/analyzed/trash/test_line2D.tif')
+    img = test.save('/E/trash/test_line2D.tif')
 
-    test.save('/E/Sample_images/sample_images_PA/trash_test_mem/mini_vide/analyzed/trash/test_line2D.svg')
+    # test.save('/E/Sample_images/sample_images_PA/mini_vide/analyzed/trash/test_line2D.svg')
 
     #trop facile --> just hack it so that it can return a single qimage # or return a numpy image that is then plotted -> should not be too hard !!! I think --> TODO
     img = test.convert_qimage_to_numpy(img) # --> ok but I just need to swap the channels then I'll be done --> try that maybe with plenty of input images just to see
@@ -910,7 +944,7 @@ if __name__ == '__main__':
 
 
     print('here')
-    img2 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/02.png')
+    img2 = Image2D('/E/Sample_images/counter/02.png')
     print('here3')
     preview(img2)
 

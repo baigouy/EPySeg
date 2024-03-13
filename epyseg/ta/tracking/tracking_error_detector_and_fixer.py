@@ -2941,9 +2941,9 @@ if __name__ == '__main__':
         # img_t_cur = RGB_to_int24(
         #     Img('/E/Sample_images/tracking_test/test_uncropped/200319.lif_t022/tracked_cells_resized.tif'))
         img_t_minus1 = RGB_to_int24(
-            Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini10_fake_swaps/focused_Series012/tracked_cells_resized.tif'))
+            Img('/E/Sample_images/sample_images_PA/mini10_fake_swaps/focused_Series012/tracked_cells_resized.tif'))
         img_t_cur = RGB_to_int24(
-            Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini10_fake_swaps/focused_Series014/tracked_cells_resized.tif'))
+            Img('/E/Sample_images/sample_images_PA/mini10_fake_swaps/focused_Series014/tracked_cells_resized.tif'))
         divs = detect_divisions(img_t_cur, img_t_minus1)
         print(divs)
 
@@ -3049,17 +3049,17 @@ if __name__ == '__main__':
         # --> ok c'est ce truc que je dois hacker
 
         # files = loadlist('/E/Sample_images/sample_images_denoise_manue/210312_armGFP_line2_suz_39h30APF/predict/predict_model_nb_0/list.lst')
-        # files = loadlist('/E/Sample_images/sample_images_PA/trash_test_mem/mini10/liste.lst')
+        # files = loadlist('/E/Sample_images/sample_images_PA/mini10/liste.lst')
         files = loadlist(
-            '/E/Sample_images/sample_images_PA/trash_test_mem/mini10_fake_swaps/liste.lst')  # fake manually added swaped cells
+            '/E/Sample_images/sample_images_PA/mini10_fake_swaps/liste.lst')  # fake manually added swaped cells
         # files = loadlist('/E/Sample_images/tracking_test/old') # very good for testing cause a lot of errors and a few moderate swap # maybe too many errors to start with
         print(files)
 
         # TODO try restrict in clone only
 
         # /usr/local/bin/python3.7 /home/aigouy/mon_prog/Python/epyseg_pkg/personal/pyTA/tracking/tracking_error_detector_and_fixer.py
-        # ['/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series012.png', '/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series014.png', '/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series015.png', '/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series016.png', '/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series018.png', '/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series019.png']
-        # [('/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series014.png', '/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series014'), ('/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series014.png', '/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series014')]
+        # ['/E/Sample_images/sample_images_PA/mini/focused_Series012.png', '/E/Sample_images/sample_images_PA/mini/focused_Series014.png', '/E/Sample_images/sample_images_PA/mini/focused_Series015.png', '/E/Sample_images/sample_images_PA/mini/focused_Series016.png', '/E/Sample_images/sample_images_PA/mini/focused_Series018.png', '/E/Sample_images/sample_images_PA/mini/focused_Series019.png']
+        # [('/E/Sample_images/sample_images_PA/mini/focused_Series014.png', '/E/Sample_images/sample_images_PA/mini/focused_Series014'), ('/E/Sample_images/sample_images_PA/mini/focused_Series014.png', '/E/Sample_images/sample_images_PA/mini/focused_Series014')]
         #
         # Process finished with exit code 0
 
@@ -3073,17 +3073,17 @@ if __name__ == '__main__':
         # --> ok c'est ce truc que je dois hacker
 
         # files = loadlist('/E/Sample_images/sample_images_denoise_manue/210312_armGFP_line2_suz_39h30APF/predict/predict_model_nb_0/list.lst')
-        # files = loadlist('/E/Sample_images/sample_images_PA/trash_test_mem/mini10/liste.lst')
+        # files = loadlist('/E/Sample_images/sample_images_PA/mini10/liste.lst')
         files = loadlist(
-            '/E/Sample_images/sample_images_PA/trash_test_mem/mini10_fake_swaps/liste.lst')  # fake manually added swaped cells
+            '/E/Sample_images/sample_images_PA/mini10_fake_swaps/liste.lst')  # fake manually added swaped cells
         # files = loadlist('/E/Sample_images/tracking_test/old') # very good for testing cause a lot of errors and a few moderate swap # maybe too many errors to start with
         print(files)
 
         # TODO try restrict in clone only
 
         # /usr/local/bin/python3.7 /home/aigouy/mon_prog/Python/epyseg_pkg/personal/pyTA/tracking/tracking_error_detector_and_fixer.py
-        # ['/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series012.png', '/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series014.png', '/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series015.png', '/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series016.png', '/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series018.png', '/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series019.png']
-        # [('/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series014.png', '/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series014'), ('/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series014.png', '/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series014')]
+        # ['/E/Sample_images/sample_images_PA/mini/focused_Series012.png', '/E/Sample_images/sample_images_PA/mini/focused_Series014.png', '/E/Sample_images/sample_images_PA/mini/focused_Series015.png', '/E/Sample_images/sample_images_PA/mini/focused_Series016.png', '/E/Sample_images/sample_images_PA/mini/focused_Series018.png', '/E/Sample_images/sample_images_PA/mini/focused_Series019.png']
+        # [('/E/Sample_images/sample_images_PA/mini/focused_Series014.png', '/E/Sample_images/sample_images_PA/mini/focused_Series014'), ('/E/Sample_images/sample_images_PA/mini/focused_Series014.png', '/E/Sample_images/sample_images_PA/mini/focused_Series014')]
         #
         # Process finished with exit code 0
 

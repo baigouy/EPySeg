@@ -4,6 +4,9 @@ from skimage.draw import ellipse
 import numpy as np
 import matplotlib.pyplot as plt
 from skimage import data, filters
+from skimage.filters.thresholding import threshold_otsu
+
+
 
 def ellipsoidify_dots(binary_dots):
     """
@@ -48,7 +51,7 @@ def ellipsoidify_dots(binary_dots):
     return binary_dots
 # should also work for 3D even though the 3D version is not super elegant
 
-def test_all_auto_thresholds(img):
+def tst_all_auto_thresholds(img):
     # Apply all thresholding methods and display results
     fig, ax = filters.try_all_threshold(img, figsize=(8, 5), verbose=False)
 
@@ -56,12 +59,69 @@ def test_all_auto_thresholds(img):
     plt.show()
 
 
-def yen_thresholding(img):
+def yen_thresholding(img,return_threshold=False):
     # Apply Yen thresholding method
     thresh = filters.threshold_yen(img)
+    if return_threshold:
+        return thresh
     # Apply threshold to image
-    binary = img > thresh
+    return apply_threshold(img, thresh)
+
+def triangle_threshold(img, return_threshold=False):
+    # Apply triangle thresholding method
+    thresh = filters.threshold_triangle(img)
+    if return_threshold:
+        return thresh
+    # Apply threshold to image
+    return apply_threshold(img, thresh)
+
+def isodata_threshold(img, return_threshold=False):
+    # Apply triangle thresholding method
+    thresh = filters.threshold_isodata(img)
+    # thresh = threshold_otsu(img)
+    if return_threshold:
+        return thresh
+    # Apply threshold to image
+    return apply_threshold(img, thresh)
+
+def otsu_threshold(img, return_threshold=False):
+    # Apply triangle thresholding method
+    # thresh = filters.otsu_threshold(img)
+    thresh = threshold_otsu(img)
+    if return_threshold:
+        return thresh
+    # Apply threshold to image
+    return apply_threshold(img, thresh)
+
+def mean_threshold(img, return_threshold=False):
+    # Apply triangle thresholding method
+    thresh = filters.threshold_mean(img)
+    if return_threshold:
+        return thresh
+    # Apply threshold to image
+    return apply_threshold(img, thresh)
+
+
+def apply_threshold(img, threshold):
+    # Apply threshold to image
+    binary = img > threshold
     return binary
 
+def smart_threshold_above(img,max_fraction, increment=0.01):
+    norm = np.copy(img)
+    factor = norm.max()
+    norm= norm/norm.max()
+    # for vvv in range(0,1,increment):
+    threshold = 1.
+    while threshold-increment>0.:
+        if np.count_nonzero(norm>=threshold)/img.size >= max_fraction:
+            return threshold*factor
+        threshold-=increment
+
+
 if __name__ == '__main__':
-    pass
+    from epyseg.img import Img
+    img =Img('/E/Sample_images/cells_escaping_silencing_test_count/Apotome/MAX_IP-ApoTome-01.tif')
+    # img =Img('/E/Sample_images/cells_escaping_silencing_test_count/R1-14,5kb T2A DsRed X2  TgA/R1-14,5kb T2A DsRed X2  TgA 0004/wing_deep.tif')
+    # img =Img('/E/Sample_images/cells_escaping_silencing_test_count/HT 14,5kbT2ADsRed/A5 No Wari 14,5T2A DsRed X1 Female 0001/wing_deep.tif')
+    print(smart_threshold_above(img, 0.36))

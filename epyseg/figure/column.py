@@ -860,15 +860,15 @@ class Column(Rect2D):
         return self
 
 if __name__ == '__main__':
-    img1 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/00.png')
-    img2 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/01.png')
-    img3 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/02.png')
-    img4 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/03.png')
-    img5 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/04.png')
-    img6 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/05.png')
-    img7 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/06.png')
-    img8 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/07.png')
-    img9 = Image2D('/E/Sample_images/sample_images_PA/trash_test_mem/counter/08.png')
+    img1 = Image2D('/E/Sample_images/counter/00.png')
+    img2 = Image2D('/E/Sample_images/counter/01.png')
+    img3 = Image2D('/E/Sample_images/counter/02.png')
+    img4 = Image2D('/E/Sample_images/counter/03.png')
+    img5 = Image2D('/E/Sample_images/counter/04.png')
+    img6 = Image2D('/E/Sample_images/counter/05.png')
+    img7 = Image2D('/E/Sample_images/counter/06.png')
+    img8 = Image2D('/E/Sample_images/counter/07.png')
+    img9 = Image2D('/E/Sample_images/counter/08.png')
     if False:
         result = img1 | img2
         result |= img3

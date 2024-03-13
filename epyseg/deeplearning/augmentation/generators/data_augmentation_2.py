@@ -1078,12 +1078,12 @@ def tst_all_augs():
     """
     from epyseg.deeplearning.augmentation.generators.data import DataGenerator
     # TODO --> could do all the tests here and check that they are always in sync despite not being used ---> can I call random after to check in sync --> yes -> very smart anc non costly idea
-    orig = Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series012.png')[..., 1]
-    mask = Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series012/handCorrection.tif')
+    orig = Img('/E/Sample_images/sample_images_PA/mini/focused_Series012.png')[..., 1]
+    mask = Img('/E/Sample_images/sample_images_PA/mini/focused_Series012/handCorrection.tif')
 
     # try with wings
-    orig = Img('/E/Sample_images/adult_wings/pigmented_wings_benjamin_all/scaled_half/N01_YwrGal4_males_wing0_projected.tif')
-    mask = Img('/E/Sample_images/adult_wings/pigmented_wings_benjamin_all/scaled_half/predict/N01_YwrGal4_males_wing0_projected.tif')[...,0]
+    orig = Img('/E/Sample_images/wings/adult_wings/pigmented_wings_benjamin_all/scaled_half/N01_YwrGal4_males_wing0_projected.tif')
+    mask = Img('/E/Sample_images/wings/adult_wings/pigmented_wings_benjamin_all/scaled_half/predict/N01_YwrGal4_males_wing0_projected.tif')[...,0]
     # print(orig.shape, mask.shape)
 
     orig_3D = Img('/E/Sample_images/Amrutha_gut/trash_output_tests/test_2D_to_3D/orig.tif')
@@ -2032,12 +2032,12 @@ if __name__ == '__main__':
 
     from epyseg.deeplearning.augmentation.generators.data import DataGenerator
     # TODO --> could do all the tests here and check that they are always in sync despite not being used ---> can I call random after to check in sync --> yes -> very smart anc non costly idea
-    orig = Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series012.png')[..., 1]
-    mask = Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series012/handCorrection.tif')
+    orig = Img('/E/Sample_images/sample_images_PA/mini/focused_Series012.png')[..., 1]
+    mask = Img('/E/Sample_images/sample_images_PA/mini/focused_Series012/handCorrection.tif')
 
     # try with wings
-    orig = Img('/E/Sample_images/adult_wings/pigmented_wings_benjamin_all/scaled_half/N01_YwrGal4_males_wing0_projected.tif')
-    mask = Img('/E/Sample_images/adult_wings/pigmented_wings_benjamin_all/scaled_half/predict/N01_YwrGal4_males_wing0_projected.tif')[...,0]
+    orig = Img('/E/Sample_images/wings/adult_wings/pigmented_wings_benjamin_all/scaled_half/N01_YwrGal4_males_wing0_projected.tif')
+    mask = Img('/E/Sample_images/wings/adult_wings/pigmented_wings_benjamin_all/scaled_half/predict/N01_YwrGal4_males_wing0_projected.tif')[...,0]
     # print(orig.shape, mask.shape)
 
     orig_3D = Img('/E/Sample_images/Amrutha_gut/trash_output_tests/test_2D_to_3D/orig.tif')
@@ -2073,8 +2073,8 @@ if __name__ == '__main__':
         # in fact elastic deform is super weak for big images such as wings --> how can I increase its force so that it becomes a useful augmentation
 
         # orig = np.random.rand(1289,2001)
-        orig = Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series012.png')[..., 1] #strong deformation
-        orig = Img('/E/Sample_images/adult_wings/pigmented_wings_benjamin_all/scaled_half/N01_YwrGal4_males_wing0_projected.tif') #very weak deformation
+        orig = Img('/E/Sample_images/sample_images_PA/mini/focused_Series012.png')[..., 1] #strong deformation
+        orig = Img('/E/Sample_images/wings/adult_wings/pigmented_wings_benjamin_all/scaled_half/N01_YwrGal4_males_wing0_projected.tif') #very weak deformation
         augmented_orig = strong_elastic_with_zoom_and_translation(orig, False, **augmentation_types_and_values)
         preview_as_panel([augmented_orig,  orig])
 

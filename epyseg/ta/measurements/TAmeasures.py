@@ -332,7 +332,7 @@ def TAMeasurements(file_or_list, __forced_orig=None, __forced_cells=None, __forc
     TA_path = None
     db_path = None
 
-    # original_image = Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series012.png')[..., 1]
+    # original_image = Img('/E/Sample_images/sample_images_PA/mini/focused_Series012.png')[..., 1]
 
     if early_stop.stop == True:
         # print('early stop')
@@ -525,9 +525,9 @@ def TAMeasurements(file_or_list, __forced_orig=None, __forced_cells=None, __forc
 
     if __DEBUG__:
         print('debug #4')
-    # height_map = None #Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series012.png')[..., 1]
-    # height_map = Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series012.png')[..., 0] # another good test because all is 0 there --> marche car aire est proche de l'aire 2D par contre pr handcorrection ça marche pas car tres different de l'aire 2D --> see why and how to fix it
-    # height_map = Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series012/handCorrection.png')[..., 0] # good for a test as all heights are the same... --> in fact that makes sense since some heigts are 0 and some are 255 since the centroid of the polygon is always 0
+    # height_map = None #Img('/E/Sample_images/sample_images_PA/mini/focused_Series012.png')[..., 1]
+    # height_map = Img('/E/Sample_images/sample_images_PA/mini/focused_Series012.png')[..., 0] # another good test because all is 0 there --> marche car aire est proche de l'aire 2D par contre pr handcorrection ça marche pas car tres different de l'aire 2D --> see why and how to fix it
+    # height_map = Img('/E/Sample_images/sample_images_PA/mini/focused_Series012/handCorrection.png')[..., 0] # good for a test as all heights are the same... --> in fact that makes sense since some heigts are 0 and some are 255 since the centroid of the polygon is always 0
 
     # all seems to work now
     lab_cells = label(cells, connectivity=1, background=255)
@@ -1959,7 +1959,7 @@ def TAMeasurements(file_or_list, __forced_orig=None, __forced_cells=None, __forc
     # plt.imshow(cells)
     # plt.show()
 
-    # Img(lab_cells).save('/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series012/0_test_IJ_perimeter.tif')
+    # Img(lab_cells).save('/E/Sample_images/sample_images_PA/mini/focused_Series012/0_test_IJ_perimeter.tif')
 
     # all is ok I may just need to get bonds and their perimeter now etc and do also 3D measurements --> in same or in new table --> think about it
     # almost there and almost have a TA that is even working better than original and much simpler to code and maintain
@@ -2111,15 +2111,15 @@ if __name__ == '__main__':
         sys.exit(0)
 
     if False:
-        # original_image = Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series012/handCorrection.png')[..., 1]  # if no shift max and min should always be 255 otherwise there is an error somewhere
-        original_image = Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series012.png')[
+        # original_image = Img('/E/Sample_images/sample_images_PA/mini/focused_Series012/handCorrection.png')[..., 1]  # if no shift max and min should always be 255 otherwise there is an error somewhere
+        original_image = Img('/E/Sample_images/sample_images_PA/mini/focused_Series012.png')[
             ..., 1]  # if no shift max and min should always be 255 otherwise there is an error somewhere
-        # cells = Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series012/handCorrection.png')[..., 0]
-        cells = Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series012/handCorrection.tif')
-        # height_map = None  # Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series012.png')[..., 1]
-        height_map = Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series012.png')[..., 1]
-        # height_map = Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series012.png')[..., 0] # another good test because all is 0 there --> marche car aire est proche de l'aire 2D par contre pr handcorrection ça marche pas car tres different de l'aire 2D --> see why and how to fix it
-        # height_map = Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series012/handCorrection.png')[..., 0] # good for a test as all heights are the same... --> in fact that makes sense since some heigts are 0 and some are 255 since the centroid of the polygon is always 0
+        # cells = Img('/E/Sample_images/sample_images_PA/mini/focused_Series012/handCorrection.png')[..., 0]
+        cells = Img('/E/Sample_images/sample_images_PA/mini/focused_Series012/handCorrection.tif')
+        # height_map = None  # Img('/E/Sample_images/sample_images_PA/mini/focused_Series012.png')[..., 1]
+        height_map = Img('/E/Sample_images/sample_images_PA/mini/focused_Series012.png')[..., 1]
+        # height_map = Img('/E/Sample_images/sample_images_PA/mini/focused_Series012.png')[..., 0] # another good test because all is 0 there --> marche car aire est proche de l'aire 2D par contre pr handcorrection ça marche pas car tres different de l'aire 2D --> see why and how to fix it
+        # height_map = Img('/E/Sample_images/sample_images_PA/mini/focused_Series012/handCorrection.png')[..., 0] # good for a test as all heights are the same... --> in fact that makes sense since some heigts are 0 and some are 255 since the centroid of the polygon is always 0
 
         # for manual debug KEEP:
         # TAMeasurements(None,__forced_orig=original_image, __forced_cells=cells, __forced_heightmap=height_map)
@@ -2130,17 +2130,17 @@ if __name__ == '__main__':
 
         # make it loop add nb of neighbors à la TA with cut off and also add support for lists of files--> in  the same self loop by the way --> no waste of time this way and add support for progress
 
-        # TAMeasurements('/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series012.png', measure_polarity=True,                   measure_3D=True)  # --> almost there just need create one db per file now!!!
-        # TAMeasurements('/E/Sample_images/sample_images_PA/trash_test_mem/mini_different_nb_of_channels/focused_Series012.png', measure_polarity=True,                   measure_3D=True)  # --> almost there just need create one db per file now!!!
-        # TAMeasurements(loadlist('/E/Sample_images/sample_images_PA/trash_test_mem/mini_different_nb_of_channels/list.lst'),measure_polarity=True, measure_3D=True)  # --> almost there just need create one db per file now!!!
+        # TAMeasurements('/E/Sample_images/sample_images_PA/mini/focused_Series012.png', measure_polarity=True,                   measure_3D=True)  # --> almost there just need create one db per file now!!!
+        # TAMeasurements('/E/Sample_images/sample_images_PA/mini_different_nb_of_channels/focused_Series012.png', measure_polarity=True,                   measure_3D=True)  # --> almost there just need create one db per file now!!!
+        # TAMeasurements(loadlist('/E/Sample_images/sample_images_PA/mini_different_nb_of_channels/list.lst'),measure_polarity=True, measure_3D=True)  # --> almost there just need create one db per file now!!!
         # TAMeasurements(['/E/Sample_images/sample_images_pyta/surface_projection/210219.lif_t000.tif'],                   measure_polarity=True, measure_3D=True)  # --> almost there just need create one db per file now!!!
         # TAMeasurements(['/E/Sample_images/sample_images_pyta/surface_projection/exposures_1_P04.tif'],measure_polarity=True, measure_3D=True)  # --> almost there just need create one db per file now!!!
         # TAMeasurements(loadlist('/E/Sample_images/sample_images_pyta/surface_projection/list.lst'),measure_polarity=True, measure_3D=True)  # --> almost there just need create one db per file now!!!
         # TAMeasurements(loadlist('/E/Sample_images/sample_images_pyta/surface_projection/list.lst'),measure_polarity=False, measure_3D=False)  # causes a bug --> try see why ????
-        # TAMeasurements(['/E/Sample_images/sample_images_PA/trash_test_mem/mini_different_nb_of_channels/mini_focused_Series014_for_debug_polarity_nematic.tif'], measure_polarity=True,measure_3D=True)  # --> almost there just need create one db per file now!!!
+        # TAMeasurements(['/E/Sample_images/sample_images_PA/mini_different_nb_of_channels/mini_focused_Series014_for_debug_polarity_nematic.tif'], measure_polarity=True,measure_3D=True)  # --> almost there just need create one db per file now!!!
 
         # test with list
-        TAMeasurements(['/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series012.png','/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series014.png'], measure_polarity=False, measure_3D=False) # --> almost there just need create one db per file now!!!
+        TAMeasurements(['/E/Sample_images/sample_images_PA/mini/focused_Series012.png','/E/Sample_images/sample_images_PA/mini/focused_Series014.png'], measure_polarity=False, measure_3D=False) # --> almost there just need create one db per file now!!!
 
 
         # /E/Sample_images/sample_images_pyta/surface_projection/list.lst
@@ -2151,7 +2151,7 @@ if __name__ == '__main__':
 
     if True:
         start = timer()
-        merge_names = loadlist('/E/Sample_images/sample_images_PA/trash_test_mem/mini_vide/list_simple.lst')
+        merge_names = loadlist('/E/Sample_images/sample_images_PA/mini_vide/list_simple.lst')
         # TAMeasurements(merge_names, measure_polarity=False, measure_3D=False, multi_threading=False)
         TAMeasurements(merge_names, measure_polarity=False, measure_3D=False, multi_threading=True) # vrai gain mais pas sur mac... comprend rien quand meme --> est ce du à numba
         print('total execution time', timer() - start)
@@ -2165,7 +2165,7 @@ if __name__ == '__main__':
         start = timer()
         # try MT the finish all
         # import multiprocessing
-        # merge_names = ['/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series012.png','/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series014.png','/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series015.png','/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series016.png','/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series018.png','/E/Sample_images/sample_images_PA/trash_test_mem/mini/focused_Series019.png']
+        # merge_names = ['/E/Sample_images/sample_images_PA/mini/focused_Series012.png','/E/Sample_images/sample_images_PA/mini/focused_Series014.png','/E/Sample_images/sample_images_PA/mini/focused_Series015.png','/E/Sample_images/sample_images_PA/mini/focused_Series016.png','/E/Sample_images/sample_images_PA/mini/focused_Series018.png','/E/Sample_images/sample_images_PA/mini/focused_Series019.png']
         # TRY MY THE MeA
         # pas mal mais il me faudrait une progress bar en fait
         # with multiprocessing.Pool(processes=8) as pool:
@@ -2173,7 +2173,7 @@ if __name__ == '__main__':
 
         # merge_names = loadlist('/E/Sample_images/trash/complete/liste.lst')
         # merge_names = loadlist('/E/Sample_images/sample_images_denoise_manue/211029_EcadKI_mel_40-54hAPF_ON/surface_projection/list.lst')
-        merge_names = loadlist('/E/Sample_images/sample_images_PA/trash_test_mem/mini_vide/list_simple.lst')
+        merge_names = loadlist('/E/Sample_images/sample_images_PA/mini_vide/list_simple.lst')
 
         from functools import partial
         from epyseg.ta.pyqt_test_threads_instead_of_threadpool import Worker2

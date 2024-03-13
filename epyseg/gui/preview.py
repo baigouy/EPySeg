@@ -200,7 +200,8 @@ if __name__ == '__main__':
     # img = Img('/home/aigouy/mon_prog/Python/data/Image11.lsm')
     # img = Img('/home/aigouy/mon_prog/Python/data/lion.jpeg')
     # img = Img('/home/aigouy/mon_prog/Python/data/epi_test.png')
-    img = Img('/E/Sample_images/sample_images_PA/trash_test_mem/mini10_fake_swaps/focused_Series012.png')
+    # img = Img('/E/Sample_images/sample_images_PA/mini10_fake_swaps/focused_Series012.png')
+    img = Img('/E/Sample_images/sample_images_PA/mini/focused_Series012.png')
     ex.set_image(img)
 
     # test = QRectF(None, None, 128, 128)
